@@ -1,3 +1,8 @@
 {
-
+  "database": {
+    "path": "../data/microbiz.db"
+  },
+  "server": {
+    "port": 14341
+  }
 }

@@ -27,6 +27,21 @@
     <ClCompile Include="..\source\ClientMain.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="..\source\ClientController.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\ClientModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\ClientView.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\Product.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\Protocol.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\header\ImageManager.h">
@@ -36,6 +51,21 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="..\header\utils.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\header\ClientController.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\header\ClientModel.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\header\ClientView.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\header\Product.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\header\Protocol.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
