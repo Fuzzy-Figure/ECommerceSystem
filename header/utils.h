@@ -6,7 +6,6 @@
 #include <json.hpp>
 #include <chrono>
 
-using nlohmann::json;
 using namespace std::chrono_literals;
 
 template<typename T>
@@ -18,12 +17,12 @@ using opt_ref = std::optional<ref<T>>;
 
 namespace ec {
 	//服务器专用配置：读取 server_config.json 并缓存；reload 可强制重读
-	json& getServerConfig();
+	nlohmann::json& getServerConfig();
 	//强制重新读取 server_config.json，刷新缓存（bo 阶段每局前调用）
 	void reloadServerConfig();
 
 	//客户端专用配置：读取 client_config.json 并缓存；reload 可强制重读
-	json& getClientConfig();
+	nlohmann::json& getClientConfig();
 	//强制重新读取 client_config.json，刷新缓存
 	void reloadClientConfig();
 
@@ -53,7 +52,7 @@ namespace ec {
 					std::to_string(std::ranges::size(range)) + "个元素");
 
 			if (n == 0 || std::ranges::empty(range)) return {};
-			
+
 			std::vector<ref<T>> all_refs;
 			for (auto& elem : range)
 				all_refs.emplace_back(elem);
