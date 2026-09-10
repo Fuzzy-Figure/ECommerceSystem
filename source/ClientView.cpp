@@ -4,7 +4,7 @@
 #include <string>
 
 ClientView::ClientView(sf::RenderWindow& window, TextManager& text, ImageManager& image)
-    : window_(window), text_(text), image_(image) {}
+    : window_(window), textMgr_(text), imageMgr_(image) {}
 
 namespace {
     // === 商品列表面板布局 ===
@@ -72,7 +72,7 @@ void ClientView::drawTabBar() {
         bg.setOutlineThickness(1.f);
         window_.draw(bg);
         const auto textColor = (i == current) ? sf::Color::White : sf::Color::Black;
-        text_.displayText(labels[i],
+        textMgr_.displayText(labels[i],
                           { r.position.x + 50, r.position.y + 8 },
                           { 18, 24 }, textColor);
     }
@@ -85,10 +85,10 @@ void ClientView::drawProductListPanel(const ClientModel& model) {
 
     drawTabBar();
     if (!model.status().empty()) {
-        text_.displayText(model.status(), { 700, statusY }, { 18, 22 }, sf::Color(150, 150, 150));
+        textMgr_.displayText(model.status(), { 700, statusY }, { 18, 22 }, sf::Color(150, 150, 150));
     }
     if (products.empty()) {
-        text_.displayTextInCenter(L"暂无商品，点击顶部 商品列表 标签刷新", {20, 30}, sf::Color(150, 150, 150));
+        textMgr_.displayTextInCenter(L"暂无商品，点击顶部 商品列表 标签刷新", {20, 30}, sf::Color(150, 150, 150));
         return;
     }
 
@@ -116,7 +116,7 @@ void ClientView::drawCard(const Product& p, const sf::Vector2f& pos, const sf::V
     bool imgOk = false;
     if (!p.imagePath.empty()) {
         try {
-            image_.displayImage(p.imagePath, imgPos, imgSize);
+            imageMgr_.displayImage(p.imagePath, imgPos, imgSize);
             imgOk = true;
         } catch (const std::exception&) {
             imgOk = false;
@@ -137,21 +137,21 @@ void ClientView::drawCard(const Product& p, const sf::Vector2f& pos, const sf::V
 
     // 名称
     const auto name = ec::string::to_utf16(p.name);
-    text_.displayText(name, { pos.x + 10, pos.y + 260 }, { 20, 28 }, sf::Color::Black);
+    textMgr_.displayText(name, { pos.x + 10, pos.y + 260 }, { 20, 28 }, sf::Color::Black);
 
     // 描述
     const auto desc = ec::string::to_utf16(p.description);
-    text_.displayText(desc, { pos.x + 10, pos.y + 300 }, { 20, 20 }, sf::Color(100, 100, 100));
+    textMgr_.displayText(desc, { pos.x + 10, pos.y + 300 }, { 20, 20 }, sf::Color(100, 100, 100));
 
     // 价格
     std::wostringstream priceStr;
     priceStr << L"¥ " << p.price;
-    text_.displayText(priceStr.str(), { pos.x + 10, pos.y + 330 }, { 20, 32 }, sf::Color(200, 50, 50));
+    textMgr_.displayText(priceStr.str(), { pos.x + 10, pos.y + 330 }, { 20, 32 }, sf::Color(200, 50, 50));
 
     // 库存
     std::wostringstream stockStr;
     stockStr << L"库存：" << p.stock;
-    text_.displayText(stockStr.str(), { pos.x + 250, pos.y + 345 }, { 20, 20 }, sf::Color(100, 100, 100));
+    textMgr_.displayText(stockStr.str(), { pos.x + 250, pos.y + 345 }, { 20, 20 }, sf::Color(100, 100, 100));
 
     // 加购按钮（绿色）
     const auto btnRect = addToCartBtnRect(pos);
@@ -161,7 +161,7 @@ void ClientView::drawCard(const Product& p, const sf::Vector2f& pos, const sf::V
     btn.setOutlineColor(sf::Color(60, 130, 60));
     btn.setOutlineThickness(1.f);
     window_.draw(btn);
-    text_.displayText(L"+ 加购",
+    textMgr_.displayText(L"+ 加购",
                       { btnRect.position.x + 18, btnRect.position.y + 3 },
                       { 18, 22 }, sf::Color::White);
 }
@@ -173,14 +173,14 @@ void ClientView::drawCartPanel(const ClientModel& model) {
 
     drawTabBar();
     if (!model.status().empty()) {
-        text_.displayText(model.status(), { 700, statusY }, { 18, 22 }, sf::Color(150, 150, 150));
+        textMgr_.displayText(model.status(), { 700, statusY }, { 18, 22 }, sf::Color(150, 150, 150));
     }
 
     // 表头
-    text_.displayText(L"商品名", {cartNameX, cartStartY - 50}, {18, 22}, sf::Color(80, 80, 80));
-    text_.displayText(L"数量",   {cartQtyX,  cartStartY - 50}, {18, 22}, sf::Color(80, 80, 80));
-    text_.displayText(L"单价",   {cartPriceX,cartStartY - 50}, {18, 22}, sf::Color(80, 80, 80));
-    text_.displayText(L"小计",   {cartSubX,  cartStartY - 50}, {18, 22}, sf::Color(80, 80, 80));
+    textMgr_.displayText(L"商品名", {cartNameX, cartStartY - 50}, {18, 22}, sf::Color(80, 80, 80));
+    textMgr_.displayText(L"数量",   {cartQtyX,  cartStartY - 50}, {18, 22}, sf::Color(80, 80, 80));
+    textMgr_.displayText(L"单价",   {cartPriceX,cartStartY - 50}, {18, 22}, sf::Color(80, 80, 80));
+    textMgr_.displayText(L"小计",   {cartSubX,  cartStartY - 50}, {18, 22}, sf::Color(80, 80, 80));
 
     sf::RectangleShape line({ 1700, 1.f });
     line.setPosition({ cartRowX - 50, cartStartY - 20 });
@@ -188,7 +188,7 @@ void ClientView::drawCartPanel(const ClientModel& model) {
     window_.draw(line);
 
     if (cart.empty()) {
-        text_.displayTextInCenter(L"购物车为空，去加购商品吧", {20, 30}, sf::Color(150, 150, 150));
+        textMgr_.displayTextInCenter(L"购物车为空，去加购商品吧", {20, 30}, sf::Color(150, 150, 150));
         return;
     }
 
@@ -207,19 +207,19 @@ void ClientView::drawCartPanel(const ClientModel& model) {
         const auto& item = cart[i];
         // 商品名
         const auto name = ec::string::to_utf16(item.name);
-        text_.displayText(name, { rowPos.x, rowPos.y + 15 }, {20, 26}, sf::Color::Black);
+        textMgr_.displayText(name, { rowPos.x, rowPos.y + 15 }, {20, 26}, sf::Color::Black);
         // 数量
         std::wostringstream qtyStr;
         qtyStr << item.qty;
-        text_.displayText(qtyStr.str(), { cartQtyX, rowPos.y + 15 }, {20, 26}, sf::Color::Black);
+        textMgr_.displayText(qtyStr.str(), { cartQtyX, rowPos.y + 15 }, {20, 26}, sf::Color::Black);
         // 单价
         std::wostringstream priceStr;
         priceStr << L"¥" << item.price;
-        text_.displayText(priceStr.str(), { cartPriceX, rowPos.y + 15 }, {20, 26}, sf::Color(80, 80, 80));
+        textMgr_.displayText(priceStr.str(), { cartPriceX, rowPos.y + 15 }, {20, 26}, sf::Color(80, 80, 80));
         // 小计
         std::wostringstream subStr;
         subStr << L"¥" << item.subtotal();
-        text_.displayText(subStr.str(), { cartSubX, rowPos.y + 15 }, {20, 26}, sf::Color(200, 50, 50));
+        textMgr_.displayText(subStr.str(), { cartSubX, rowPos.y + 15 }, {20, 26}, sf::Color(200, 50, 50));
 
         // 删除按钮
         const auto rmRect = removeFromCartBtnRect(rowPos);
@@ -229,7 +229,7 @@ void ClientView::drawCartPanel(const ClientModel& model) {
         rmBtn.setOutlineColor(sf::Color(160, 60, 60));
         rmBtn.setOutlineThickness(1.f);
         window_.draw(rmBtn);
-        text_.displayText(L"- 删除",
+        textMgr_.displayText(L"- 删除",
                           { rmRect.position.x + 12, rmRect.position.y + 8 },
                           {16, 22}, sf::Color::White);
     }
@@ -237,7 +237,7 @@ void ClientView::drawCartPanel(const ClientModel& model) {
     // 总额
     std::wostringstream totalStr;
     totalStr << L"总额：¥ " << model.cartTotal();
-    text_.displayText(totalStr.str(), { cartSubX - 200, cartTotalY }, {24, 36}, sf::Color(200, 50, 50));
+    textMgr_.displayText(totalStr.str(), { cartSubX - 200, cartTotalY }, {24, 36}, sf::Color(200, 50, 50));
 
     // 结算按钮
     const auto ckRect = checkoutBtnRect();
@@ -247,7 +247,7 @@ void ClientView::drawCartPanel(const ClientModel& model) {
     ckBtn.setOutlineColor(sf::Color(180, 100, 20));
     ckBtn.setOutlineThickness(1.f);
     window_.draw(ckBtn);
-    text_.displayText(L"结算",
+    textMgr_.displayText(L"结算",
                       { ckRect.position.x + 70, ckRect.position.y + 14 },
                       {24, 32}, sf::Color::White);
 }
@@ -259,11 +259,11 @@ void ClientView::drawMyOrdersPanel(const ClientModel& model) {
 
     drawTabBar();
     if (!model.status().empty()) {
-        text_.displayText(model.status(), { 700, statusY }, { 18, 22 }, sf::Color(150, 150, 150));
+        textMgr_.displayText(model.status(), { 700, statusY }, { 18, 22 }, sf::Color(150, 150, 150));
     }
 
     if (orders.empty()) {
-        text_.displayTextInCenter(L"暂无历史订单，先去结算一单试试", {20, 30}, sf::Color(150, 150, 150));
+        textMgr_.displayTextInCenter(L"暂无历史订单，先去结算一单试试", {20, 30}, sf::Color(150, 150, 150));
         return;
     }
 
@@ -287,21 +287,21 @@ void ClientView::drawMyOrdersPanel(const ClientModel& model) {
             case 2:  head << L"   [全部退货]"; break;
             default: head << L"   [正常]";    break;
         }
-        text_.displayText(head.str(), { orderCardX + 12, y + 8 }, {18, 24}, sf::Color::Black);
+        textMgr_.displayText(head.str(), { orderCardX + 12, y + 8 }, {18, 24}, sf::Color::Black);
 
         // 原价/折扣/实付
         std::wostringstream money;
         money << L"原价 ¥" << order.originalTotal
              << L"  折扣 -¥" << order.discount
              << L"  实付 ¥" << order.finalTotal;
-        text_.displayText(money.str(), { orderCardX + 12, y + 38 }, {18, 22}, sf::Color(80, 80, 80));
+        textMgr_.displayText(money.str(), { orderCardX + 12, y + 38 }, {18, 22}, sf::Color(80, 80, 80));
 
         // 明细表头
         float itemY = y + 70.f;
-        text_.displayText(L"商品", { orderCardX + 12,  itemY }, {16, 18}, sf::Color(120, 120, 120));
-        text_.displayText(L"单价", { orderCardX + 400, itemY }, {16, 18}, sf::Color(120, 120, 120));
-        text_.displayText(L"购买", { orderCardX + 600, itemY }, {16, 18}, sf::Color(120, 120, 120));
-        text_.displayText(L"已退", { orderCardX + 750, itemY }, {16, 18}, sf::Color(120, 120, 120));
+        textMgr_.displayText(L"商品", { orderCardX + 12,  itemY }, {16, 18}, sf::Color(120, 120, 120));
+        textMgr_.displayText(L"单价", { orderCardX + 400, itemY }, {16, 18}, sf::Color(120, 120, 120));
+        textMgr_.displayText(L"购买", { orderCardX + 600, itemY }, {16, 18}, sf::Color(120, 120, 120));
+        textMgr_.displayText(L"已退", { orderCardX + 750, itemY }, {16, 18}, sf::Color(120, 120, 120));
 
         itemY += 20.f;
         for (const auto& it : order.items) {
@@ -316,19 +316,19 @@ void ClientView::drawMyOrdersPanel(const ClientModel& model) {
                 btn.setOutlineColor(sf::Color(180, 100, 20));
                 btn.setOutlineThickness(1.f);
                 window_.draw(btn);
-                text_.displayText(L"退货 1 件",
+                textMgr_.displayText(L"退货 1 件",
                                   { r.position.x + 6, r.position.y + 4 },
                                   {14, 18}, sf::Color::White);
             }
             // 文本
-            text_.displayText(ec::string::to_utf16(it.name),
+            textMgr_.displayText(ec::string::to_utf16(it.name),
                               { orderCardX + 12,  itemY + 4 }, {16, 22}, sf::Color::Black);
             std::wostringstream pp; pp << L"¥" << it.price;
-            text_.displayText(pp.str(), { orderCardX + 400, itemY + 4 }, {16, 22}, sf::Color(80, 80, 80));
+            textMgr_.displayText(pp.str(), { orderCardX + 400, itemY + 4 }, {16, 22}, sf::Color(80, 80, 80));
             std::wostringstream qq; qq << it.qty;
-            text_.displayText(qq.str(), { orderCardX + 600, itemY + 4 }, {16, 22}, sf::Color::Black);
+            textMgr_.displayText(qq.str(), { orderCardX + 600, itemY + 4 }, {16, 22}, sf::Color::Black);
             std::wostringstream rq; rq << it.returnedQty;
-            text_.displayText(rq.str(), { orderCardX + 750, itemY + 4 }, {16, 22}, sf::Color(200, 100, 100));
+            textMgr_.displayText(rq.str(), { orderCardX + 750, itemY + 4 }, {16, 22}, sf::Color(200, 100, 100));
             itemY += orderItemRowH;
         }
         // 下一张订单间距

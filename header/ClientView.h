@@ -47,8 +47,8 @@ public:
 
 private:
     sf::RenderWindow& window_;
-    TextManager&       text_;
-    ImageManager&      image_;
+    TextManager&       textMgr_;
+    ImageManager&      imageMgr_;
     Panel              panel_{Panel::ProductList};
 
     // === 商品列表面板 ===
