@@ -17,9 +17,10 @@ public:
     struct ClickAction {
         enum Type {
             None, AddToCart, RemoveFromCart, Checkout,
-            ReturnItem  // 售后退货：orderId + productId + qty
+            ReturnItem,   // 售后退货：orderId + productId + qty
+            SwitchPanel   // 切换面板：arg 是目标 Panel 的 int 值
         } type{None};
-        std::int32_t arg{0};     // AddToCart/RemoveFromCart 用 productId
+        std::int32_t arg{0};     // AddToCart/RemoveFromCart 用 productId；SwitchPanel 用 panel 索引
         std::int64_t orderId{};  // ReturnItem 用 orderId
         std::int32_t productId{};// ReturnItem 用 productId
         std::int32_t qty{1};      // ReturnItem 的退货数量（暂固定 1，可扩展）
@@ -70,4 +71,8 @@ private:
     static sf::FloatRect checkoutBtnRect();
     // 订单明细行右端的"退货"按钮；rowPos 是该明细行左上角
     static sf::FloatRect returnBtnRect(const sf::Vector2f& rowPos);
+    // 顶部 Tab 标签矩形；index 取 0/1/2 对应 ProductList/Cart/MyOrders
+    static sf::FloatRect tabBtnRect(int index);
+    // 绘制顶部 Tab 标签栏（所有面板共用）
+    void drawTabBar();
 };

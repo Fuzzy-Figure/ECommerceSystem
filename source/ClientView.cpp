@@ -37,6 +37,12 @@ namespace {
     // 退货按钮：明细行右端
     constexpr float retBtnDX = 1500.f, retBtnDY = 4.f;
     constexpr float retBtnW  = 100.f, retBtnH  = 28.f;
+
+    // === 顶部 Tab 标签栏（所有面板共用）===
+    constexpr float tabY = 8.f, tabH = 40.f;
+    constexpr float tabW = 200.f, tabGap = 10.f;
+    constexpr float tabStartX = 20.f;
+    constexpr float statusY = 56.f;  // Tab 下方状态信息行
 }
 
 void ClientView::render(const ClientModel& model) {
@@ -47,19 +53,42 @@ void ClientView::render(const ClientModel& model) {
     }
 }
 
+// ===================== 顶部 Tab 标签栏 =====================
+
+void ClientView::drawTabBar() {
+    const wchar_t* labels[] = { L"商品列表", L"购物车", L"我的订单" };
+    const int current = static_cast<int>(panel_);
+    for (int i = 0; i < 3; ++i) {
+        const auto r = tabBtnRect(i);
+        sf::RectangleShape bg({ r.size.x, r.size.y });
+        bg.setPosition({ r.position.x, r.position.y });
+        if (i == current) {
+            bg.setFillColor(sf::Color(80, 130, 200));
+            bg.setOutlineColor(sf::Color(60, 100, 170));
+        } else {
+            bg.setFillColor(sf::Color(230, 230, 230));
+            bg.setOutlineColor(sf::Color(200, 200, 200));
+        }
+        bg.setOutlineThickness(1.f);
+        window_.draw(bg);
+        const auto textColor = (i == current) ? sf::Color::White : sf::Color::Black;
+        text_.displayText(labels[i],
+                          { r.position.x + 50, r.position.y + 8 },
+                          { 18, 24 }, textColor);
+    }
+}
+
 // ===================== 商品列表面板 =====================
 
 void ClientView::drawProductListPanel(const ClientModel& model) {
     const auto& products = model.products();
 
-    text_.displayText(L"微商系统 — 商品列表", {20, 12}, {20, 36}, sf::Color::Black);
-    text_.displayText(L"按 Tab 切换购物车  |  按 R 刷新  |  鼠标点击 +加购",
-                      {20, 56}, {18, 22}, sf::Color(120, 120, 120));
+    drawTabBar();
     if (!model.status().empty()) {
-        text_.displayText(model.status(), {600, 12}, {18, 22}, sf::Color(150, 150, 150));
+        text_.displayText(model.status(), { 700, statusY }, { 18, 22 }, sf::Color(150, 150, 150));
     }
     if (products.empty()) {
-        text_.displayTextInCenter(L"暂无商品，按 R 刷新", {20, 30}, sf::Color(150, 150, 150));
+        text_.displayTextInCenter(L"暂无商品，点击顶部 商品列表 标签刷新", {20, 30}, sf::Color(150, 150, 150));
         return;
     }
 
@@ -142,11 +171,9 @@ void ClientView::drawCard(const Product& p, const sf::Vector2f& pos, const sf::V
 void ClientView::drawCartPanel(const ClientModel& model) {
     const auto& cart = model.cart();
 
-    text_.displayText(L"微商系统 — 购物车", {20, 12}, {20, 36}, sf::Color::Black);
-    text_.displayText(L"按 Tab 切回商品列表  |  鼠标点击 - 删除单项  |  点击 结算 提交订单",
-                      {20, 56}, {18, 22}, sf::Color(120, 120, 120));
+    drawTabBar();
     if (!model.status().empty()) {
-        text_.displayText(model.status(), {600, 12}, {18, 22}, sf::Color(150, 150, 150));
+        text_.displayText(model.status(), { 700, statusY }, { 18, 22 }, sf::Color(150, 150, 150));
     }
 
     // 表头
@@ -230,11 +257,9 @@ void ClientView::drawCartPanel(const ClientModel& model) {
 void ClientView::drawMyOrdersPanel(const ClientModel& model) {
     const auto& orders = model.orders();
 
-    text_.displayText(L"微商系统 — 我的订单", {20, 12}, {20, 36}, sf::Color::Black);
-    text_.displayText(L"按 Tab 切回商品列表  |  按 R 刷新订单列表  |  点击明细行右端 退货 提交售后",
-                      {20, 56}, {18, 22}, sf::Color(120, 120, 120));
+    drawTabBar();
     if (!model.status().empty()) {
-        text_.displayText(model.status(), {600, 12}, {18, 22}, sf::Color(150, 150, 150));
+        text_.displayText(model.status(), { 700, statusY }, { 18, 22 }, sf::Color(150, 150, 150));
     }
 
     if (orders.empty()) {
@@ -319,6 +344,13 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
             && p.y >= r.position.y && p.y < r.position.y + r.size.y;
     };
 
+    // 顶部 Tab 标签优先（所有面板共用）
+    for (int i = 0; i < 3; ++i) {
+        if (hit(tabBtnRect(i), mousePos)) {
+            return { ClickAction::SwitchPanel, i };
+        }
+    }
+
     if (panel_ == Panel::ProductList) {
         const auto& products = model.products();
         for (std::size_t i = 0; i < products.size(); ++i) {
@@ -386,4 +418,9 @@ sf::FloatRect ClientView::checkoutBtnRect() {
 sf::FloatRect ClientView::returnBtnRect(const sf::Vector2f& rowPos) {
     return sf::FloatRect(sf::Vector2f{ rowPos.x + retBtnDX, rowPos.y + retBtnDY },
                          sf::Vector2f{ retBtnW, retBtnH });
+}
+
+sf::FloatRect ClientView::tabBtnRect(int index) {
+    return sf::FloatRect(sf::Vector2f{ tabStartX + index * (tabW + tabGap), tabY },
+                         sf::Vector2f{ tabW, tabH });
 }

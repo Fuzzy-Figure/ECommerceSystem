@@ -28,7 +28,7 @@ bool ClientController::connect(const std::string& ip, unsigned short port) {
 
 	running_.store(true);
 	recvThread_ = std::thread(&ClientController::recvLoop, this);
-	model_.setStatus(L"已连接服务器 " + ec::string::to_utf16(ip) + L"，按 R 刷新商品列表");
+	model_.setStatus(L"已连接服务器 " + ec::string::to_utf16(ip));
 	return true;
 }
 
@@ -144,6 +144,20 @@ void ClientController::handleEvent(const sf::Event& event) {
 			case ClientView::ClickAction::ReturnItem:
 				requestAfterSale(action.orderId, action.productId, action.qty);
 				break;
+			case ClientView::ClickAction::SwitchPanel: {
+				const int idx = action.arg;
+				if (idx >= 0 && idx <= 2) {
+					const auto target = static_cast<ClientView::Panel>(idx);
+					view_.setPanel(target);
+					// 进入商品列表/订单列表时自动拉取最新数据
+					if (target == ClientView::Panel::ProductList) {
+						requestProductList();
+					} else if (target == ClientView::Panel::MyOrders) {
+						requestListOrders();
+					}
+				}
+				break;
+			}
 			case ClientView::ClickAction::None:
 			default: break;
 			}
@@ -155,19 +169,8 @@ void ClientController::handleEvent(const sf::Event& event) {
 		const auto* kp = event.getIf<sf::Event::KeyPressed>();
 		if (kp == nullptr) return;
 		const auto key = kp->code;
-		if (key == sf::Keyboard::Key::R) {
-			// 根据当前面板智能选择刷新目标：MyOrders 刷订单，其他刷商品
-			if (view_.panel() == ClientView::Panel::MyOrders) {
-				requestListOrders();
-			} else {
-				requestProductList();
-			}
-		}
-		else if (key == sf::Keyboard::Key::Escape) {
+		if (key == sf::Keyboard::Key::Escape) {
 			window_.close();
-		}
-		else if (key == sf::Keyboard::Key::Tab) {
-			view_.togglePanel();
 		}
 	}
 }
