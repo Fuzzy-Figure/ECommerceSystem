@@ -14,16 +14,18 @@ namespace proto {
         // 结算时一次性发 Checkout 上传全部 items。保留枚举项以贴合 PPT 协议码示例。
         AddToCart,     // 加入购物车：{productId, qty}（未启用）
         Checkout,      // 结算当前购物车：{items:[{productId, qty}]}
-        AfterSale,     // 售后：{productId, qty}（未启用）
+        AfterSale,     // 售后退货：{orderId, productId, qty}
+        ListOrders,    // 拉取历史订单列表
     };
 
     // 应答码（服务端响应）
     enum class ResponseCode : std::int32_t {
         ProductList,      // 商品列表
         AddToCartResult,  // 加购结果（未启用，对应 AddToCart）
-        CheckoutResult,   // 结算结果：{success, orderId, total, message}
-        AfterSaleResult,  // 售后结果（未启用）
+        CheckoutResult,   // 结算结果：{success, orderId, originalTotal, discount, total, message}
+        AfterSaleResult,  // 售后结果：{success, refund, message}
         Error,            // 错误：{message}
+        OrderList,        // 历史订单列表：{orders:[...]}
     };
 
     // 阻塞发送一条 JSON 消息；处理 Partial 直至全部发出。

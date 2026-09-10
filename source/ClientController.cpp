@@ -1,6 +1,7 @@
 #include "../header/ClientController.h"
 #include "../header/utils.h"
 #include "../header/Product.h"
+#include "../header/Order.h"
 #include <iostream>
 
 ClientController::ClientController(sf::RenderWindow& window, ClientModel& model, ClientView& view)
@@ -81,6 +82,41 @@ void ClientController::requestCheckout() {
 	model_.setStatus(L"已提交结算请求，等待服务器响应...");
 }
 
+void ClientController::requestListOrders() {
+	if (!socket_) {
+		model_.setStatus(L"未连接服务器，无法拉取订单");
+		return;
+	}
+	const nlohmann::json req = {
+		{"code", static_cast<int>(proto::RequestCode::ListOrders)}
+	};
+	if (!proto::sendJson(*socket_, req)) {
+		model_.setStatus(L"发送订单列表请求失败，连接可能已断开");
+		return;
+	}
+	model_.setStatus(L"已请求历史订单，等待服务器响应...");
+}
+
+void ClientController::requestAfterSale(std::int64_t orderId, std::int32_t productId, std::int32_t qty) {
+	if (!socket_) {
+		model_.setStatus(L"未连接服务器，无法发起售后");
+		return;
+	}
+	const nlohmann::json req = {
+		{"code",      static_cast<int>(proto::RequestCode::AfterSale)},
+		{"orderId",   orderId},
+		{"productId", productId},
+		{"qty",       qty}
+	};
+	if (!proto::sendJson(*socket_, req)) {
+		model_.setStatus(L"发送退货请求失败，连接可能已断开");
+		return;
+	}
+	std::wostringstream ss;
+	ss << L"已提交退货请求：订单 #" << orderId << L"，请等待处理...";
+	model_.setStatus(ss.str());
+}
+
 void ClientController::handleEvent(const sf::Event& event) {
 	if (event.is<sf::Event::Closed>()) {
 		window_.close();
@@ -105,6 +141,9 @@ void ClientController::handleEvent(const sf::Event& event) {
 			case ClientView::ClickAction::Checkout:
 				requestCheckout();
 				break;
+			case ClientView::ClickAction::ReturnItem:
+				requestAfterSale(action.orderId, action.productId, action.qty);
+				break;
 			case ClientView::ClickAction::None:
 			default: break;
 			}
@@ -117,7 +156,12 @@ void ClientController::handleEvent(const sf::Event& event) {
 		if (kp == nullptr) return;
 		const auto key = kp->code;
 		if (key == sf::Keyboard::Key::R) {
-			requestProductList();
+			// 根据当前面板智能选择刷新目标：MyOrders 刷订单，其他刷商品
+			if (view_.panel() == ClientView::Panel::MyOrders) {
+				requestListOrders();
+			} else {
+				requestProductList();
+			}
 		}
 		else if (key == sf::Keyboard::Key::Escape) {
 			window_.close();
@@ -179,10 +223,15 @@ void ClientController::processMessage(nlohmann::json& msg) {
 	case static_cast<int>(proto::ResponseCode::CheckoutResult): {
 		const auto success = msg.value("success", false);
 		if (success) {
-			const auto orderId = msg.value("orderId", std::int64_t{});
-			const auto total   = msg.value("total",   0.0);
+			const auto orderId      = msg.value("orderId",      std::int64_t{});
+			const auto originalTotal = msg.value("originalTotal", 0.0);
+			const auto discount     = msg.value("discount",     0.0);
+			const auto finalTotal   = msg.value("total",        0.0);  // 兼容字段名
 			std::wostringstream ss;
-			ss << L"结算成功！订单 #" << orderId << L"，总额 ¥" << total;
+			ss << L"结算成功！订单 #" << orderId
+			   << L"  原价 ¥" << originalTotal
+			   << L"  促销折扣 -¥" << discount
+			   << L"  实付 ¥" << finalTotal;
 			model_.setStatus(ss.str());
 			model_.clearCart();
 			// 结算成功后切回商品列表，便于看到库存变化
@@ -191,6 +240,34 @@ void ClientController::processMessage(nlohmann::json& msg) {
 		} else {
 			const auto m = msg.value("message", std::string{ "未知错误" });
 			model_.setStatus(L"结算失败：" + ec::string::to_utf16(m));
+		}
+		break;
+	}
+	case static_cast<int>(proto::ResponseCode::OrderList): {
+		std::vector<Order> orders;
+		if (msg.contains("orders") && msg["orders"].is_array()) {
+			for (const auto& oj : msg["orders"]) {
+				orders.push_back(Order::fromJson(oj));
+			}
+		}
+		model_.setOrders(std::move(orders));
+		std::wostringstream ss;
+		ss << L"已加载 " << model_.orders().size() << L" 条历史订单";
+		model_.setStatus(ss.str());
+		break;
+	}
+	case static_cast<int>(proto::ResponseCode::AfterSaleResult): {
+		const auto success = msg.value("success", false);
+		if (success) {
+			const auto refund = msg.value("refund", 0.0);
+			std::wostringstream ss;
+			ss << L"退货成功！退款 ¥" << refund << L"，已回库存";
+			model_.setStatus(ss.str());
+			// 刷新订单列表，看到 returnedQty + status 更新
+			requestListOrders();
+		} else {
+			const auto m = msg.value("message", std::string{ "未知错误" });
+			model_.setStatus(L"退货失败：" + ec::string::to_utf16(m));
 		}
 		break;
 	}

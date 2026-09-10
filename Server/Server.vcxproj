@@ -146,9 +146,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\source\Database.cpp" />
+    <ClCompile Include="..\source\Order.cpp" />
     <ClCompile Include="..\source\OrderDAO.cpp" />
     <ClCompile Include="..\source\Product.cpp" />
     <ClCompile Include="..\source\ProductDAO.cpp" />
+    <ClCompile Include="..\source\Promotion.cpp" />
+    <ClCompile Include="..\source\PromotionDAO.cpp" />
+    <ClCompile Include="..\source\PromotionFactory.cpp" />
     <ClCompile Include="..\source\Protocol.cpp" />
     <ClCompile Include="..\source\ServerController.cpp" />
     <ClCompile Include="..\source\ServerMain.cpp" />
@@ -157,10 +161,15 @@
     <ClCompile Include="..\source\utils.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\header\CartItem.h" />
     <ClInclude Include="..\header\Database.h" />
+    <ClInclude Include="..\header\Order.h" />
     <ClInclude Include="..\header\OrderDAO.h" />
     <ClInclude Include="..\header\Product.h" />
     <ClInclude Include="..\header\ProductDAO.h" />
+    <ClInclude Include="..\header\Promotion.h" />
+    <ClInclude Include="..\header\PromotionDAO.h" />
+    <ClInclude Include="..\header\PromotionFactory.h" />
     <ClInclude Include="..\header\Protocol.h" />
     <ClInclude Include="..\header\ServerController.h" />
     <ClInclude Include="..\header\ServerView.h" />

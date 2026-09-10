@@ -29,11 +29,17 @@ public:
     // 断开连接并停止接收线程
     void disconnect();
 
-    // 主动发起商品列表请求（PPTX 协议码 1001）
+    // 主动发起商品列表请求
     void requestProductList();
 
-    // 提交购物车结算请求（PPTX 协议码 1003）：把本地 cart 序列化为 items 上传
+    // 提交购物车结算请求：把本地 cart 序列化为 items 上传
     void requestCheckout();
+
+    // 拉取历史订单列表（用于"我的订单"面板）
+    void requestListOrders();
+
+    // 发起售后退货：把指定订单内某 productId 的 qty 件退货
+    void requestAfterSale(std::int64_t orderId, std::int32_t productId, std::int32_t qty);
 
     // 处理 SFML 事件（按键、关闭等）
     void handleEvent(const sf::Event& event);

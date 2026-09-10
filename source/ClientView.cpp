@@ -29,13 +29,21 @@ namespace {
     constexpr float checkoutBtnX = 1150.f, checkoutBtnY = 890.f;
     constexpr float checkoutBtnW = 200.f,  checkoutBtnH = 60.f;
     constexpr float cartTotalY    = 900.f;
+
+    // === 我的订单面板布局 ===
+    constexpr float orderCardX = 200.f, orderCardStartY = 150.f;
+    constexpr float orderCardW = 1500.f;
+    constexpr float orderItemRowH = 36.f;
+    // 退货按钮：明细行右端
+    constexpr float retBtnDX = 1500.f, retBtnDY = 4.f;
+    constexpr float retBtnW  = 100.f, retBtnH  = 28.f;
 }
 
 void ClientView::render(const ClientModel& model) {
-    if (panel_ == Panel::ProductList) {
-        drawProductListPanel(model);
-    } else {
-        drawCartPanel(model);
+    switch (panel_) {
+        case Panel::ProductList: drawProductListPanel(model); break;
+        case Panel::Cart:         drawCartPanel(model);       break;
+        case Panel::MyOrders:     drawMyOrdersPanel(model);   break;
     }
 }
 
@@ -217,6 +225,92 @@ void ClientView::drawCartPanel(const ClientModel& model) {
                       {24, 32}, sf::Color::White);
 }
 
+// ===================== 我的订单面板 =====================
+
+void ClientView::drawMyOrdersPanel(const ClientModel& model) {
+    const auto& orders = model.orders();
+
+    text_.displayText(L"微商系统 — 我的订单", {20, 12}, {20, 36}, sf::Color::Black);
+    text_.displayText(L"按 Tab 切回商品列表  |  按 R 刷新订单列表  |  点击明细行右端 退货 提交售后",
+                      {20, 56}, {18, 22}, sf::Color(120, 120, 120));
+    if (!model.status().empty()) {
+        text_.displayText(model.status(), {600, 12}, {18, 22}, sf::Color(150, 150, 150));
+    }
+
+    if (orders.empty()) {
+        text_.displayTextInCenter(L"暂无历史订单，先去结算一单试试", {20, 30}, sf::Color(150, 150, 150));
+        return;
+    }
+
+    // 起始 y，逐订单下移
+    float y = orderCardStartY;
+    for (const auto& order : orders) {
+        // 订单卡片背景
+        const float cardH = 90.f + static_cast<float>(order.items.size()) * orderItemRowH;
+        sf::RectangleShape bg({ orderCardW, cardH });
+        bg.setPosition({ orderCardX, y });
+        bg.setFillColor(sf::Color(250, 250, 250));
+        bg.setOutlineColor(sf::Color(200, 200, 200));
+        bg.setOutlineThickness(1.f);
+        window_.draw(bg);
+
+        // 订单头：ID + 时间 + 状态
+        std::wostringstream head;
+        head << L"订单 #" << order.id << L"   " << ec::string::to_utf16(order.createdAt);
+        switch (order.status) {
+            case 1:  head << L"   [部分退货]"; break;
+            case 2:  head << L"   [全部退货]"; break;
+            default: head << L"   [正常]";    break;
+        }
+        text_.displayText(head.str(), { orderCardX + 12, y + 8 }, {18, 24}, sf::Color::Black);
+
+        // 原价/折扣/实付
+        std::wostringstream money;
+        money << L"原价 ¥" << order.originalTotal
+             << L"  折扣 -¥" << order.discount
+             << L"  实付 ¥" << order.finalTotal;
+        text_.displayText(money.str(), { orderCardX + 12, y + 38 }, {18, 22}, sf::Color(80, 80, 80));
+
+        // 明细表头
+        float itemY = y + 70.f;
+        text_.displayText(L"商品", { orderCardX + 12,  itemY }, {16, 18}, sf::Color(120, 120, 120));
+        text_.displayText(L"单价", { orderCardX + 400, itemY }, {16, 18}, sf::Color(120, 120, 120));
+        text_.displayText(L"购买", { orderCardX + 600, itemY }, {16, 18}, sf::Color(120, 120, 120));
+        text_.displayText(L"已退", { orderCardX + 750, itemY }, {16, 18}, sf::Color(120, 120, 120));
+
+        itemY += 20.f;
+        for (const auto& it : order.items) {
+            const sf::Vector2f rowPos{ orderCardX, itemY };
+            // 仅当该明细还有可退数量（status≠2 且 qty>returnedQty）时绘制退货按钮
+            const std::int32_t returnable = it.qty - it.returnedQty;
+            if (order.status != 2 && returnable > 0) {
+                const auto r = returnBtnRect(rowPos);
+                sf::RectangleShape btn({ r.size.x, r.size.y });
+                btn.setPosition({ r.position.x, r.position.y });
+                btn.setFillColor(sf::Color(220, 130, 30));
+                btn.setOutlineColor(sf::Color(180, 100, 20));
+                btn.setOutlineThickness(1.f);
+                window_.draw(btn);
+                text_.displayText(L"退货 1 件",
+                                  { r.position.x + 6, r.position.y + 4 },
+                                  {14, 18}, sf::Color::White);
+            }
+            // 文本
+            text_.displayText(ec::string::to_utf16(it.name),
+                              { orderCardX + 12,  itemY + 4 }, {16, 22}, sf::Color::Black);
+            std::wostringstream pp; pp << L"¥" << it.price;
+            text_.displayText(pp.str(), { orderCardX + 400, itemY + 4 }, {16, 22}, sf::Color(80, 80, 80));
+            std::wostringstream qq; qq << it.qty;
+            text_.displayText(qq.str(), { orderCardX + 600, itemY + 4 }, {16, 22}, sf::Color::Black);
+            std::wostringstream rq; rq << it.returnedQty;
+            text_.displayText(rq.str(), { orderCardX + 750, itemY + 4 }, {16, 22}, sf::Color(200, 100, 100));
+            itemY += orderItemRowH;
+        }
+        // 下一张订单间距
+        y = itemY + 12.f;
+    }
+}
+
 // ===================== 鼠标命中测试 =====================
 
 ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, const ClientModel& model) {
@@ -236,7 +330,7 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
                 return { ClickAction::AddToCart, products[i].id };
             }
         }
-    } else {
+    } else if (panel_ == Panel::Cart) {
         const auto& cart = model.cart();
         for (std::size_t i = 0; i < cart.size(); ++i) {
             const sf::Vector2f rowPos{ cartRowX, cartStartY + i * cartRowH };
@@ -246,6 +340,29 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
         }
         if (hit(checkoutBtnRect(), mousePos)) {
             return { ClickAction::Checkout, 0 };
+        }
+    } else {  // Panel::MyOrders
+        // 复刻 drawMyOrdersPanel 的布局：从 orderCardStartY 起逐订单逐明细下移
+        float y = orderCardStartY;
+        for (const auto& order : model.orders()) {
+            const float itemY0 = y + 70.f + 20.f;  // 头 + 表头
+            float itemY = itemY0;
+            for (const auto& it : order.items) {
+                const sf::Vector2f rowPos{ orderCardX, itemY };
+                const std::int32_t returnable = it.qty - it.returnedQty;
+                if (order.status != 2 && returnable > 0) {
+                    if (hit(returnBtnRect(rowPos), mousePos)) {
+                        ClickAction act{ ClickAction::ReturnItem, 0 };
+                        act.orderId   = order.id;
+                        act.productId = it.productId;
+                        act.qty       = 1;  // 暂固定 1 件，UI 可扩展数量输入框
+                        return act;
+                    }
+                }
+                itemY += orderItemRowH;
+            }
+            // 下一张订单起点：itemY + 间距（与 drawMyOrdersPanel 同步）
+            y = itemY + 12.f;
         }
     }
     return { ClickAction::None, 0 };
@@ -264,4 +381,9 @@ sf::FloatRect ClientView::removeFromCartBtnRect(const sf::Vector2f& rowPos) {
 sf::FloatRect ClientView::checkoutBtnRect() {
     return sf::FloatRect(sf::Vector2f{ checkoutBtnX, checkoutBtnY },
                          sf::Vector2f{ checkoutBtnW, checkoutBtnH });
+}
+
+sf::FloatRect ClientView::returnBtnRect(const sf::Vector2f& rowPos) {
+    return sf::FloatRect(sf::Vector2f{ rowPos.x + retBtnDX, rowPos.y + retBtnDY },
+                         sf::Vector2f{ retBtnW, retBtnH });
 }

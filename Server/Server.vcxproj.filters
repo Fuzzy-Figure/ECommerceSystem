@@ -30,6 +30,21 @@
     <ClInclude Include="..\header\OrderDAO.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="..\header\CartItem.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\header\Order.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\header\Promotion.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\header\PromotionDAO.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\header\PromotionFactory.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="..\header\Protocol.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -60,6 +75,18 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="..\source\OrderDAO.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\Order.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\Promotion.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\PromotionDAO.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\PromotionFactory.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="..\source\Protocol.cpp">

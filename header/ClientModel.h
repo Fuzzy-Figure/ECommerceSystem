@@ -1,11 +1,12 @@
 #pragma once
 // 客户端 Model：本地数据状态
-// 持有商品列表快照 + 本地购物车（A 方案胖客户端，购物车仅存内存）。
+// 持有商品列表快照 + 本地购物车（A 方案胖客户端，购物车仅存内存）+ 历史订单快照。
 // UI 不直接依赖网络层。
 #include <vector>
 #include <string>
 #include "Product.h"
 #include "CartItem.h"
+#include "Order.h"
 
 class ClientModel {
 public:
@@ -31,8 +32,13 @@ public:
 	// 购物车总额（各项小计之和）
 	double cartTotal() const;
 
+	// === 历史订单 ===
+	void setOrders(std::vector<Order> orders) { orders_ = std::move(orders); }
+	const std::vector<Order>& orders() const noexcept { return orders_; }
+
 private:
 	std::vector<Product>  products_;
 	std::vector<CartItem> cart_;
+	std::vector<Order>    orders_;
 	std::wstring          status_;  // 当前状态/提示信息
 };

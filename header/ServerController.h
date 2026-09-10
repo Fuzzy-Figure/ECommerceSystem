@@ -14,6 +14,8 @@
 #include "Database.h"
 #include "ProductDAO.h"
 #include "OrderDAO.h"
+#include "PromotionDAO.h"
+#include "PromotionFactory.h"
 #include "ServerView.h"
 #include "Protocol.h"
 
@@ -31,16 +33,24 @@ public:
     // 优雅关闭：唤醒等待中的工作线程并 join
     void shutdown();
 
+    // 重新加载促销链（从 DB 读取启用的促销规则并组装装饰器链）
+    // 用于促销配置变更后热更新；线程安全（用 future 同步到工作线程上下文）
+    void reloadPromotions();
+
 private:
     struct Task {
         std::shared_ptr<sf::TcpSocket> socket;
         nlohmann::json                 request;
     };
 
-    Database&     db_;
-    ProductDAO    productDao_;
-    OrderDAO      orderDao_;
-    ServerView    view_;
+    Database&      db_;
+    ProductDAO     productDao_;
+    OrderDAO       orderDao_;
+    PromotionDAO   promotionDao_;
+    // 促销链头：nullptr 表示无促销；多线程读需持 promotionMtx_
+    std::unique_ptr<Promotion> promotionChain_;
+    std::mutex     promotionMtx_;
+    ServerView     view_;
 
     std::queue<Task>        queue_;
     std::mutex             mtx_;
@@ -54,6 +64,11 @@ private:
 
     // 各请求处理：返回应答 JSON（不含回送）
     nlohmann::json handleListProducts(const nlohmann::json& req);
-    // 结算：{code:1003, items:[{productId,qty}]} → 2003
+    // 结算：{code, items:[{productId,qty}]} → CheckoutResult
+    // 业务层职责：查价格 → 组装 CartItem → 应用促销链算折扣 → 调 OrderDAO 下单
     nlohmann::json handleCheckout(const nlohmann::json& req);
+    // 拉取历史订单：→ OrderList
+    nlohmann::json handleListOrders(const nlohmann::json& req);
+    // 售后退货：{orderId, productId, qty} → AfterSaleResult
+    nlohmann::json handleAfterSale(const nlohmann::json& req);
 };

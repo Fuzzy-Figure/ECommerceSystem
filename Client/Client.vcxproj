@@ -151,6 +151,7 @@
     <ClCompile Include="..\source\ClientModel.cpp" />
     <ClCompile Include="..\source\ClientView.cpp" />
     <ClCompile Include="..\source\ImageManager.cpp" />
+    <ClCompile Include="..\source\Order.cpp" />
     <ClCompile Include="..\source\Product.cpp" />
     <ClCompile Include="..\source\Protocol.cpp" />
     <ClCompile Include="..\source\TextManager.cpp" />
@@ -162,6 +163,7 @@
     <ClInclude Include="..\header\ClientModel.h" />
     <ClInclude Include="..\header\ClientView.h" />
     <ClInclude Include="..\header\ImageManager.h" />
+    <ClInclude Include="..\header\Order.h" />
     <ClInclude Include="..\header\Product.h" />
     <ClInclude Include="..\header\Protocol.h" />
     <ClInclude Include="..\header\TextManager.h" />
