@@ -33,8 +33,8 @@ namespace {
 		}
 		if (userVersion != kSchemaVersion) {
 			std::cout << "[Init] schema 版本 " << userVersion
-			          << " ≠ 期望 " << kSchemaVersion
-			          << "，丢弃旧表重建" << std::endl;
+				<< " ≠ 期望 " << kSchemaVersion
+				<< "，丢弃旧表重建" << std::endl;
 			// 外键依赖顺序：先子表后父表
 			db.execute("DROP TABLE IF EXISTS order_items;");
 			db.execute("DROP TABLE IF EXISTS orders;");
@@ -101,7 +101,8 @@ namespace {
 		}
 		if (existing > 0) {
 			std::cout << "[Init] 数据库已有 " << existing << " 件商品" << std::endl;
-		} else {
+		}
+		else {
 			db.execute("DELETE FROM products;");
 			db.execute(
 				"INSERT INTO products (id, name, description, price, stock, imagePath) VALUES "
@@ -127,7 +128,8 @@ namespace {
 		}
 		if (promoExisting > 0) {
 			std::cout << "[Init] 数据库已有 " << promoExisting << " 条促销规则" << std::endl;
-		} else {
+		}
+		else {
 			db.execute("DELETE FROM promotions;");
 			// 示例促销：覆盖 PPT 第5页全部类型
 			//   1. 满减：满 50 减 5

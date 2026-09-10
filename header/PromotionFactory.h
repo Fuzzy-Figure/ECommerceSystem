@@ -13,15 +13,15 @@
 
 class PromotionFactory {
 public:
-    // 按类型字符串创建单个促销；type 不识别返回 nullptr
-    static std::unique_ptr<Promotion> createSingle(const std::string&       type,
-                                                   const nlohmann::json&    params);
+	// 按类型字符串创建单个促销；type 不识别返回 nullptr
+	static std::unique_ptr<Promotion> createSingle(const std::string& type,
+												   const nlohmann::json& params);
 
-    // 按固定顺序组装装饰器链：返回链头（最外层）；configs 为空返回 nullptr
-    // 链方向：Reduction(最内) → Discount → Tiered → FreeItem → Coupon(最外)
-    //         apply 调用时：先算 Reduction 折扣，Coupon 最后叠加券
-    static std::unique_ptr<Promotion> buildChain(const std::vector<PromotionDAO::Config>& configs);
+	// 按固定顺序组装装饰器链：返回链头（最外层）；configs 为空返回 nullptr
+	// 链方向：Reduction(最内) → Discount → Tiered → FreeItem → Coupon(最外)
+	//         apply 调用时：先算 Reduction 折扣，Coupon 最后叠加券
+	static std::unique_ptr<Promotion> buildChain(const std::vector<PromotionDAO::Config>& configs);
 
-    // 便捷：直接从 DAO 读取启用的促销并组装链
-    static std::unique_ptr<Promotion> buildChainFromDB(PromotionDAO& dao);
+	// 便捷：直接从 DAO 读取启用的促销并组装链
+	static std::unique_ptr<Promotion> buildChainFromDB(PromotionDAO& dao);
 };

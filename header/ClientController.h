@@ -17,49 +17,49 @@
 
 class ClientController {
 public:
-    ClientController(sf::RenderWindow& window, ClientModel& model, ClientView& view);
-    ~ClientController();
+	ClientController(sf::RenderWindow& window, ClientModel& model, ClientView& view);
+	~ClientController();
 
-    ClientController(const ClientController&)            = delete;
-    ClientController& operator=(const ClientController&) = delete;
+	ClientController(const ClientController&) = delete;
+	ClientController& operator=(const ClientController&) = delete;
 
-    // 连接服务端；成功返回 true
-    bool connect(const std::string& ip, unsigned short port);
+	// 连接服务端；成功返回 true
+	bool connect(const std::string& ip, unsigned short port);
 
-    // 断开连接并停止接收线程
-    void disconnect();
+	// 断开连接并停止接收线程
+	void disconnect();
 
-    // 主动发起商品列表请求
-    void requestProductList();
+	// 主动发起商品列表请求
+	void requestProductList();
 
-    // 提交购物车结算请求：把本地 cart 序列化为 items 上传
-    void requestCheckout();
+	// 提交购物车结算请求：把本地 cart 序列化为 items 上传
+	void requestCheckout();
 
-    // 拉取历史订单列表（用于"我的订单"面板）
-    void requestListOrders();
+	// 拉取历史订单列表（用于"我的订单"面板）
+	void requestListOrders();
 
-    // 发起售后退货：把指定订单内某 productId 的 qty 件退货
-    void requestAfterSale(std::int64_t orderId, std::int32_t productId, std::int32_t qty);
+	// 发起售后退货：把指定订单内某 productId 的 qty 件退货
+	void requestAfterSale(std::int64_t orderId, std::int32_t productId, std::int32_t qty);
 
-    // 处理 SFML 事件（按键、关闭等）
-    void handleEvent(const sf::Event& event);
+	// 处理 SFML 事件（按键、关闭等）
+	void handleEvent(const sf::Event& event);
 
-    // 主循环每帧调用：消费接收队列、更新 Model
-    void update();
+	// 主循环每帧调用：消费接收队列、更新 Model
+	void update();
 
 private:
-    sf::RenderWindow& window_;
-    ClientModel&       model_;
-    ClientView&        view_;
+	sf::RenderWindow& window_;
+	ClientModel& model_;
+	ClientView& view_;
 
-    std::shared_ptr<sf::TcpSocket> socket_;
-    std::thread          recvThread_;
-    std::atomic<bool>    running_{false};
+	std::shared_ptr<sf::TcpSocket> socket_;
+	std::thread          recvThread_;
+	std::atomic<bool>    running_{ false };
 
-    // 接收线程把消息投递到此队列，主线程在 update() 中消费
-    std::queue<nlohmann::json> pendingMsgs_;
-    std::mutex            msgMtx_;
+	// 接收线程把消息投递到此队列，主线程在 update() 中消费
+	std::queue<nlohmann::json> pendingMsgs_;
+	std::mutex            msgMtx_;
 
-    void recvLoop();
-    void processMessage(nlohmann::json& msg);
+	void recvLoop();
+	void processMessage(nlohmann::json& msg);
 };

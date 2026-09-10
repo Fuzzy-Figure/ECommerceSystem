@@ -69,7 +69,7 @@ void ClientController::requestCheckout() {
 		items.push_back({
 			{"productId", c.productId},
 			{"qty",       c.qty}
-		});
+						});
 	}
 	const nlohmann::json req = {
 		{"code",  static_cast<int>(proto::RequestCode::Checkout)},
@@ -127,39 +127,40 @@ void ClientController::handleEvent(const sf::Event& event) {
 		const auto* mb = event.getIf<sf::Event::MouseButtonReleased>();
 		if (mb && mb->button == sf::Mouse::Button::Left) {
 			const sf::Vector2f worldPos{ static_cast<float>(mb->position.x),
-			                             static_cast<float>(mb->position.y) };
+										 static_cast<float>(mb->position.y) };
 			const auto action = view_.handleClick(worldPos, model_);
 			switch (action.type) {
-			case ClientView::ClickAction::AddToCart:
-				model_.addToCart(action.arg, 1);
-				model_.setStatus(L"已加入购物车");
-				break;
-			case ClientView::ClickAction::RemoveFromCart:
-				model_.removeFromCart(action.arg);
-				model_.setStatus(L"已从购物车移除");
-				break;
-			case ClientView::ClickAction::Checkout:
-				requestCheckout();
-				break;
-			case ClientView::ClickAction::ReturnItem:
-				requestAfterSale(action.orderId, action.productId, action.qty);
-				break;
-			case ClientView::ClickAction::SwitchPanel: {
-				const int idx = action.arg;
-				if (idx >= 0 && idx <= 2) {
-					const auto target = static_cast<ClientView::Panel>(idx);
-					view_.setPanel(target);
-					// 进入商品列表/订单列表时自动拉取最新数据
-					if (target == ClientView::Panel::ProductList) {
-						requestProductList();
-					} else if (target == ClientView::Panel::MyOrders) {
-						requestListOrders();
+				case ClientView::ClickAction::AddToCart:
+					model_.addToCart(action.arg, 1);
+					model_.setStatus(L"已加入购物车");
+					break;
+				case ClientView::ClickAction::RemoveFromCart:
+					model_.removeFromCart(action.arg);
+					model_.setStatus(L"已从购物车移除");
+					break;
+				case ClientView::ClickAction::Checkout:
+					requestCheckout();
+					break;
+				case ClientView::ClickAction::ReturnItem:
+					requestAfterSale(action.orderId, action.productId, action.qty);
+					break;
+				case ClientView::ClickAction::SwitchPanel: {
+					const int idx = action.arg;
+					if (idx >= 0 && idx <= 2) {
+						const auto target = static_cast<ClientView::Panel>(idx);
+						view_.setPanel(target);
+						// 进入商品列表/订单列表时自动拉取最新数据
+						if (target == ClientView::Panel::ProductList) {
+							requestProductList();
+						}
+						else if (target == ClientView::Panel::MyOrders) {
+							requestListOrders();
+						}
 					}
+					break;
 				}
-				break;
-			}
-			case ClientView::ClickAction::None:
-			default: break;
+				case ClientView::ClickAction::None:
+				default: break;
 			}
 		}
 		return;
@@ -210,76 +211,78 @@ void ClientController::recvLoop() {
 void ClientController::processMessage(nlohmann::json& msg) {
 	const auto code = msg.value("code", 0);
 	switch (code) {
-	case static_cast<int>(proto::ResponseCode::ProductList): {
-		std::vector<Product> products;
-		if (msg.contains("products") && msg["products"].is_array()) {
-			for (const auto& pj : msg["products"]) {
-				products.push_back(Product::fromJson(pj));
+		case static_cast<int>(proto::ResponseCode::ProductList): {
+			std::vector<Product> products;
+			if (msg.contains("products") && msg["products"].is_array()) {
+				for (const auto& pj : msg["products"]) {
+					products.push_back(Product::fromJson(pj));
+				}
 			}
-		}
-		model_.setProducts(std::move(products));
-		std::wostringstream ss;
-		ss << L"已加载 " << model_.products().size() << L" 件商品，按 R 刷新";
-		model_.setStatus(ss.str());
-		break;
-	}
-	case static_cast<int>(proto::ResponseCode::CheckoutResult): {
-		const auto success = msg.value("success", false);
-		if (success) {
-			const auto orderId      = msg.value("orderId",      std::int64_t{});
-			const auto originalTotal = msg.value("originalTotal", 0.0);
-			const auto discount     = msg.value("discount",     0.0);
-			const auto finalTotal   = msg.value("total",        0.0);  // 兼容字段名
+			model_.setProducts(std::move(products));
 			std::wostringstream ss;
-			ss << L"结算成功！订单 #" << orderId
-			   << L"  原价 ¥" << originalTotal
-			   << L"  促销折扣 -¥" << discount
-			   << L"  实付 ¥" << finalTotal;
+			ss << L"已加载 " << model_.products().size() << L" 件商品，按 R 刷新";
 			model_.setStatus(ss.str());
-			model_.clearCart();
-			// 结算成功后切回商品列表，便于看到库存变化
-			view_.setPanel(ClientView::Panel::ProductList);
-			requestProductList();
-		} else {
-			const auto m = msg.value("message", std::string{ "未知错误" });
-			model_.setStatus(L"结算失败：" + ec::string::to_utf16(m));
+			break;
 		}
-		break;
-	}
-	case static_cast<int>(proto::ResponseCode::OrderList): {
-		std::vector<Order> orders;
-		if (msg.contains("orders") && msg["orders"].is_array()) {
-			for (const auto& oj : msg["orders"]) {
-				orders.push_back(Order::fromJson(oj));
+		case static_cast<int>(proto::ResponseCode::CheckoutResult): {
+			const auto success = msg.value("success", false);
+			if (success) {
+				const auto orderId = msg.value("orderId", std::int64_t{});
+				const auto originalTotal = msg.value("originalTotal", 0.0);
+				const auto discount = msg.value("discount", 0.0);
+				const auto finalTotal = msg.value("total", 0.0);  // 兼容字段名
+				std::wostringstream ss;
+				ss << L"结算成功！订单 #" << orderId
+					<< L"  原价 ¥" << originalTotal
+					<< L"  促销折扣 -¥" << discount
+					<< L"  实付 ¥" << finalTotal;
+				model_.setStatus(ss.str());
+				model_.clearCart();
+				// 结算成功后切回商品列表，便于看到库存变化
+				view_.setPanel(ClientView::Panel::ProductList);
+				requestProductList();
 			}
+			else {
+				const auto m = msg.value("message", std::string{ "未知错误" });
+				model_.setStatus(L"结算失败：" + ec::string::to_utf16(m));
+			}
+			break;
 		}
-		model_.setOrders(std::move(orders));
-		std::wostringstream ss;
-		ss << L"已加载 " << model_.orders().size() << L" 条历史订单";
-		model_.setStatus(ss.str());
-		break;
-	}
-	case static_cast<int>(proto::ResponseCode::AfterSaleResult): {
-		const auto success = msg.value("success", false);
-		if (success) {
-			const auto refund = msg.value("refund", 0.0);
+		case static_cast<int>(proto::ResponseCode::OrderList): {
+			std::vector<Order> orders;
+			if (msg.contains("orders") && msg["orders"].is_array()) {
+				for (const auto& oj : msg["orders"]) {
+					orders.push_back(Order::fromJson(oj));
+				}
+			}
+			model_.setOrders(std::move(orders));
 			std::wostringstream ss;
-			ss << L"退货成功！退款 ¥" << refund << L"，已回库存";
+			ss << L"已加载 " << model_.orders().size() << L" 条历史订单";
 			model_.setStatus(ss.str());
-			// 刷新订单列表，看到 returnedQty + status 更新
-			requestListOrders();
-		} else {
-			const auto m = msg.value("message", std::string{ "未知错误" });
-			model_.setStatus(L"退货失败：" + ec::string::to_utf16(m));
+			break;
 		}
-		break;
-	}
-	case static_cast<int>(proto::ResponseCode::Error): {
-		const auto m = msg.value("message", std::string{ "未知错误" });
-		model_.setStatus(L"错误：" + ec::string::to_utf16(m));
-		break;
-	}
-	default:
-		model_.setStatus(L"收到未知响应码：" + std::to_wstring(code));
+		case static_cast<int>(proto::ResponseCode::AfterSaleResult): {
+			const auto success = msg.value("success", false);
+			if (success) {
+				const auto refund = msg.value("refund", 0.0);
+				std::wostringstream ss;
+				ss << L"退货成功！退款 ¥" << refund << L"，已回库存";
+				model_.setStatus(ss.str());
+				// 刷新订单列表，看到 returnedQty + status 更新
+				requestListOrders();
+			}
+			else {
+				const auto m = msg.value("message", std::string{ "未知错误" });
+				model_.setStatus(L"退货失败：" + ec::string::to_utf16(m));
+			}
+			break;
+		}
+		case static_cast<int>(proto::ResponseCode::Error): {
+			const auto m = msg.value("message", std::string{ "未知错误" });
+			model_.setStatus(L"错误：" + ec::string::to_utf16(m));
+			break;
+		}
+		default:
+			model_.setStatus(L"收到未知响应码：" + std::to_wstring(code));
 	}
 }
