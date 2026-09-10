@@ -23,6 +23,24 @@ namespace {
 			"  imagePath   TEXT"
 			");"
 		);
+		// 订单主表 + 明细表：结算时由 OrderDAO 在同一事务内写入
+		db.execute(
+			"CREATE TABLE IF NOT EXISTS orders ("
+			"  id         INTEGER PRIMARY KEY AUTOINCREMENT,"
+			"  total      REAL NOT NULL,"
+			"  created_at TEXT NOT NULL"
+			");"
+		);
+		db.execute(
+			"CREATE TABLE IF NOT EXISTS order_items ("
+			"  id         INTEGER PRIMARY KEY AUTOINCREMENT,"
+			"  order_id   INTEGER NOT NULL,"
+			"  product_id INTEGER NOT NULL,"
+			"  qty        INTEGER NOT NULL,"
+			"  price      REAL NOT NULL,"
+			"  FOREIGN KEY (order_id) REFERENCES orders(id)"
+			");"
+		);
 
 		auto rows = db.query("SELECT COUNT(*) AS cnt FROM products;");
 		int existing = 0;

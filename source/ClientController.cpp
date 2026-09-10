@@ -53,9 +53,62 @@ void ClientController::requestProductList() {
 	model_.setStatus(L"已请求商品列表，等待服务器响应...");
 }
 
+void ClientController::requestCheckout() {
+	if (!socket_) {
+		model_.setStatus(L"未连接服务器，无法结算");
+		return;
+	}
+	const auto& cart = model_.cart();
+	if (cart.empty()) {
+		model_.setStatus(L"购物车为空，无法结算");
+		return;
+	}
+	nlohmann::json items = nlohmann::json::array();
+	for (const auto& c : cart) {
+		items.push_back({
+			{"productId", c.productId},
+			{"qty",       c.qty}
+		});
+	}
+	const nlohmann::json req = {
+		{"code",  static_cast<int>(proto::RequestCode::Checkout)},
+		{"items", items}
+	};
+	if (!proto::sendJson(*socket_, req)) {
+		model_.setStatus(L"发送结算请求失败，连接可能已断开");
+		return;
+	}
+	model_.setStatus(L"已提交结算请求，等待服务器响应...");
+}
+
 void ClientController::handleEvent(const sf::Event& event) {
 	if (event.is<sf::Event::Closed>()) {
 		window_.close();
+		return;
+	}
+	// 鼠标左键释放：交由 View 命中测试决定动作
+	if (event.is<sf::Event::MouseButtonReleased>()) {
+		const auto* mb = event.getIf<sf::Event::MouseButtonReleased>();
+		if (mb && mb->button == sf::Mouse::Button::Left) {
+			const sf::Vector2f worldPos{ static_cast<float>(mb->position.x),
+			                             static_cast<float>(mb->position.y) };
+			const auto action = view_.handleClick(worldPos, model_);
+			switch (action.type) {
+			case ClientView::ClickAction::AddToCart:
+				model_.addToCart(action.arg, 1);
+				model_.setStatus(L"已加入购物车");
+				break;
+			case ClientView::ClickAction::RemoveFromCart:
+				model_.removeFromCart(action.arg);
+				model_.setStatus(L"已从购物车移除");
+				break;
+			case ClientView::ClickAction::Checkout:
+				requestCheckout();
+				break;
+			case ClientView::ClickAction::None:
+			default: break;
+			}
+		}
 		return;
 	}
 	// SFML 3 中按键事件类型为 KeyPressed
@@ -68,6 +121,9 @@ void ClientController::handleEvent(const sf::Event& event) {
 		}
 		else if (key == sf::Keyboard::Key::Escape) {
 			window_.close();
+		}
+		else if (key == sf::Keyboard::Key::Tab) {
+			view_.togglePanel();
 		}
 	}
 }
@@ -118,6 +174,24 @@ void ClientController::processMessage(nlohmann::json& msg) {
 		std::wostringstream ss;
 		ss << L"已加载 " << model_.products().size() << L" 件商品，按 R 刷新";
 		model_.setStatus(ss.str());
+		break;
+	}
+	case static_cast<int>(proto::ResponseCode::CheckoutResult): {
+		const auto success = msg.value("success", false);
+		if (success) {
+			const auto orderId = msg.value("orderId", std::int64_t{});
+			const auto total   = msg.value("total",   0.0);
+			std::wostringstream ss;
+			ss << L"结算成功！订单 #" << orderId << L"，总额 ¥" << total;
+			model_.setStatus(ss.str());
+			model_.clearCart();
+			// 结算成功后切回商品列表，便于看到库存变化
+			view_.setPanel(ClientView::Panel::ProductList);
+			requestProductList();
+		} else {
+			const auto m = msg.value("message", std::string{ "未知错误" });
+			model_.setStatus(L"结算失败：" + ec::string::to_utf16(m));
+		}
 		break;
 	}
 	case static_cast<int>(proto::ResponseCode::Error): {

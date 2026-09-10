@@ -32,6 +32,9 @@ public:
     // 主动发起商品列表请求（PPTX 协议码 1001）
     void requestProductList();
 
+    // 提交购物车结算请求（PPTX 协议码 1003）：把本地 cart 序列化为 items 上传
+    void requestCheckout();
+
     // 处理 SFML 事件（按键、关闭等）
     void handleEvent(const sf::Event& event);
 

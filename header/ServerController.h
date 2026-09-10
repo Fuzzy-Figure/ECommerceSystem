@@ -13,6 +13,7 @@
 
 #include "Database.h"
 #include "ProductDAO.h"
+#include "OrderDAO.h"
 #include "ServerView.h"
 #include "Protocol.h"
 
@@ -38,6 +39,7 @@ private:
 
     Database&     db_;
     ProductDAO    productDao_;
+    OrderDAO      orderDao_;
     ServerView    view_;
 
     std::queue<Task>        queue_;
@@ -52,4 +54,6 @@ private:
 
     // 各请求处理：返回应答 JSON（不含回送）
     nlohmann::json handleListProducts(const nlohmann::json& req);
+    // 结算：{code:1003, items:[{productId,qty}]} → 2003
+    nlohmann::json handleCheckout(const nlohmann::json& req);
 };

@@ -3,7 +3,7 @@
 #include <utility>
 
 ServerController::ServerController(Database& db)
-    : db_(db), productDao_(db), worker_(&ServerController::workerLoop, this) {
+    : db_(db), productDao_(db), orderDao_(db), worker_(&ServerController::workerLoop, this) {
     std::cout << "[ServerController] 业务层已启动，工作线程就绪" << std::endl;
 }
 
@@ -57,6 +57,9 @@ void ServerController::handle(std::shared_ptr<sf::TcpSocket> socket, const nlohm
         case static_cast<int>(proto::RequestCode::ListProducts):
             response = handleListProducts(request);
             break;
+        case static_cast<int>(proto::RequestCode::Checkout):
+            response = handleCheckout(request);
+            break;
         default:
             response = {
                 {"code",    static_cast<int>(proto::ResponseCode::Error)},
@@ -78,5 +81,47 @@ nlohmann::json ServerController::handleListProducts(const nlohmann::json& /*req*
     return {
         {"code",     static_cast<int>(proto::ResponseCode::ProductList)},
         {"products", arr}
+    };
+}
+
+nlohmann::json ServerController::handleCheckout(const nlohmann::json& req) {
+    // 解析购物车项：[{productId, qty}, ...]
+    std::vector<std::pair<std::int32_t, std::int32_t>> items;
+    if (!req.contains("items") || !req["items"].is_array() || req["items"].empty()) {
+        return {
+            {"code",    static_cast<int>(proto::ResponseCode::CheckoutResult)},
+            {"success", false},
+            {"message", "结算失败：购物车为空"}
+        };
+    }
+    for (const auto& it : req["items"]) {
+        const auto pid = it.value("productId", 0);
+        const auto qty = it.value("qty",       0);
+        if (pid <= 0 || qty <= 0) {
+            return {
+                {"code",    static_cast<int>(proto::ResponseCode::CheckoutResult)},
+                {"success", false},
+                {"message", "结算失败：商品ID或数量非法"}
+            };
+        }
+        items.emplace_back(pid, qty);
+    }
+
+    double total = 0.0;
+    const auto orderId = orderDao_.placeOrder(items, total);
+    if (orderId <= 0) {
+        return {
+            {"code",    static_cast<int>(proto::ResponseCode::CheckoutResult)},
+            {"success", false},
+            {"message", "结算失败：库存不足或服务端异常"}
+        };
+    }
+    std::cout << "[ServerController] 订单 #" << orderId << " 成交，总额 " << total << std::endl;
+    return {
+        {"code",    static_cast<int>(proto::ResponseCode::CheckoutResult)},
+        {"success", true},
+        {"orderId", orderId},
+        {"total",   total},
+        {"message", "结算成功"}
     };
 }

@@ -146,6 +146,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\source\Database.cpp" />
+    <ClCompile Include="..\source\OrderDAO.cpp" />
     <ClCompile Include="..\source\Product.cpp" />
     <ClCompile Include="..\source\ProductDAO.cpp" />
     <ClCompile Include="..\source\Protocol.cpp" />
@@ -157,6 +158,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\header\Database.h" />
+    <ClInclude Include="..\header\OrderDAO.h" />
     <ClInclude Include="..\header\Product.h" />
     <ClInclude Include="..\header\ProductDAO.h" />
     <ClInclude Include="..\header\Protocol.h" />

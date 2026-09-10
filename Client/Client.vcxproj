@@ -157,6 +157,7 @@
     <ClCompile Include="..\source\utils.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\header\CartItem.h" />
     <ClInclude Include="..\header\ClientController.h" />
     <ClInclude Include="..\header\ClientModel.h" />
     <ClInclude Include="..\header\ClientView.h" />
