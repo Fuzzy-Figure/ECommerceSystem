@@ -193,22 +193,23 @@ void ClientController::handleEvent(const sf::Event& event) {
 					requestAfterSale(action.orderId, action.productId, action.qty);
 					break;
 				case ClientView::ClickAction::SwitchPanel: {
-					const int idx = action.arg;
-					// idx 取 Panel 枚举值；Login=0 不参与，故范围 [ProductList, MyOrders]
-					if (idx >= static_cast<int>(ClientView::Panel::ProductList)
-						&& idx <= static_cast<int>(ClientView::Panel::MyOrders)) {
-						const auto target = static_cast<ClientView::Panel>(idx);
-						view_.setPanel(target);
-						// 进入商品列表/订单列表时自动拉取最新数据
-						if (target == ClientView::Panel::ProductList) {
-							requestProductList();
+						const int idx = action.arg;
+						// idx 取 Panel 枚举值；Login=0 不参与，故范围 [ProductList, MyOrders]
+						if (idx >= static_cast<int>(ClientView::Panel::ProductList)
+							&& idx <= static_cast<int>(ClientView::Panel::MyOrders)) {
+							const auto target = static_cast<ClientView::Panel>(idx);
+							view_.setPanel(target);
+							// 进入商品列表/订单列表时自动拉取最新数据
+							if (target == ClientView::Panel::ProductList) {
+								requestProductList();
+							}
+							else if (target == ClientView::Panel::MyOrders) {
+								view_.resetMyOrdersScroll();  // 切回时重置滚动到顶
+								requestListOrders();
+							}
 						}
-						else if (target == ClientView::Panel::MyOrders) {
-							requestListOrders();
-						}
+						break;
 					}
-					break;
-				}
 				case ClientView::ClickAction::FocusField:
 					view_.setActiveField(static_cast<ClientView::Field>(action.arg));
 					break;
@@ -259,6 +260,17 @@ void ClientController::handleEvent(const sf::Event& event) {
 		if (ch >= 32 && ch <= 126) {
 			view_.appendInputChar(static_cast<char>(ch));
 		}
+		return;
+	}
+	// 鼠标滚轮：仅在"我的订单"面板内滚动订单列表
+	if (event.is<sf::Event::MouseWheelScrolled>()) {
+		const auto* mw = event.getIf<sf::Event::MouseWheelScrolled>();
+		if (mw == nullptr) return;
+		if (view_.panel() != ClientView::Panel::MyOrders) return;
+		// SFML 3：delta>0 表示向上滚（向前），内容应向下滚动 → 偏移减小
+		// 每滚一格约 80 像素，便于快速浏览
+		constexpr float kScrollStep = 80.f;
+		view_.scrollMyOrders(-mw->delta * kScrollStep, model_);
 	}
 }
 

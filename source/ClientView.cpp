@@ -1,5 +1,6 @@
 #include "../header/ClientView.h"
 #include "../header/utils.h"
+#include <algorithm>
 #include <sstream>
 #include <string>
 
@@ -71,7 +72,7 @@ void ClientView::render(const ClientModel& model) {
 
 void ClientView::drawLoginPanel(const ClientModel& model) {
 	// 标题
-	textMgr_.displayTextInCenter(L"电商系统 - 用户登录", { 20, 40 }, sf::Color(40, 80, 160));
+	textMgr_.displayTextInUp(L"电商系统 - 用户登录", { 20, 40 }, sf::Color(40, 80, 160));
 
 	// 用户名输入框
 	const auto userRect = inputFieldRect(0);
@@ -369,8 +370,8 @@ void ClientView::drawMyOrdersPanel(const ClientModel& model) {
 		return;
 	}
 
-	// 起始 y，逐订单下移
-	float y = orderCardStartY;
+	// 起始 y，逐订单下移；滚动偏移让内容向上移动
+	float y = orderCardStartY - myOrdersScrollY_;
 	for (const auto& order : orders) {
 		// 订单卡片背景
 		const float cardH = 90.f + static_cast<float>(order.items.size()) * orderItemRowH;
@@ -497,8 +498,8 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 		}
 	}
 	else {  // Panel::MyOrders
-		// 复刻 drawMyOrdersPanel 的布局：从 orderCardStartY 起逐订单逐明细下移
-		float y = orderCardStartY;
+		// 复刻 drawMyOrdersPanel 的布局：从 orderCardStartY - 滚动偏移 起逐订单逐明细下移
+		float y = orderCardStartY - myOrdersScrollY_;
 		for (const auto& order : model.orders()) {
 			const float itemY0 = y + 70.f + 20.f;  // 头 + 表头
 			float itemY = itemY0;
@@ -558,4 +559,35 @@ sf::FloatRect ClientView::authBtnRect(int btn) {
 	const float x = (btn == 0) ? loginBtnX : registerBtnX;
 	return sf::FloatRect(sf::Vector2f{ x, authBtnY },
 						 sf::Vector2f{ authBtnW, authBtnH });
+}
+
+// ===================== "我的订单"面板滚动 =====================
+
+float ClientView::computeMyOrdersContentHeight(const ClientModel& model) const noexcept {
+	const auto& orders = model.orders();
+	if (orders.empty()) return 0.f;
+	// 与 drawMyOrdersPanel 的布局同步：每张卡片 90 + items * rowH，卡片间距 12
+	float h = 0.f;
+	for (const auto& order : orders) {
+		h += 90.f + static_cast<float>(order.items.size()) * orderItemRowH + 12.f;
+	}
+	// 末尾的 12 是 drawMyOrdersPanel 里 `y = itemY + 12.f` 累加的，对可见性无影响
+	return h;
+}
+
+float ClientView::computeMyOrdersVisibleHeight() const noexcept {
+	// 从 orderCardStartY 到窗口底部，底部留 20 像素边距
+	return std::max(100.f, static_cast<float>(window_.getSize().y) - orderCardStartY - 20.f);
+}
+
+void ClientView::scrollMyOrders(float deltaPx, const ClientModel& model) {
+	// 仅 MyOrders 面板应用滚动；其他面板忽略（防止误滚后切回时位置错乱）
+	if (panel_ != Panel::MyOrders) return;
+	const float contentH = computeMyOrdersContentHeight(model);
+	const float visibleH = computeMyOrdersVisibleHeight();
+	const float maxOffset = (contentH > visibleH) ? (contentH - visibleH) : 0.f;
+	float newY = myOrdersScrollY_ + deltaPx;
+	if (newY < 0.f) newY = 0.f;
+	if (newY > maxOffset) newY = maxOffset;
+	myOrdersScrollY_ = newY;
 }

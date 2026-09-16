@@ -56,6 +56,12 @@ public:
 	const std::string& usernameInput() const noexcept { return usernameInput_; }
 	const std::string& passwordInput() const noexcept { return passwordInput_; }
 
+	// === "我的订单"面板滚动 ===
+	// 滚动 deltaPx 像素（正值内容向上=向下滚动；负值相反），自动按内容/可见区夹取边界
+	void  scrollMyOrders(float deltaPx, const ClientModel& model);
+	// 重置到顶部（切回 MyOrders 面板时调用）
+	void  resetMyOrdersScroll() noexcept { myOrdersScrollY_ = 0.f; }
+
 	// 处理鼠标点击，返回命中按钮的动作；坐标为窗口世界坐标
 	ClickAction handleClick(const sf::Vector2f& mousePos, const ClientModel& model);
 
@@ -69,6 +75,13 @@ private:
 	std::string usernameInput_;
 	std::string passwordInput_;
 	Field       activeField_{ Field::Username };
+
+	// === "我的订单"面板垂直滚动偏移（>=0，绘制时 y - offset）===
+	float myOrdersScrollY_{ 0.f };
+	// 计算 MyOrders 内容总高度（所有订单卡片 + 间距累计）
+	float computeMyOrdersContentHeight(const ClientModel& model) const noexcept;
+	// 计算 MyOrders 可见区高度（从 orderCardStartY 到窗口底部留 20 像素）
+	float computeMyOrdersVisibleHeight() const noexcept;
 
 	// === 商品列表面板 ===
 	void drawProductListPanel(const ClientModel& model);

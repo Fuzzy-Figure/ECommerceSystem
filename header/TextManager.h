@@ -71,6 +71,9 @@ public:
 	void displayTextInUpRight(const std::wstring& text,
 							  const sf::Vector2f& size = { 20,40 },
 							  const sf::Color& color = sf::Color::Black);
+	void displayTextInUp(const std::wstring& text,
+						 const sf::Vector2f& size = { 20,40 },
+						 const sf::Color& color = sf::Color::Black);
 	void displayTextInLeft(const std::wstring& text,
 						   const sf::Vector2f& size = { 20,40 },
 						   const sf::Color& color = sf::Color::Black);
