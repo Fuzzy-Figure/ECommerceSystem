@@ -159,6 +159,7 @@
     <ClCompile Include="..\source\ServerView.cpp" />
     <ClCompile Include="..\source\sqlite3.c" />
     <ClCompile Include="..\source\utils.cpp" />
+    <ClCompile Include="..\source\UserDAO.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\header\CartItem.h" />
@@ -175,6 +176,8 @@
     <ClInclude Include="..\header\ServerView.h" />
     <ClInclude Include="..\header\sqlite3.h" />
     <ClInclude Include="..\header\utils.h" />
+    <ClInclude Include="..\header\User.h" />
+    <ClInclude Include="..\header\UserDAO.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\server_config.json" />

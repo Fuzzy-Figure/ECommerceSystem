@@ -43,21 +43,122 @@ namespace {
 	constexpr float tabW = 200.f, tabGap = 10.f;
 	constexpr float tabStartX = 20.f;
 	constexpr float statusY = 56.f;  // Tab 下方状态信息行
+
+	// === 登录面板布局（窗口居中，窗口默认 1700x1000）===
+	constexpr float loginFieldX = 600.f;
+	constexpr float loginFieldW = 500.f;
+	constexpr float loginFieldH = 50.f;
+	constexpr float usernameY = 300.f;
+	constexpr float passwordY = 380.f;
+	constexpr float authBtnY = 480.f;
+	constexpr float authBtnW = 200.f;
+	constexpr float authBtnH = 50.f;
+	constexpr float loginBtnX = 600.f;
+	constexpr float registerBtnX = 850.f;
+	constexpr float loginTitleY = 200.f;
 }
 
 void ClientView::render(const ClientModel& model) {
 	switch (panel_) {
+		case Panel::Login:       drawLoginPanel(model);       break;
 		case Panel::ProductList: drawProductListPanel(model); break;
-		case Panel::Cart:         drawCartPanel(model);       break;
-		case Panel::MyOrders:     drawMyOrdersPanel(model);   break;
+		case Panel::Cart:         drawCartPanel(model);        break;
+		case Panel::MyOrders:     drawMyOrdersPanel(model);    break;
 	}
+}
+
+// ===================== 登录面板 =====================
+
+void ClientView::drawLoginPanel(const ClientModel& model) {
+	// 标题
+	textMgr_.displayTextInCenter(L"电商系统 - 用户登录", { 20, 40 }, sf::Color(40, 80, 160));
+
+	// 用户名输入框
+	const auto userRect = inputFieldRect(0);
+	sf::RectangleShape userBg({ userRect.size.x, userRect.size.y });
+	userBg.setPosition({ userRect.position.x, userRect.position.y });
+	userBg.setFillColor(sf::Color::White);
+	userBg.setOutlineColor(activeField_ == Field::Username ? sf::Color(80, 130, 200) : sf::Color(200, 200, 200));
+	userBg.setOutlineThickness(activeField_ == Field::Username ? 2.f : 1.f);
+	window_.draw(userBg);
+	textMgr_.displayText(L"用户名：", { userRect.position.x - 100, userRect.position.y + 10 }, { 18, 24 }, sf::Color(80, 80, 80));
+	textMgr_.displayText(ec::string::to_utf16(usernameInput_),
+						 { userRect.position.x + 12, userRect.position.y + 12 }, { 20, 26 }, sf::Color::Black);
+
+	// 密码输入框（显示成 '*'）
+	const auto pwRect = inputFieldRect(1);
+	sf::RectangleShape pwBg({ pwRect.size.x, pwRect.size.y });
+	pwBg.setPosition({ pwRect.position.x, pwRect.position.y });
+	pwBg.setFillColor(sf::Color::White);
+	pwBg.setOutlineColor(activeField_ == Field::Password ? sf::Color(80, 130, 200) : sf::Color(200, 200, 200));
+	pwBg.setOutlineThickness(activeField_ == Field::Password ? 2.f : 1.f);
+	window_.draw(pwBg);
+	textMgr_.displayText(L"密码：", { pwRect.position.x - 100, pwRect.position.y + 10 }, { 18, 24 }, sf::Color(80, 80, 80));
+	textMgr_.displayText(std::wstring(passwordInput_.size(), L'*'),
+						 { pwRect.position.x + 12, pwRect.position.y + 12 }, { 20, 26 }, sf::Color::Black);
+
+	// 登录按钮（蓝色）
+	const auto loginRect = authBtnRect(0);
+	sf::RectangleShape loginBtn({ loginRect.size.x, loginRect.size.y });
+	loginBtn.setPosition({ loginRect.position.x, loginRect.position.y });
+	loginBtn.setFillColor(sf::Color(80, 130, 200));
+	loginBtn.setOutlineColor(sf::Color(60, 100, 170));
+	loginBtn.setOutlineThickness(1.f);
+	window_.draw(loginBtn);
+	textMgr_.displayText(L"登录", { loginRect.position.x + 70, loginRect.position.y + 12 }, { 22, 28 }, sf::Color::White);
+
+	// 注册按钮（灰色）
+	const auto regRect = authBtnRect(1);
+	sf::RectangleShape regBtn({ regRect.size.x, regRect.size.y });
+	regBtn.setPosition({ regRect.position.x, regRect.position.y });
+	regBtn.setFillColor(sf::Color(140, 140, 140));
+	regBtn.setOutlineColor(sf::Color(110, 110, 110));
+	regBtn.setOutlineThickness(1.f);
+	window_.draw(regBtn);
+	textMgr_.displayText(L"注册", { regRect.position.x + 70, regRect.position.y + 12 }, { 22, 28 }, sf::Color::White);
+
+	// 状态信息
+	if (!model.status().empty()) {
+		textMgr_.displayText(model.status(), { 600, 580 }, { 20, 26 }, sf::Color(200, 50, 50));
+	}
+
+	// 提示文字
+	textMgr_.displayText(L"（提示：点击输入框切换聚焦，Enter 键等同登录）",
+						 { 600, 620 }, { 16, 22 }, sf::Color(150, 150, 150));
+}
+
+void ClientView::appendInputChar(char c) {
+	// 只接收可打印 ASCII（32..126），其他字符忽略
+	if (c < 32 || c > 126) return;
+	if (activeField_ == Field::Username) {
+		if (usernameInput_.size() < 32) usernameInput_.push_back(c);
+	}
+	else {
+		if (passwordInput_.size() < 32) passwordInput_.push_back(c);
+	}
+}
+
+void ClientView::backspaceInput() {
+	if (activeField_ == Field::Username) {
+		if (!usernameInput_.empty()) usernameInput_.pop_back();
+	}
+	else {
+		if (!passwordInput_.empty()) passwordInput_.pop_back();
+	}
+}
+
+void ClientView::clearInputs() noexcept {
+	usernameInput_.clear();
+	passwordInput_.clear();
+	activeField_ = Field::Username;
 }
 
 // ===================== 顶部 Tab 标签栏 =====================
 
 void ClientView::drawTabBar() {
 	const wchar_t* labels[] = { L"商品列表", L"购物车", L"我的订单" };
-	const int current = static_cast<int>(panel_);
+	// Panel 枚举包含 Login=0，Tab 索引 0/1/2 对应 ProductList/Cart/MyOrders，故减去 Login 偏移
+	const int current = static_cast<int>(panel_) - static_cast<int>(Panel::ProductList);
 	for (int i = 0; i < 3; ++i) {
 		const auto r = tabBtnRect(i);
 		sf::RectangleShape bg({ r.size.x, r.size.y });
@@ -345,10 +446,29 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 			&& p.y >= r.position.y && p.y < r.position.y + r.size.y;
 	};
 
-	// 顶部 Tab 标签优先（所有面板共用）
+	// 登录面板独立处理，不参与顶部 Tab 切换
+	if (panel_ == Panel::Login) {
+		if (hit(inputFieldRect(0), mousePos)) {
+			return { ClickAction::FocusField, static_cast<std::int32_t>(Field::Username) };
+		}
+		if (hit(inputFieldRect(1), mousePos)) {
+			return { ClickAction::FocusField, static_cast<std::int32_t>(Field::Password) };
+		}
+		if (hit(authBtnRect(0), mousePos)) {
+			return { ClickAction::Login, 0 };
+		}
+		if (hit(authBtnRect(1), mousePos)) {
+			return { ClickAction::Register, 0 };
+		}
+		return { ClickAction::None, 0 };
+	}
+
+	// 顶部 Tab 标签优先（ProductList/Cart/MyOrders 三面板共用）
+	// i=0 对应 ProductList；arg 用 Panel 枚举值便于 controller 直接 static_cast
 	for (int i = 0; i < 3; ++i) {
 		if (hit(tabBtnRect(i), mousePos)) {
-			return { ClickAction::SwitchPanel, i };
+			const int panelIdx = static_cast<int>(Panel::ProductList) + i;
+			return { ClickAction::SwitchPanel, panelIdx };
 		}
 	}
 
@@ -426,4 +546,16 @@ sf::FloatRect ClientView::returnBtnRect(const sf::Vector2f& rowPos) {
 sf::FloatRect ClientView::tabBtnRect(int index) {
 	return sf::FloatRect(sf::Vector2f{ tabStartX + index * (tabW + tabGap), tabY },
 						 sf::Vector2f{ tabW, tabH });
+}
+
+sf::FloatRect ClientView::inputFieldRect(int field) {
+	const float y = (field == 0) ? usernameY : passwordY;
+	return sf::FloatRect(sf::Vector2f{ loginFieldX, y },
+						 sf::Vector2f{ loginFieldW, loginFieldH });
+}
+
+sf::FloatRect ClientView::authBtnRect(int btn) {
+	const float x = (btn == 0) ? loginBtnX : registerBtnX;
+	return sf::FloatRect(sf::Vector2f{ x, authBtnY },
+						 sf::Vector2f{ authBtnW, authBtnH });
 }

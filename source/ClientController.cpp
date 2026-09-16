@@ -72,8 +72,9 @@ void ClientController::requestCheckout() {
 						});
 	}
 	const nlohmann::json req = {
-		{"code",  static_cast<int>(proto::RequestCode::Checkout)},
-		{"items", items}
+		{"code",   static_cast<int>(proto::RequestCode::Checkout)},
+		{"items",  items},
+		{"userId", model_.currentUserId()}
 	};
 	if (!proto::sendJson(*socket_, req)) {
 		model_.setStatus(L"发送结算请求失败，连接可能已断开");
@@ -88,7 +89,8 @@ void ClientController::requestListOrders() {
 		return;
 	}
 	const nlohmann::json req = {
-		{"code", static_cast<int>(proto::RequestCode::ListOrders)}
+		{"code",   static_cast<int>(proto::RequestCode::ListOrders)},
+		{"userId", model_.currentUserId()}
 	};
 	if (!proto::sendJson(*socket_, req)) {
 		model_.setStatus(L"发送订单列表请求失败，连接可能已断开");
@@ -115,6 +117,52 @@ void ClientController::requestAfterSale(std::int64_t orderId, std::int32_t produ
 	std::wostringstream ss;
 	ss << L"已提交退货请求：订单 #" << orderId << L"，请等待处理...";
 	model_.setStatus(ss.str());
+}
+
+void ClientController::requestLogin() {
+	if (!socket_) {
+		model_.setStatus(L"未连接服务器，无法登录");
+		return;
+	}
+	const auto& username = view_.usernameInput();
+	const auto& password = view_.passwordInput();
+	if (username.empty() || password.empty()) {
+		model_.setStatus(L"用户名或密码不能为空");
+		return;
+	}
+	const nlohmann::json req = {
+		{"code",     static_cast<int>(proto::RequestCode::Login)},
+		{"username", username},
+		{"password", password}
+	};
+	if (!proto::sendJson(*socket_, req)) {
+		model_.setStatus(L"发送登录请求失败，连接可能已断开");
+		return;
+	}
+	model_.setStatus(L"正在登录，请稍候...");
+}
+
+void ClientController::requestRegister() {
+	if (!socket_) {
+		model_.setStatus(L"未连接服务器，无法注册");
+		return;
+	}
+	const auto& username = view_.usernameInput();
+	const auto& password = view_.passwordInput();
+	if (username.empty() || password.empty()) {
+		model_.setStatus(L"用户名或密码不能为空");
+		return;
+	}
+	const nlohmann::json req = {
+		{"code",     static_cast<int>(proto::RequestCode::Register)},
+		{"username", username},
+		{"password", password}
+	};
+	if (!proto::sendJson(*socket_, req)) {
+		model_.setStatus(L"发送注册请求失败，连接可能已断开");
+		return;
+	}
+	model_.setStatus(L"正在注册，请稍候...");
 }
 
 void ClientController::handleEvent(const sf::Event& event) {
@@ -146,7 +194,9 @@ void ClientController::handleEvent(const sf::Event& event) {
 					break;
 				case ClientView::ClickAction::SwitchPanel: {
 					const int idx = action.arg;
-					if (idx >= 0 && idx <= 2) {
+					// idx 取 Panel 枚举值；Login=0 不参与，故范围 [ProductList, MyOrders]
+					if (idx >= static_cast<int>(ClientView::Panel::ProductList)
+						&& idx <= static_cast<int>(ClientView::Panel::MyOrders)) {
 						const auto target = static_cast<ClientView::Panel>(idx);
 						view_.setPanel(target);
 						// 进入商品列表/订单列表时自动拉取最新数据
@@ -159,6 +209,15 @@ void ClientController::handleEvent(const sf::Event& event) {
 					}
 					break;
 				}
+				case ClientView::ClickAction::FocusField:
+					view_.setActiveField(static_cast<ClientView::Field>(action.arg));
+					break;
+				case ClientView::ClickAction::Login:
+					requestLogin();
+					break;
+				case ClientView::ClickAction::Register:
+					requestRegister();
+					break;
 				case ClientView::ClickAction::None:
 				default: break;
 			}
@@ -172,6 +231,33 @@ void ClientController::handleEvent(const sf::Event& event) {
 		const auto key = kp->code;
 		if (key == sf::Keyboard::Key::Escape) {
 			window_.close();
+		}
+		// 登录面板：Enter 等同点击登录按钮，Backspace 删除末尾字符
+		if (view_.panel() == ClientView::Panel::Login) {
+			if (key == sf::Keyboard::Key::Enter) {
+				requestLogin();
+			}
+			else if (key == sf::Keyboard::Key::Backspace) {
+				view_.backspaceInput();
+			}
+			else if (key == sf::Keyboard::Key::Tab) {
+				// Tab 在用户名/密码输入框之间切换
+				view_.setActiveField(view_.activeField() == ClientView::Field::Username
+					? ClientView::Field::Password
+					: ClientView::Field::Username);
+			}
+		}
+		return;
+	}
+	// 文本输入事件：登录面板接收 ASCII 字符到当前聚焦输入框
+	if (event.is<sf::Event::TextEntered>()) {
+		const auto* te = event.getIf<sf::Event::TextEntered>();
+		if (te == nullptr) return;
+		if (view_.panel() != ClientView::Panel::Login) return;
+		const auto ch = te->unicode;
+		// 只接收可打印 ASCII（32..126），其他忽略
+		if (ch >= 32 && ch <= 126) {
+			view_.appendInputChar(static_cast<char>(ch));
 		}
 	}
 }
@@ -282,6 +368,46 @@ void ClientController::processMessage(nlohmann::json& msg) {
 			model_.setStatus(L"错误：" + ec::string::to_utf16(m));
 			break;
 		}
+		case static_cast<int>(proto::ResponseCode::LoginResult): {
+			const auto success = msg.value("success", false);
+			if (success) {
+				const auto userId   = msg["user"].value("id",       std::int64_t{});
+				const auto username = msg["user"].value("username", std::string{});
+				model_.setUser(userId, username);
+				view_.clearInputs();
+				view_.setPanel(ClientView::Panel::ProductList);
+				// 登录成功后立即拉取最新商品列表 + 该用户的订单
+				requestProductList();
+				std::wostringstream ss;
+				ss << L"欢迎 " << ec::string::to_utf16(username) << L"，已登录";
+				model_.setStatus(ss.str());
+			}
+			else {
+				const auto m = msg.value("message", std::string{ "登录失败" });
+				model_.setStatus(ec::string::to_utf16(m));
+			}
+			break;
+		}
+		case static_cast<int>(proto::ResponseCode::RegisterResult): {
+			const auto success = msg.value("success", false);
+			if (success) {
+				const auto userId   = msg["user"].value("id",       std::int64_t{});
+				const auto username = msg["user"].value("username", std::string{});
+				model_.setUser(userId, username);
+				view_.clearInputs();
+				view_.setPanel(ClientView::Panel::ProductList);
+				requestProductList();
+				std::wostringstream ss;
+				ss << L"注册成功，已自动登录为 " << ec::string::to_utf16(username);
+				model_.setStatus(ss.str());
+			}
+			else {
+				const auto m = msg.value("message", std::string{ "注册失败" });
+				model_.setStatus(ec::string::to_utf16(m));
+			}
+			break;
+		}
+
 		default:
 			model_.setStatus(L"收到未知响应码：" + std::to_wstring(code));
 	}

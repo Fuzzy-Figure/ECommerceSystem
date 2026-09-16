@@ -38,7 +38,9 @@ int main() {
 
     model.setStatus(L"正在连接服务器...");
     if (controller.connect(ip, port)) {
-        controller.requestProductList();  // 连接后立即拉取商品列表
+        // 启动后默认显示登录面板，等用户登录成功再切到商品列表
+        view.setPanel(ClientView::Panel::Login);
+        model.setStatus(L"已连接服务器，请登录或注册");
     }
 
     while (window.isOpen()) {

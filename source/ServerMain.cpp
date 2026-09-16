@@ -5,8 +5,10 @@
 #include "../header/Protocol.h"
 
 #include <atomic>
+#include <functional>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <thread>
 #include <Windows.h>
 
@@ -15,7 +17,8 @@ namespace {
 	//   v1 = 6 个商品 + orders 表（id/total/created_at 三列）
 	//   v2 = orders 加 discount/final_total 列 + promotions 表 + 5 条种子促销
 	//   v3 = orders 加 status 列（退货状态）+ order_items 加 returned_qty 列
-	constexpr int kSchemaVersion = 3;
+	//   v4 = users 表 + orders 加 user_id 列 + 种子用户
+	constexpr int kSchemaVersion = 4;
 
 	// 创建 schema 并插入种子数据；旧版本库会先 DROP 再重建
 	void initDatabase(Database& db) {
@@ -40,6 +43,7 @@ namespace {
 			db.execute("DROP TABLE IF EXISTS orders;");
 			db.execute("DROP TABLE IF EXISTS promotions;");
 			db.execute("DROP TABLE IF EXISTS products;");
+			db.execute("DROP TABLE IF EXISTS users;");
 		}
 
 		db.execute(
@@ -55,9 +59,11 @@ namespace {
 		// 订单主表 + 明细表：结算时由 OrderDAO 在同一事务内写入
 		// total=原价合计，discount=促销总折扣，final_total=实付（total-discount）
 		// status: 0=正常, 1=部分退货, 2=全部退货
+		// user_id: 关联下单用户（0=未登录用户下单）
 		db.execute(
 			"CREATE TABLE IF NOT EXISTS orders ("
 			"  id         INTEGER PRIMARY KEY AUTOINCREMENT,"
+			"  user_id    INTEGER NOT NULL DEFAULT 0,"
 			"  total      REAL NOT NULL,"
 			"  discount   REAL NOT NULL DEFAULT 0,"
 			"  final_total REAL NOT NULL,"
@@ -85,6 +91,14 @@ namespace {
 			"  type   TEXT NOT NULL,"
 			"  params TEXT NOT NULL,"
 			"  enabled INTEGER NOT NULL DEFAULT 1"
+			");"
+		);
+		// 用户表：username 唯一，password_hash 不存明文
+		db.execute(
+			"CREATE TABLE IF NOT EXISTS users ("
+			"  id            INTEGER PRIMARY KEY AUTOINCREMENT,"
+			"  username      TEXT NOT NULL UNIQUE,"
+			"  password_hash TEXT NOT NULL"
 			");"
 		);
 		// 写入当前 schema 版本号
@@ -147,6 +161,35 @@ namespace {
 				"('coupon',     '{\"amount\":10}',                1);"
 			);
 			std::cout << "[Init] 已插入种子促销规则" << std::endl;
+		}
+
+		// 用户种子数据：仅当 users 表为空时插入
+		// 密码哈希逻辑与 UserDAO::hashPassword 一致：std::hash(username + ":" + password)
+		auto userRows = db.query("SELECT COUNT(*) AS cnt FROM users;");
+		int userExisting = 0;
+		if (!userRows.empty()) {
+			const auto& v = userRows.front()["cnt"];
+			if (v.is_number()) userExisting = v.get<int>();
+			else if (v.is_string()) {
+				try { userExisting = std::stoi(v.get<std::string>()); } catch (...) {}
+			}
+		}
+		if (userExisting > 0) {
+			std::cout << "[Init] 数据库已有 " << userExisting << " 个用户" << std::endl;
+		} else {
+			db.execute("DELETE FROM users;");
+			// 内联 hash 逻辑，与 UserDAO::hashPassword 一致
+			auto hashPwd = [](const std::string& u, const std::string& p) -> std::string {
+				return std::to_string(std::hash<std::string>{}(u + ":" + p));
+			};
+			const auto adminHash = hashPwd("admin", "admin");
+			const auto user1Hash = hashPwd("user1", "123456");
+			std::ostringstream ins;
+			ins << "INSERT INTO users (username, password_hash) VALUES "
+				<< "('admin', '" << adminHash << "'),"
+				<< "('user1', '" << user1Hash << "');";
+			db.execute(ins.str());
+			std::cout << "[Init] 已插入种子用户（admin/admin, user1/123456）" << std::endl;
 		}
 	}
 }

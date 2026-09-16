@@ -14,6 +14,7 @@
 #include "Database.h"
 #include "ProductDAO.h"
 #include "OrderDAO.h"
+#include "UserDAO.h"
 #include "PromotionDAO.h"
 #include "PromotionFactory.h"
 #include "ServerView.h"
@@ -46,6 +47,7 @@ private:
     Database&      db_;
     ProductDAO     productDao_;
     OrderDAO       orderDao_;
+    UserDAO        userDao_;
     PromotionDAO   promotionDao_;
     // 促销链头：nullptr 表示无促销；多线程读需持 promotionMtx_
     std::unique_ptr<Promotion> promotionChain_;
@@ -71,4 +73,8 @@ private:
     nlohmann::json handleListOrders(const nlohmann::json& req);
     // 售后退货：{orderId, productId, qty} → AfterSaleResult
     nlohmann::json handleAfterSale(const nlohmann::json& req);
+    // 登录：{username, password} → LoginResult
+    nlohmann::json handleLogin(const nlohmann::json& req);
+    // 注册：{username, password} → RegisterResult
+    nlohmann::json handleRegister(const nlohmann::json& req);
 };

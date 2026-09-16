@@ -41,7 +41,13 @@ public:
 	// 发起售后退货：把指定订单内某 productId 的 qty 件退货
 	void requestAfterSale(std::int64_t orderId, std::int32_t productId, std::int32_t qty);
 
-	// 处理 SFML 事件（按键、关闭等）
+	// 发起登录请求：取登录面板输入框的用户名/密码上传
+	void requestLogin();
+
+	// 发起注册请求：取登录面板输入框的用户名/密码上传
+	void requestRegister();
+
+	// 处理 SFML 事件（按键、关闭、文本输入等）
 	void handleEvent(const sf::Event& event);
 
 	// 主循环每帧调用：消费接收队列、更新 Model

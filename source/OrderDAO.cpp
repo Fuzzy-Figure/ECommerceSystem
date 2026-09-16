@@ -45,6 +45,7 @@ namespace {
 }
 
 std::int64_t OrderDAO::placeOrder(const std::vector<CartItem>& items,
+								  std::int64_t                  userId,
 								  double                       discount,
 								  double& originalTotalOut,
 								  double& finalTotalOut) {
@@ -73,11 +74,11 @@ std::int64_t OrderDAO::placeOrder(const std::vector<CartItem>& items,
 		if (discount > originalTotal) discount = originalTotal;
 		const double finalTotal = originalTotal - discount;
 
-		// 2. 生成订单主表（原价 + 折扣 + 实付 + 状态0=正常）
+		// 2. 生成订单主表（原价 + 折扣 + 实付 + 状态0=正常 + user_id）
 		{
 			std::ostringstream ins;
-			ins << "INSERT INTO orders (total, discount, final_total, status, created_at) VALUES ("
-				<< originalTotal << ", " << discount << ", " << finalTotal
+			ins << "INSERT INTO orders (user_id, total, discount, final_total, status, created_at) VALUES ("
+				<< userId << ", " << originalTotal << ", " << discount << ", " << finalTotal
 				<< ", 0, '" << nowString() << "');";
 			db_.execute(ins.str());
 		}
@@ -138,12 +139,13 @@ void OrderDAO::loadItemsOf(Order& order) {
 	}
 }
 
-std::vector<Order> OrderDAO::findAllWithItems() {
-	// 查所有订单，按 id 倒序（最新在前）
-	auto rows = db_.query(
-		"SELECT id, total, discount, final_total, status, created_at "
-		"FROM orders ORDER BY id DESC;"
-	);
+std::vector<Order> OrderDAO::findAllWithItems(std::int64_t userId) {
+	// 查订单按 id 倒序（最新在前）；userId > 0 只查该用户订单
+	std::ostringstream q;
+	q << "SELECT id, total, discount, final_total, status, created_at FROM orders";
+	if (userId > 0) q << " WHERE user_id=" << userId;
+	q << " ORDER BY id DESC;";
+	auto rows = db_.query(q.str());
 	std::vector<Order> result;
 	result.reserve(rows.size());
 	for (const auto& r : rows) {

@@ -3,7 +3,7 @@
 #include <utility>
 
 ServerController::ServerController(Database& db)
-	: db_(db), productDao_(db), orderDao_(db), promotionDao_(db),
+	: db_(db), productDao_(db), orderDao_(db), userDao_(db), promotionDao_(db),
 	worker_(&ServerController::workerLoop, this) {
 	// 启动时从 DB 加载促销规则并组装装饰器链
 	reloadPromotions();
@@ -68,6 +68,12 @@ void ServerController::handle(std::shared_ptr<sf::TcpSocket> socket, const nlohm
 			break;
 		case static_cast<int>(proto::RequestCode::AfterSale):
 			response = handleAfterSale(request);
+			break;
+		case static_cast<int>(proto::RequestCode::Login):
+			response = handleLogin(request);
+			break;
+		case static_cast<int>(proto::RequestCode::Register):
+			response = handleRegister(request);
 			break;
 		default:
 			response = {
@@ -152,8 +158,10 @@ nlohmann::json ServerController::handleCheckout(const nlohmann::json& req) {
 	const double finalTotal = originalTotal - discount;
 
 	// 3. 调持久层下单（事务内写入订单 + 明细 + 扣库存）
+	// 从请求取 userId 关联订单归属（登录后客户端会带上）
+	const auto userId = req.value("userId", std::int64_t{});
 	double outOriginal = 0.0, outFinal = 0.0;
-	const auto orderId = orderDao_.placeOrder(cart, discount, outOriginal, outFinal);
+	const auto orderId = orderDao_.placeOrder(cart, userId, discount, outOriginal, outFinal);
 	if (orderId <= 0) {
 		return {
 			{"code",    static_cast<int>(proto::ResponseCode::CheckoutResult)},
@@ -176,11 +184,13 @@ nlohmann::json ServerController::handleCheckout(const nlohmann::json& req) {
 	};
 }
 
-nlohmann::json ServerController::handleListOrders(const nlohmann::json& /*req*/) {
-	auto orders = orderDao_.findAllWithItems();
+nlohmann::json ServerController::handleListOrders(const nlohmann::json& req) {
+	// 只返回当前登录用户的订单（userId > 0）；userId = 0 兼容全部
+	const auto userId = req.value("userId", std::int64_t{});
+	auto orders = orderDao_.findAllWithItems(userId);
 	nlohmann::json arr = nlohmann::json::array();
 	for (const auto& o : orders) arr.push_back(o.toJson());
-	std::cout << "[ServerController] 返回 " << orders.size() << " 条历史订单" << std::endl;
+	std::cout << "[ServerController] 用户 " << userId << " 返回 " << orders.size() << " 条历史订单" << std::endl;
 	return {
 		{"code",   static_cast<int>(proto::ResponseCode::OrderList)},
 		{"orders", arr}
@@ -215,5 +225,62 @@ nlohmann::json ServerController::handleAfterSale(const nlohmann::json& req) {
 		{"success", true},
 		{"refund",  refund},
 		{"message", "退货成功"}
+	};
+}
+
+nlohmann::json ServerController::handleLogin(const nlohmann::json& req) {
+	const auto username = req.value("username", std::string{});
+	const auto password = req.value("password", std::string{});
+	if (username.empty() || password.empty()) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::LoginResult)},
+			{"success", false},
+			{"message", "登录失败：用户名或密码为空"}
+		};
+	}
+	auto opt = userDao_.authenticate(username, password);
+	if (!opt.has_value()) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::LoginResult)},
+			{"success", false},
+			{"message", "登录失败：用户名或密码错误"}
+		};
+	}
+	const auto& u = opt.value();
+	std::cout << "[ServerController] 用户登录成功 id=" << u.id
+		<< " username=" << u.username << std::endl;
+	return {
+		{"code",    static_cast<int>(proto::ResponseCode::LoginResult)},
+		{"success", true},
+		{"user",    u.toJson()},
+		{"message", "登录成功"}
+	};
+}
+
+nlohmann::json ServerController::handleRegister(const nlohmann::json& req) {
+	const auto username = req.value("username", std::string{});
+	const auto password = req.value("password", std::string{});
+	if (username.empty() || password.empty()) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::RegisterResult)},
+			{"success", false},
+			{"message", "注册失败：用户名或密码为空"}
+		};
+	}
+	std::int64_t newId = 0;
+	if (!userDao_.createUser(username, password, newId)) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::RegisterResult)},
+			{"success", false},
+			{"message", "注册失败：用户名已存在"}
+		};
+	}
+	std::cout << "[ServerController] 新用户注册成功 id=" << newId
+		<< " username=" << username << std::endl;
+	return {
+		{"code",    static_cast<int>(proto::ResponseCode::RegisterResult)},
+		{"success", true},
+		{"user",    { {"id", newId}, {"username", username} }},
+		{"message", "注册成功"}
 	};
 }
