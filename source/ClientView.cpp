@@ -156,7 +156,7 @@ void ClientView::clearInputs() noexcept {
 
 // ===================== 顶部 Tab 标签栏 =====================
 
-void ClientView::drawTabBar() {
+void ClientView::drawTabBar(const ClientModel& model) {
 	const wchar_t* labels[] = { L"商品列表", L"购物车", L"我的订单" };
 	// Panel 枚举包含 Login=0，Tab 索引 0/1/2 对应 ProductList/Cart/MyOrders，故减去 Login 偏移
 	const int current = static_cast<int>(panel_) - static_cast<int>(Panel::ProductList);
@@ -179,6 +179,27 @@ void ClientView::drawTabBar() {
 							 { r.position.x + 50, r.position.y + 8 },
 							 { 18, 24 }, textColor);
 	}
+
+	// 右上角：当前用户名 + 登出按钮（仅登录后显示）
+	if (model.loggedIn()) {
+		const auto lr = logoutBtnRect();
+		// 用户名文本（登出按钮左侧）
+		std::wostringstream user;
+		user << L"用户：" << ec::string::to_utf16(model.currentUsername());
+		textMgr_.displayText(user.str(),
+							 { lr.position.x - 200, lr.position.y + 8 },
+							 { 18, 24 }, sf::Color(60, 60, 60));
+		// 登出按钮（红色调，区别于蓝色 Tab）
+		sf::RectangleShape btn({ lr.size.x, lr.size.y });
+		btn.setPosition({ lr.position.x, lr.position.y });
+		btn.setFillColor(sf::Color(200, 80, 80));
+		btn.setOutlineColor(sf::Color(160, 60, 60));
+		btn.setOutlineThickness(1.f);
+		window_.draw(btn);
+		textMgr_.displayText(L"登出",
+							 { lr.position.x + 30, lr.position.y + 8 },
+							 { 18, 24 }, sf::Color::White);
+	}
 }
 
 // ===================== 商品列表面板 =====================
@@ -186,7 +207,7 @@ void ClientView::drawTabBar() {
 void ClientView::drawProductListPanel(const ClientModel& model) {
 	const auto& products = model.products();
 
-	drawTabBar();
+	drawTabBar(model);
 	if (!model.status().empty()) {
 		textMgr_.displayText(model.status(), { 700, statusY }, { 18, 22 }, sf::Color(150, 150, 150));
 	}
@@ -274,7 +295,7 @@ void ClientView::drawCard(const Product& p, const sf::Vector2f& pos, const sf::V
 void ClientView::drawCartPanel(const ClientModel& model) {
 	const auto& cart = model.cart();
 
-	drawTabBar();
+	drawTabBar(model);
 	if (!model.status().empty()) {
 		textMgr_.displayText(model.status(), { 700, statusY }, { 18, 22 }, sf::Color(150, 150, 150));
 	}
@@ -360,7 +381,7 @@ void ClientView::drawCartPanel(const ClientModel& model) {
 void ClientView::drawMyOrdersPanel(const ClientModel& model) {
 	const auto& orders = model.orders();
 
-	drawTabBar();
+	drawTabBar(model);
 	if (!model.status().empty()) {
 		textMgr_.displayText(model.status(), { 700, statusY }, { 18, 22 }, sf::Color(150, 150, 150));
 	}
@@ -472,6 +493,10 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 			return { ClickAction::SwitchPanel, panelIdx };
 		}
 	}
+	// 右上角登出按钮（登录后才显示）
+	if (model.loggedIn() && hit(logoutBtnRect(), mousePos)) {
+		return { ClickAction::Logout, 0 };
+	}
 
 	if (panel_ == Panel::ProductList) {
 		const auto& products = model.products();
@@ -559,6 +584,13 @@ sf::FloatRect ClientView::authBtnRect(int btn) {
 	const float x = (btn == 0) ? loginBtnX : registerBtnX;
 	return sf::FloatRect(sf::Vector2f{ x, authBtnY },
 						 sf::Vector2f{ authBtnW, authBtnH });
+}
+
+sf::FloatRect ClientView::logoutBtnRect() const {
+	// 右上角：距离窗口右边 20px，与 Tab 同高
+	constexpr float w = 100.f, h = tabH;
+	const float x = static_cast<float>(window_.getSize().x) - w - 20.f;
+	return sf::FloatRect(sf::Vector2f{ x, tabY }, sf::Vector2f{ w, h });
 }
 
 // ===================== "我的订单"面板滚动 =====================

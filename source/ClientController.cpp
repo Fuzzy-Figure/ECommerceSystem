@@ -219,6 +219,15 @@ void ClientController::handleEvent(const sf::Event& event) {
 				case ClientView::ClickAction::Register:
 					requestRegister();
 					break;
+				case ClientView::ClickAction::Logout:
+					// 清用户身份 + 购物车 + 订单缓存，切回登录面板
+					model_.clearUser();
+					model_.clearCart();
+					model_.clearOrders();
+					view_.clearInputs();
+					view_.setPanel(ClientView::Panel::Login);
+					model_.setStatus(L"已登出，请重新登录");
+					break;
 				case ClientView::ClickAction::None:
 				default: break;
 			}

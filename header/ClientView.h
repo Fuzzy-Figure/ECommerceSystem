@@ -28,7 +28,8 @@ public:
 			SwitchPanel,   // 切换面板：arg 是目标 Panel 的 int 值
 			Login,         // 登录按钮：用当前输入框的用户名/密码
 			Register,      // 注册按钮：同上
-			FocusField     // 聚焦输入框：arg 是 Field 的 int 值
+			FocusField,    // 聚焦输入框：arg 是 Field 的 int 值
+			Logout         // 登出按钮：清用户身份 + 切回登录面板
 		} type{ None };
 		std::int32_t arg{ 0 };     // AddToCart/RemoveFromCart 用 productId；SwitchPanel 用 panel 索引；FocusField 用 Field 索引
 		std::int64_t orderId{};  // ReturnItem 用 orderId
@@ -112,6 +113,8 @@ private:
 	static sf::FloatRect inputFieldRect(int field);
 	// 登录/注册按钮矩形；btn=0 登录，1 注册
 	static sf::FloatRect authBtnRect(int btn);
-	// 绘制顶部 Tab 标签栏（仅 ProductList/Cart/MyOrders 三面板用，登录面板不画）
-	void drawTabBar();
+	// 右上角登出按钮矩形（窗口右边界附近，y=tabY）
+	sf::FloatRect logoutBtnRect() const;
+	// 绘制顶部 Tab 标签栏 + 右上角用户名/登出按钮（仅 ProductList/Cart/MyOrders 三面板用）
+	void drawTabBar(const ClientModel& model);
 };

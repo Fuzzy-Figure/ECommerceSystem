@@ -37,6 +37,8 @@ public:
 	// === 历史订单 ===
 	void setOrders(std::vector<Order> orders) { orders_ = std::move(orders); }
 	const std::vector<Order>& orders() const noexcept { return orders_; }
+	// 清空订单缓存（登出时调用，防止下个用户看到上一个用户的订单）
+	void clearOrders() noexcept { orders_.clear(); }
 
 	// === 当前登录用户身份（业务状态，非 UI 状态）===
 	std::int64_t         currentUserId() const noexcept { return currentUserId_; }
