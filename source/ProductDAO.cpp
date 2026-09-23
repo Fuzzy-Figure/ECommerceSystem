@@ -122,3 +122,9 @@ std::int32_t ProductDAO::createProduct(const std::string& name,
 	else if (v.is_string()) { try { newId = std::stoi(v.get<std::string>()); } catch (...) {} }
 	return newId;
 }
+
+bool ProductDAO::deleteProduct(std::int32_t id) {
+	std::ostringstream ss;
+	ss << "DELETE FROM products WHERE id = " << id << ";";
+	return db_.execute(ss.str()) > 0;
+}

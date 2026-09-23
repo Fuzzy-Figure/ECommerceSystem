@@ -35,7 +35,8 @@ public:
 			MerchantStockPlus,  // 商家库存 +10：productId
 			MerchantStockMinus,// 商家库存 -10：productId（不低于0）
 			MerchantCreateProduct,  // 商家新增商品：用 MerchantCreate 表单输入
-			MerchantCreateBack      // 商家新增商品表单的"返回"按钮：切回 Merchant 面板
+			MerchantCreateBack,     // 商家新增商品表单的"返回"按钮：切回 Merchant 面板
+			MerchantDeleteProduct   // 商家删除商品：productId
 		} type{ None };
 		std::int32_t arg{ 0 };     // AddToCart/RemoveFromCart 用 productId；SwitchPanel 用 panel 索引；FocusField 用 Field 索引；MerchantSetOnSale 用 0/1
 		std::int64_t orderId{};  // ReturnItem 用 orderId
@@ -139,6 +140,8 @@ private:
 	sf::FloatRect merchantStockPlusBtnRect(const sf::Vector2f& rowPos) const;
 	// 商家商品行：库存 -10 按钮矩形
 	sf::FloatRect merchantStockMinusBtnRect(const sf::Vector2f& rowPos) const;
+	// 商家商品行：删除按钮矩形（状态列后面）
+	sf::FloatRect merchantDeleteBtnRect(const sf::Vector2f& rowPos) const;
 	// 商家面板底部"新增商品"按钮矩形
 	sf::FloatRect merchantCreateBtnRect() const;
 

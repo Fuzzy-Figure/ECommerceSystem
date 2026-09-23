@@ -36,6 +36,9 @@ public:
 								std::int32_t       stock,
 								const std::string& imagePath);
 
+	// 商家删除商品：返回 true 表示成功
+	bool deleteProduct(std::int32_t id);
+
 private:
 	// 把一行 JSON 映射为 Product
 	static Product mapRow(const nlohmann::json& row);

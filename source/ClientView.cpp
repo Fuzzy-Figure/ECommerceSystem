@@ -59,6 +59,24 @@ namespace {
 	constexpr float loginTitleY = 200.f;
 }
 
+// 商品名超长截断显示：中文算 2 宽度单位，ASCII 算 1，累计超过 maxWidthUnits 截断加"…"
+// 30 单位 ≈ 15 个中文字符或 30 个 ASCII 字符（18px 字体下约 270 像素）
+static std::wstring truncateForDisplay(const std::string& utf8, int maxWidthUnits) {
+	std::wstring ws = ec::string::to_utf16(utf8);
+	int width = 0;
+	std::wstring result;
+	for (wchar_t c : ws) {
+		const int cw = (c >= 0x4E00 && c <= 0x9FFF) ? 2 : 1;
+		if (width + cw > maxWidthUnits) {
+			result += L"…";
+			break;
+		}
+		result += c;
+		width += cw;
+	}
+	return result;
+}
+
 void ClientView::render(const ClientModel& model) {
 	switch (panel_) {
 		case Panel::Login:           drawLoginPanel(model);           break;
@@ -186,8 +204,8 @@ void ClientView::drawMerchantPanel(const ClientModel& model) {
 		rowBg.setOutlineThickness(1.f);
 		window_.draw(rowBg);
 
-		// 商品名
-		textMgr_.displayText(ec::string::to_utf16(p.name),
+		// 商品名（超长截断显示，防止与价格列重叠）
+		textMgr_.displayText(truncateForDisplay(p.name, 30),
 							 { rowPos.x + 12, rowPos.y + 12 }, { 18, 24 }, sf::Color::Black);
 		// 价格
 		std::wostringstream pp; pp << L"¥" << p.price;
@@ -199,6 +217,17 @@ void ClientView::drawMerchantPanel(const ClientModel& model) {
 		textMgr_.displayText(p.onSale ? L"已上架" : L"已下架",
 							 { rowPos.x + 600, rowPos.y + 12 }, { 18, 24 },
 							 p.onSale ? sf::Color(50, 150, 50) : sf::Color(180, 80, 80));
+		// 删除按钮（状态列后面）
+		const auto delRect = merchantDeleteBtnRect(rowPos);
+		sf::RectangleShape delBtn({ delRect.size.x, delRect.size.y });
+		delBtn.setPosition({ delRect.position.x, delRect.position.y });
+		delBtn.setFillColor(sf::Color(220, 80, 80));
+		delBtn.setOutlineColor(sf::Color(180, 60, 60));
+		delBtn.setOutlineThickness(1.f);
+		window_.draw(delBtn);
+		textMgr_.displayText(L"删除",
+							 { delRect.position.x + 14, delRect.position.y + 8 },
+							 { 16, 22 }, sf::Color::White);
 
 		// 上架/下架按钮
 		const auto saleRect = merchantSaleBtnRect(rowPos);
@@ -280,7 +309,7 @@ void ClientView::drawMerchantCreatePanel(const ClientModel& model) {
 	textMgr_.displayText(L"填写商品信息（带 * 为必填）", { 100, 100 }, { 20, 26 }, sf::Color(60, 60, 60));
 
 	// 5 个输入框：名称/价格/库存/描述/图片路径
-	const wchar_t* labels[] = { L"商品名称 *", L"价格 (元) *", L"库存 *", L"描述", L"图片路径（留空用占位图）" };
+	const wchar_t* labels[] = { L"商品名称 *", L"价格 (元) *", L"库存 *", L"描述", L"图片路径" };
 	const std::string* values[] = {
 		&productNameInput_, &productPriceInput_, &productStockInput_,
 		&productDescInput_, &productImageInput_
@@ -827,6 +856,11 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 				act.productId = p.id;
 				return act;
 			}
+			if (hit(merchantDeleteBtnRect(rowPos), mousePos)) {
+				ClickAction act{ ClickAction::MerchantDeleteProduct, 0 };
+				act.productId = p.id;
+				return act;
+			}
 			rowY += rowH + 4.f;
 		}
 		// 底部"新增商品"按钮
@@ -908,6 +942,12 @@ sf::FloatRect ClientView::merchantStockMinusBtnRect(const sf::Vector2f& rowPos) 
 	const float saleX = rowPos.x + orderCardW - 70.f - 10.f;  // 与 sale 按钮左对齐
 	const float x = saleX - w - 8.f;
 	return sf::FloatRect(sf::Vector2f{ x, rowPos.y + 7.f }, sf::Vector2f{ w, h });
+}
+
+// 删除按钮（状态列后面）
+sf::FloatRect ClientView::merchantDeleteBtnRect(const sf::Vector2f& rowPos) const {
+	constexpr float w = 60.f, h = 30.f;
+	return sf::FloatRect(sf::Vector2f{ rowPos.x + 750, rowPos.y + 7.f }, sf::Vector2f{ w, h });
 }
 
 sf::FloatRect ClientView::merchantStockPlusBtnRect(const sf::Vector2f& rowPos) const {

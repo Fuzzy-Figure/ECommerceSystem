@@ -89,6 +89,9 @@ void ServerController::handle(std::shared_ptr<sf::TcpSocket> socket, const nlohm
 		case static_cast<int>(proto::RequestCode::MerchantCreateProduct):
 			response = handleMerchantCreateProduct(request);
 			break;
+		case static_cast<int>(proto::RequestCode::MerchantDeleteProduct):
+			response = handleMerchantDeleteProduct(request);
+			break;
 		default:
 			response = {
 				{"code",    static_cast<int>(proto::ResponseCode::Error)},
@@ -432,5 +435,30 @@ nlohmann::json ServerController::handleMerchantCreateProduct(const nlohmann::jso
 		{"code",    static_cast<int>(proto::ResponseCode::MerchantActionResult)},
 		{"success", true},
 		{"message", "新增成功"}
+	};
+}
+
+nlohmann::json ServerController::handleMerchantDeleteProduct(const nlohmann::json& req) {
+	if (auto err = requireMerchant(req)) return *err;
+	const auto productId = req.value("productId", std::int32_t{});
+	if (productId <= 0) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::MerchantActionResult)},
+			{"success", false},
+			{"message", "删除失败：商品 ID 无效"}
+		};
+	}
+	if (!productDao_.deleteProduct(productId)) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::MerchantActionResult)},
+			{"success", false},
+			{"message", "删除失败：商品不存在或已删除"}
+		};
+	}
+	std::cout << "[ServerController] 商家删除商品 id=" << productId << std::endl;
+	return {
+		{"code",    static_cast<int>(proto::ResponseCode::MerchantActionResult)},
+		{"success", true},
+		{"message", "删除成功"}
 	};
 }

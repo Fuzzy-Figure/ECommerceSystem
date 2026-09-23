@@ -85,6 +85,8 @@ private:
     nlohmann::json handleMerchantUpdateStock(const nlohmann::json& req);
     // 商家新增商品：{userId, name, description, price, stock, imagePath} → MerchantActionResult
     nlohmann::json handleMerchantCreateProduct(const nlohmann::json& req);
+    // 商家删除商品：{userId, productId} → MerchantActionResult
+    nlohmann::json handleMerchantDeleteProduct(const nlohmann::json& req);
     // 校验请求发起者是否为商家（role=1），不是则返回错误应答
     // 成功返回 nullopt，失败返回已构造好的错误 JSON
     std::optional<nlohmann::json> requireMerchant(const nlohmann::json& req);

@@ -226,6 +226,25 @@ void ClientController::requestMerchantCreateProduct() {
 	model_.setStatus(L"正在提交新增商品...");
 }
 
+void ClientController::requestMerchantDeleteProduct(std::int32_t productId) {
+	if (!socket_) {
+		model_.setStatus(L"未连接服务器，无法删除商品");
+		return;
+	}
+	const nlohmann::json req = {
+		{"code",      static_cast<int>(proto::RequestCode::MerchantDeleteProduct)},
+		{"userId",    model_.currentUserId()},
+		{"productId", productId}
+	};
+	if (!proto::sendJson(*socket_, req)) {
+		model_.setStatus(L"发送删除商品请求失败，连接可能已断开");
+		return;
+	}
+	std::wostringstream ss;
+	ss << L"正在删除商品 id=" << productId << L"...";
+	model_.setStatus(ss.str());
+}
+
 void ClientController::requestLogin() {
 	if (!socket_) {
 		model_.setStatus(L"未连接服务器，无法登录");
@@ -352,6 +371,9 @@ void ClientController::handleEvent(const sf::Event& event) {
 					break;
 				case ClientView::ClickAction::MerchantCreateProduct:
 					requestMerchantCreateProduct();
+					break;
+				case ClientView::ClickAction::MerchantDeleteProduct:
+					requestMerchantDeleteProduct(action.productId);
 					break;
 				case ClientView::ClickAction::MerchantCreateBack:
 					// 返回商家管理面板，清空表单输入
