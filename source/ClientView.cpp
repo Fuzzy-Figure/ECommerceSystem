@@ -187,9 +187,9 @@ void ClientView::drawMerchantPanel(const ClientModel& model) {
 	// 表头
 	const float tableY = orderCardStartY;
 	textMgr_.displayText(L"商品名", { orderCardX + 12,  tableY }, { 18, 24 }, sf::Color(120, 120, 120));
-	textMgr_.displayText(L"价格",   { orderCardX + 300, tableY }, { 18, 24 }, sf::Color(120, 120, 120));
-	textMgr_.displayText(L"库存",   { orderCardX + 450, tableY }, { 18, 24 }, sf::Color(120, 120, 120));
-	textMgr_.displayText(L"状态",   { orderCardX + 600, tableY }, { 18, 24 }, sf::Color(120, 120, 120));
+	textMgr_.displayText(L"价格",   { orderCardX + 450, tableY }, { 18, 24 }, sf::Color(120, 120, 120));
+	textMgr_.displayText(L"库存",   { orderCardX + 600, tableY }, { 18, 24 }, sf::Color(120, 120, 120));
+	textMgr_.displayText(L"状态",   { orderCardX + 750, tableY }, { 18, 24 }, sf::Color(120, 120, 120));
 
 	float rowY = tableY + 30.f;
 	constexpr float rowH = 44.f;
@@ -205,17 +205,17 @@ void ClientView::drawMerchantPanel(const ClientModel& model) {
 		window_.draw(rowBg);
 
 		// 商品名（超长截断显示，防止与价格列重叠）
-		textMgr_.displayText(truncateForDisplay(p.name, 30),
+		textMgr_.displayText(truncateForDisplay(p.name, 45),
 							 { rowPos.x + 12, rowPos.y + 12 }, { 18, 24 }, sf::Color::Black);
 		// 价格
 		std::wostringstream pp; pp << L"¥" << p.price;
-		textMgr_.displayText(pp.str(), { rowPos.x + 300, rowPos.y + 12 }, { 18, 24 }, sf::Color(80, 80, 80));
+		textMgr_.displayText(pp.str(), { rowPos.x + 450, rowPos.y + 12 }, { 18, 24 }, sf::Color(80, 80, 80));
 		// 库存
 		std::wostringstream ss; ss << p.stock;
-		textMgr_.displayText(ss.str(), { rowPos.x + 450, rowPos.y + 12 }, { 18, 24 }, sf::Color::Black);
+		textMgr_.displayText(ss.str(), { rowPos.x + 600, rowPos.y + 12 }, { 18, 24 }, sf::Color::Black);
 		// 状态
 		textMgr_.displayText(p.onSale ? L"已上架" : L"已下架",
-							 { rowPos.x + 600, rowPos.y + 12 }, { 18, 24 },
+							 { rowPos.x + 750, rowPos.y + 12 }, { 18, 24 },
 							 p.onSale ? sf::Color(50, 150, 50) : sf::Color(180, 80, 80));
 		// 删除按钮（状态列后面）
 		const auto delRect = merchantDeleteBtnRect(rowPos);
@@ -931,28 +931,30 @@ sf::FloatRect ClientView::logoutBtnRect() const {
 }
 
 // 商家面板行内按钮：从右往左依次是 上架/下架、库存-10、库存+10
+// 按钮从右往左排列：删除(60) → 上架/下架(70) → 库存-10(80) → 库存+10(80)
+sf::FloatRect ClientView::merchantDeleteBtnRect(const sf::Vector2f& rowPos) const {
+	constexpr float w = 60.f, h = 30.f;
+	const float x = rowPos.x + orderCardW - w - 10.f;
+	return sf::FloatRect(sf::Vector2f{ x, rowPos.y + 7.f }, sf::Vector2f{ w, h });
+}
+
 sf::FloatRect ClientView::merchantSaleBtnRect(const sf::Vector2f& rowPos) const {
 	constexpr float w = 70.f, h = 30.f;
-	const float x = rowPos.x + orderCardW - w - 10.f;
+	const float deleteX = rowPos.x + orderCardW - 60.f - 10.f;  // 删除按钮左边
+	const float x = deleteX - w - 8.f;
 	return sf::FloatRect(sf::Vector2f{ x, rowPos.y + 7.f }, sf::Vector2f{ w, h });
 }
 
 sf::FloatRect ClientView::merchantStockMinusBtnRect(const sf::Vector2f& rowPos) const {
 	constexpr float w = 80.f, h = 30.f;
-	const float saleX = rowPos.x + orderCardW - 70.f - 10.f;  // 与 sale 按钮左对齐
+	const float saleX = rowPos.x + orderCardW - 60.f - 10.f - 70.f - 8.f;  // 上架/下架按钮左边
 	const float x = saleX - w - 8.f;
 	return sf::FloatRect(sf::Vector2f{ x, rowPos.y + 7.f }, sf::Vector2f{ w, h });
 }
 
-// 删除按钮（状态列后面）
-sf::FloatRect ClientView::merchantDeleteBtnRect(const sf::Vector2f& rowPos) const {
-	constexpr float w = 60.f, h = 30.f;
-	return sf::FloatRect(sf::Vector2f{ rowPos.x + 750, rowPos.y + 7.f }, sf::Vector2f{ w, h });
-}
-
 sf::FloatRect ClientView::merchantStockPlusBtnRect(const sf::Vector2f& rowPos) const {
 	constexpr float w = 80.f, h = 30.f;
-	const float minusX = rowPos.x + orderCardW - 70.f - 10.f - 80.f - 8.f;
+	const float minusX = rowPos.x + orderCardW - 60.f - 10.f - 70.f - 8.f - 80.f - 8.f;
 	const float x = minusX - w - 8.f;
 	return sf::FloatRect(sf::Vector2f{ x, rowPos.y + 7.f }, sf::Vector2f{ w, h });
 }
