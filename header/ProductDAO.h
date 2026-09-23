@@ -31,10 +31,10 @@ public:
 
 	// 商家新增商品：返回新商品 id（>0 表示成功）；imagePath 为空时用默认占位图
 	std::int32_t createProduct(const std::string& name,
-								const std::string& description,
-								double             price,
-								std::int32_t       stock,
-								const std::string& imagePath);
+							   const std::string& description,
+							   double             price,
+							   std::int32_t       stock,
+							   const std::string& imagePath);
 
 	// 商家删除商品：返回 true 表示成功
 	bool deleteProduct(std::int32_t id);

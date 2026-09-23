@@ -180,7 +180,8 @@ namespace {
 		}
 		if (userExisting > 0) {
 			std::cout << "[Init] 数据库已有 " << userExisting << " 个用户" << std::endl;
-		} else {
+		}
+		else {
 			db.execute("DELETE FROM users;");
 			// 内联 hash 逻辑，与 UserDAO::hashPassword 一致
 			auto hashPwd = [](const std::string& u, const std::string& p) -> std::string {

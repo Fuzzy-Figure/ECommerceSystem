@@ -8,37 +8,37 @@
 
 namespace proto {
 	// 请求码（PPTX 第12页协议示例：商品展示/加入购物车/结算/售后）
-    enum class RequestCode : std::int32_t {
-        ListProducts,  // 拉取商品列表
-        // 注：A 方案胖客户端下 AddToCart 不启用——购物车在客户端本地维护，
-        // 结算时一次性发 Checkout 上传全部 items。保留枚举项以贴合 PPT 协议码示例。
-        AddToCart,     // 加入购物车：{productId, qty}（未启用）
-        Checkout,      // 结算当前购物车：{userId, items:[{productId, qty}]}
-        AfterSale,     // 售后退货：{orderId, productId, qty}
-        ListOrders,    // 拉取历史订单列表：{userId}
-        Login,         // 登录：{username, password}
-        Register,      // 注册：{username, password}
-        MerchantListProducts,  // 商家拉取全部商品（含下架）：{userId}
-        MerchantSetOnSale,     // 商家上架/下架：{userId, productId, onSale}
-        MerchantUpdateStock,   // 商家调整库存：{userId, productId, stock}
-        MerchantCreateProduct,// 商家新增商品：{userId, name, description, price, stock, imagePath}
-        MerchantDeleteProduct,// 商家删除商品：{userId, productId}
-        MerchantUpdateProduct,// 商家编辑商品：{userId, productId, name, description, price, stock, imagePath}
-    };
+	enum class RequestCode : std::int32_t {
+		ListProducts,  // 拉取商品列表
+		// 注：A 方案胖客户端下 AddToCart 不启用——购物车在客户端本地维护，
+		// 结算时一次性发 Checkout 上传全部 items。保留枚举项以贴合 PPT 协议码示例。
+		AddToCart,     // 加入购物车：{productId, qty}（未启用）
+		Checkout,      // 结算当前购物车：{userId, items:[{productId, qty}]}
+		AfterSale,     // 售后退货：{orderId, productId, qty}
+		ListOrders,    // 拉取历史订单列表：{userId}
+		Login,         // 登录：{username, password}
+		Register,      // 注册：{username, password}
+		MerchantListProducts,  // 商家拉取全部商品（含下架）：{userId}
+		MerchantSetOnSale,     // 商家上架/下架：{userId, productId, onSale}
+		MerchantUpdateStock,   // 商家调整库存：{userId, productId, stock}
+		MerchantCreateProduct,// 商家新增商品：{userId, name, description, price, stock, imagePath}
+		MerchantDeleteProduct,// 商家删除商品：{userId, productId}
+		MerchantUpdateProduct,// 商家编辑商品：{userId, productId, name, description, price, stock, imagePath}
+	};
 
-    // 应答码（服务端响应）
-    enum class ResponseCode : std::int32_t {
-        ProductList,      // 商品列表
-        AddToCartResult,  // 加购结果（未启用，对应 AddToCart）
-        CheckoutResult,   // 结算结果：{success, orderId, originalTotal, discount, total, message}
-        AfterSaleResult,  // 售后结果：{success, refund, message}
-        Error,            // 错误：{message}
-        OrderList,        // 历史订单列表：{orders:[...]}
-        LoginResult,      // 登录结果：{success, userId, username, message}
-        RegisterResult,   // 注册结果：{success, userId, message}
-        MerchantProductList,  // 商家商品列表：{products:[...]}
-        MerchantActionResult, // 商家操作结果：{success, message}
-    };
+	// 应答码（服务端响应）
+	enum class ResponseCode : std::int32_t {
+		ProductList,      // 商品列表
+		AddToCartResult,  // 加购结果（未启用，对应 AddToCart）
+		CheckoutResult,   // 结算结果：{success, orderId, originalTotal, discount, total, message}
+		AfterSaleResult,  // 售后结果：{success, refund, message}
+		Error,            // 错误：{message}
+		OrderList,        // 历史订单列表：{orders:[...]}
+		LoginResult,      // 登录结果：{success, userId, username, message}
+		RegisterResult,   // 注册结果：{success, userId, message}
+		MerchantProductList,  // 商家商品列表：{products:[...]}
+		MerchantActionResult, // 商家操作结果：{success, message}
+	};
 
 	// 阻塞发送一条 JSON 消息；处理 Partial 直至全部发出。
 	bool sendJson(sf::TcpSocket& socket, const nlohmann::json& payload);

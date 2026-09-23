@@ -188,9 +188,9 @@ void ClientView::drawMerchantPanel(const ClientModel& model) {
 	// 表头
 	const float tableY = orderCardStartY;
 	textMgr_.displayText(L"商品名", { orderCardX + 12,  tableY }, { 18, 24 }, sf::Color(120, 120, 120));
-	textMgr_.displayText(L"价格",   { orderCardX + 450, tableY }, { 18, 24 }, sf::Color(120, 120, 120));
-	textMgr_.displayText(L"库存",   { orderCardX + 600, tableY }, { 18, 24 }, sf::Color(120, 120, 120));
-	textMgr_.displayText(L"状态",   { orderCardX + 750, tableY }, { 18, 24 }, sf::Color(120, 120, 120));
+	textMgr_.displayText(L"价格", { orderCardX + 450, tableY }, { 18, 24 }, sf::Color(120, 120, 120));
+	textMgr_.displayText(L"库存", { orderCardX + 600, tableY }, { 18, 24 }, sf::Color(120, 120, 120));
+	textMgr_.displayText(L"状态", { orderCardX + 750, tableY }, { 18, 24 }, sf::Color(120, 120, 120));
 
 	float rowY = tableY + 30.f;
 	constexpr float rowH = 44.f;
@@ -289,8 +289,8 @@ void ClientView::drawMerchantPanel(const ClientModel& model) {
 	createBtn.setOutlineThickness(1.f);
 	window_.draw(createBtn);
 	textMgr_.displayText(L"+ 新增商品",
-						{ cb.position.x + 30, cb.position.y + 10 },
-						{ 18, 24 }, sf::Color::White);
+						 { cb.position.x + 30, cb.position.y + 10 },
+						 { 18, 24 }, sf::Color::White);
 }
 
 // ===================== 商家新增商品表单面板 =====================
@@ -334,8 +334,8 @@ void ClientView::drawMerchantCreatePanel(const ClientModel& model) {
 		const auto r = merchantCreateFieldRect(i);
 		// 标签
 		textMgr_.displayText(labels[i],
-							{ r.position.x - 130, r.position.y + 8 },
-							{ 18, 24 }, sf::Color(80, 80, 80));
+							 { r.position.x - 130, r.position.y + 8 },
+							 { 18, 24 }, sf::Color(80, 80, 80));
 		// 输入框背景
 		sf::RectangleShape bg({ r.size.x, r.size.y });
 		bg.setPosition({ r.position.x, r.position.y });
@@ -347,8 +347,8 @@ void ClientView::drawMerchantCreatePanel(const ClientModel& model) {
 		std::wstring shown = ec::string::to_utf16(*values[i]);
 		if (activeField_ == fields[i]) shown += L"_";  // 光标占位
 		textMgr_.displayText(shown,
-							{ r.position.x + 8, r.position.y + 8 },
-							{ 18, 24 }, sf::Color::Black);
+							 { r.position.x + 8, r.position.y + 8 },
+							 { 18, 24 }, sf::Color::Black);
 	}
 
 	// 提交 + 返回按钮
@@ -360,8 +360,8 @@ void ClientView::drawMerchantCreatePanel(const ClientModel& model) {
 	submitBtn.setOutlineThickness(1.f);
 	window_.draw(submitBtn);
 	textMgr_.displayText(L"提交新增",
-						{ sb.position.x + 30, sb.position.y + 10 },
-						{ 18, 24 }, sf::Color::White);
+						 { sb.position.x + 30, sb.position.y + 10 },
+						 { 18, 24 }, sf::Color::White);
 
 	const auto bb = merchantCreateBackBtnRect();
 	sf::RectangleShape backBtn({ bb.size.x, bb.size.y });
@@ -371,8 +371,8 @@ void ClientView::drawMerchantCreatePanel(const ClientModel& model) {
 	backBtn.setOutlineThickness(1.f);
 	window_.draw(backBtn);
 	textMgr_.displayText(L"返回",
-						{ bb.position.x + 30, bb.position.y + 10 },
-						{ 18, 24 }, sf::Color::White);
+						 { bb.position.x + 30, bb.position.y + 10 },
+						 { 18, 24 }, sf::Color::White);
 
 	// 状态信息
 	if (!model.status().empty()) {
@@ -381,7 +381,7 @@ void ClientView::drawMerchantCreatePanel(const ClientModel& model) {
 
 	// 提示
 	textMgr_.displayText(L"（Tab 键切换输入框，Enter 键等同提交）",
-						{ 100, 620 }, { 16, 22 }, sf::Color(150, 150, 150));
+						 { 100, 620 }, { 16, 22 }, sf::Color(150, 150, 150));
 }
 
 // ===================== 商家编辑商品表单面板 =====================
@@ -389,7 +389,7 @@ void ClientView::drawMerchantCreatePanel(const ClientModel& model) {
 void ClientView::setEditProduct(std::int32_t id, const std::string& name, double price,
 								std::int32_t stock, const std::string& desc, const std::string& image) {
 	editingProductId_ = id;
-	productNameInput_  = name;
+	productNameInput_ = name;
 	productPriceInput_ = std::to_string(price);
 	// 去掉 std::to_string(double) 可能的尾随零和小数点
 	auto& s = productPriceInput_;
@@ -398,7 +398,7 @@ void ClientView::setEditProduct(std::int32_t id, const std::string& name, double
 		if (s.back() == '.') s.pop_back();
 	}
 	productStockInput_ = std::to_string(stock);
-	productDescInput_  = desc;
+	productDescInput_ = desc;
 	productImageInput_ = image;
 	activeField_ = Field::ProductName;
 }
@@ -441,8 +441,8 @@ void ClientView::drawMerchantEditPanel(const ClientModel& model) {
 	for (int i = 0; i < 5; ++i) {
 		const auto r = merchantCreateFieldRect(i);
 		textMgr_.displayText(labels[i],
-							{ r.position.x - 130, r.position.y + 8 },
-							{ 18, 24 }, sf::Color(80, 80, 80));
+							 { r.position.x - 130, r.position.y + 8 },
+							 { 18, 24 }, sf::Color(80, 80, 80));
 		sf::RectangleShape bg({ r.size.x, r.size.y });
 		bg.setPosition({ r.position.x, r.position.y });
 		bg.setFillColor(sf::Color::White);
@@ -452,8 +452,8 @@ void ClientView::drawMerchantEditPanel(const ClientModel& model) {
 		std::wstring shown = ec::string::to_utf16(*values[i]);
 		if (activeField_ == fields[i]) shown += L"_";
 		textMgr_.displayText(shown,
-							{ r.position.x + 8, r.position.y + 8 },
-							{ 18, 24 }, sf::Color::Black);
+							 { r.position.x + 8, r.position.y + 8 },
+							 { 18, 24 }, sf::Color::Black);
 	}
 
 	// 提交（保存修改）+ 返回按钮
@@ -465,8 +465,8 @@ void ClientView::drawMerchantEditPanel(const ClientModel& model) {
 	submitBtn.setOutlineThickness(1.f);
 	window_.draw(submitBtn);
 	textMgr_.displayText(L"保存修改",
-						{ sb.position.x + 30, sb.position.y + 10 },
-						{ 18, 24 }, sf::Color::White);
+						 { sb.position.x + 30, sb.position.y + 10 },
+						 { 18, 24 }, sf::Color::White);
 
 	const auto bb = merchantCreateBackBtnRect();
 	sf::RectangleShape backBtn({ bb.size.x, bb.size.y });
@@ -476,14 +476,14 @@ void ClientView::drawMerchantEditPanel(const ClientModel& model) {
 	backBtn.setOutlineThickness(1.f);
 	window_.draw(backBtn);
 	textMgr_.displayText(L"返回",
-						{ bb.position.x + 30, bb.position.y + 10 },
-						{ 18, 24 }, sf::Color::White);
+						 { bb.position.x + 30, bb.position.y + 10 },
+						 { 18, 24 }, sf::Color::White);
 
 	if (!model.status().empty()) {
 		textMgr_.displayText(model.status(), { 100, 580 }, { 18, 22 }, sf::Color(200, 50, 50));
 	}
 	textMgr_.displayText(L"（Tab 键切换输入框，Enter 键等同保存）",
-						{ 100, 620 }, { 16, 22 }, sf::Color(150, 150, 150));
+						 { 100, 620 }, { 16, 22 }, sf::Color(150, 150, 150));
 }
 
 void ClientView::appendInputChar(std::uint32_t ch) {
@@ -495,14 +495,17 @@ void ClientView::appendInputChar(std::uint32_t ch) {
 	std::string utf8;
 	if (ch < 0x80) {
 		utf8.push_back(static_cast<char>(ch));
-	} else if (ch < 0x800) {
+	}
+	else if (ch < 0x800) {
 		utf8.push_back(static_cast<char>(0xC0 | (ch >> 6)));
 		utf8.push_back(static_cast<char>(0x80 | (ch & 0x3F)));
-	} else if (ch < 0x10000) {
+	}
+	else if (ch < 0x10000) {
 		utf8.push_back(static_cast<char>(0xE0 | (ch >> 12)));
 		utf8.push_back(static_cast<char>(0x80 | ((ch >> 6) & 0x3F)));
 		utf8.push_back(static_cast<char>(0x80 | (ch & 0x3F)));
-	} else {
+	}
+	else {
 		utf8.push_back(static_cast<char>(0xF0 | (ch >> 18)));
 		utf8.push_back(static_cast<char>(0x80 | ((ch >> 12) & 0x3F)));
 		utf8.push_back(static_cast<char>(0x80 | ((ch >> 6) & 0x3F)));

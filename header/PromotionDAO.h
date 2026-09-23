@@ -8,17 +8,17 @@
 
 class PromotionDAO {
 public:
-    explicit PromotionDAO(Database& db);
+	explicit PromotionDAO(Database& db);
 
-    // 单条促销配置
-    struct Config {
-        std::string        type;    // 'discount'/'tiered'/'freeitem'/'reduction'/'coupon'
-        nlohmann::json     params;  // 类型相关参数，如 {"rate":0.8} 或 {"threshold":100,"reduce":20}
-    };
+	// 单条促销配置
+	struct Config {
+		std::string        type;    // 'discount'/'tiered'/'freeitem'/'reduction'/'coupon'
+		nlohmann::json     params;  // 类型相关参数，如 {"rate":0.8} 或 {"threshold":100,"reduce":20}
+	};
 
-    // 读取所有 enabled=1 的促销配置
-    std::vector<Config> findEnabled();
+	// 读取所有 enabled=1 的促销配置
+	std::vector<Config> findEnabled();
 
 private:
-    Database& db_;
+	Database& db_;
 };

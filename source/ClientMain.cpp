@@ -10,51 +10,51 @@
 #include <Windows.h>
 
 int main() {
-    SetConsoleCP(CP_UTF8);
-    SetConsoleOutputCP(CP_UTF8);
-    try {
-        ec::reloadClientConfig();
-    } catch (const std::exception& e) {
-        std::cerr << "加载配置失败：" << e.what() << std::endl;
-        system("pause");
-        return 1;
-    }
+	SetConsoleCP(CP_UTF8);
+	SetConsoleOutputCP(CP_UTF8);
+	try {
+		ec::reloadClientConfig();
+	} catch (const std::exception& e) {
+		std::cerr << "加载配置失败：" << e.what() << std::endl;
+		system("pause");
+		return 1;
+	}
 
-    const auto& cfg  = ec::getClientConfig();
-    const auto  winW = cfg["size"]["window"]["width"].get<unsigned>();
-    const auto  winH = cfg["size"]["window"]["height"].get<unsigned>();
-    const auto  ip   = cfg["server"]["ip"].get<std::string>();
-    const auto  port = cfg["server"]["port"].get<unsigned short>();
+	const auto& cfg = ec::getClientConfig();
+	const auto  winW = cfg["size"]["window"]["width"].get<unsigned>();
+	const auto  winH = cfg["size"]["window"]["height"].get<unsigned>();
+	const auto  ip = cfg["server"]["ip"].get<std::string>();
+	const auto  port = cfg["server"]["port"].get<unsigned short>();
 
-    const std::string titleUtf8 = "微商系统";
-    sf::RenderWindow window(sf::VideoMode({ winW, winH }),
-                             sf::String::fromUtf8(titleUtf8.begin(), titleUtf8.end()));
+	const std::string titleUtf8 = "微商系统";
+	sf::RenderWindow window(sf::VideoMode({ winW, winH }),
+							sf::String::fromUtf8(titleUtf8.begin(), titleUtf8.end()));
 
-    TextManager  text(window);
-    ImageManager image(window);
+	TextManager  text(window);
+	ImageManager image(window);
 
-    ClientModel      model;
-    ClientView       view(window, text, image);
-    ClientController controller(window, model, view);
+	ClientModel      model;
+	ClientView       view(window, text, image);
+	ClientController controller(window, model, view);
 
-    model.setStatus(L"正在连接服务器...");
-    if (controller.connect(ip, port)) {
-        // 启动后默认显示登录面板，等用户登录成功再切到商品列表
-        view.setPanel(ClientView::Panel::Login);
-        model.setStatus(L"已连接服务器，请登录或注册");
-    }
+	model.setStatus(L"正在连接服务器...");
+	if (controller.connect(ip, port)) {
+		// 启动后默认显示登录面板，等用户登录成功再切到商品列表
+		view.setPanel(ClientView::Panel::Login);
+		model.setStatus(L"已连接服务器，请登录或注册");
+	}
 
-    while (window.isOpen()) {
-        while (const auto event = window.pollEvent()) {
-            controller.handleEvent(*event);
-        }
-        controller.update();  // 消费接收线程投递的消息、更新 Model
+	while (window.isOpen()) {
+		while (const auto event = window.pollEvent()) {
+			controller.handleEvent(*event);
+		}
+		controller.update();  // 消费接收线程投递的消息、更新 Model
 
-        window.clear(sf::Color(245, 245, 245));
-        view.render(model);
-        window.display();
-    }
+		window.clear(sf::Color(245, 245, 245));
+		view.render(model);
+		window.display();
+	}
 
-    controller.disconnect();
-    return 0;
+	controller.disconnect();
+	return 0;
 }

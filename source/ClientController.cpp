@@ -182,10 +182,10 @@ void ClientController::requestMerchantCreateProduct() {
 		model_.setStatus(L"未连接服务器，无法新增商品");
 		return;
 	}
-	const auto& name  = view_.productNameInput();
+	const auto& name = view_.productNameInput();
 	const auto& price = view_.productPriceInput();
 	const auto& stock = view_.productStockInput();
-	const auto& desc  = view_.productDescInput();
+	const auto& desc = view_.productDescInput();
 	const auto& image = view_.productImageInput();
 	if (name.empty()) {
 		model_.setStatus(L"商品名称不能为空");
@@ -250,10 +250,10 @@ void ClientController::requestMerchantUpdateProduct(std::int32_t productId) {
 		model_.setStatus(L"未连接服务器，无法编辑商品");
 		return;
 	}
-	const auto& name  = view_.productNameInput();
+	const auto& name = view_.productNameInput();
 	const auto& price = view_.productPriceInput();
 	const auto& stock = view_.productStockInput();
-	const auto& desc  = view_.productDescInput();
+	const auto& desc = view_.productDescInput();
 	const auto& image = view_.productImageInput();
 	if (name.empty()) {
 		model_.setStatus(L"商品名称不能为空");
@@ -261,10 +261,8 @@ void ClientController::requestMerchantUpdateProduct(std::int32_t productId) {
 	}
 	double priceVal = 0.0;
 	std::int32_t stockVal = 0;
-	try { priceVal = std::stod(price); }
-	catch (...) { model_.setStatus(L"价格必须是数字（如 19.9）"); return; }
-	try { stockVal = std::stoi(stock); }
-	catch (...) { model_.setStatus(L"库存必须是整数（如 100）"); return; }
+	try { priceVal = std::stod(price); } catch (...) { model_.setStatus(L"价格必须是数字（如 19.9）"); return; }
+	try { stockVal = std::stoi(stock); } catch (...) { model_.setStatus(L"库存必须是整数（如 100）"); return; }
 	if (priceVal < 0 || stockVal < 0) {
 		model_.setStatus(L"价格和库存不能为负数");
 		return;
@@ -360,29 +358,29 @@ void ClientController::handleEvent(const sf::Event& event) {
 					requestAfterSale(action.orderId, action.productId, action.qty);
 					break;
 				case ClientView::ClickAction::SwitchPanel: {
-						const int idx = action.arg;
-						const auto target = static_cast<ClientView::Panel>(idx);
-						// 允许切到 MerchantCreate（新增商品表单）或 [ProductList, MyOrders] 三面板
-						if (target == ClientView::Panel::MerchantCreate) {
-							view_.clearInputs();
-							view_.setActiveField(ClientView::Field::ProductName);
-							view_.setPanel(target);
-							model_.setStatus(L"新增商品：填写表单后点提交");
-						}
-						else if (idx >= static_cast<int>(ClientView::Panel::ProductList)
-							&& idx <= static_cast<int>(ClientView::Panel::MyOrders)) {
-							view_.setPanel(target);
-							// 进入商品列表/订单列表时自动拉取最新数据
-							if (target == ClientView::Panel::ProductList) {
-								requestProductList();
-							}
-							else if (target == ClientView::Panel::MyOrders) {
-								view_.resetMyOrdersScroll();  // 切回时重置滚动到顶
-								requestListOrders();
-							}
-						}
-						break;
+					const int idx = action.arg;
+					const auto target = static_cast<ClientView::Panel>(idx);
+					// 允许切到 MerchantCreate（新增商品表单）或 [ProductList, MyOrders] 三面板
+					if (target == ClientView::Panel::MerchantCreate) {
+						view_.clearInputs();
+						view_.setActiveField(ClientView::Field::ProductName);
+						view_.setPanel(target);
+						model_.setStatus(L"新增商品：填写表单后点提交");
 					}
+					else if (idx >= static_cast<int>(ClientView::Panel::ProductList)
+							 && idx <= static_cast<int>(ClientView::Panel::MyOrders)) {
+						view_.setPanel(target);
+						// 进入商品列表/订单列表时自动拉取最新数据
+						if (target == ClientView::Panel::ProductList) {
+							requestProductList();
+						}
+						else if (target == ClientView::Panel::MyOrders) {
+							view_.resetMyOrdersScroll();  // 切回时重置滚动到顶
+							requestListOrders();
+						}
+					}
+					break;
+				}
 				case ClientView::ClickAction::FocusField:
 					view_.setActiveField(static_cast<ClientView::Field>(action.arg));
 					break;
@@ -420,13 +418,14 @@ void ClientController::handleEvent(const sf::Event& event) {
 					// 从 model 找到对应商品，预填表单后切到编辑面板
 					const auto& products = model_.products();
 					const auto it = std::find_if(products.begin(), products.end(),
-						[&](const Product& p) { return p.id == action.productId; });
+												 [&](const Product& p) { return p.id == action.productId; });
 					if (it != products.end()) {
 						view_.setEditProduct(it->id, it->name, it->price, it->stock,
 											 it->description, it->imagePath);
 						view_.setPanel(ClientView::Panel::MerchantEdit);
 						model_.setStatus(L"编辑商品：修改后点保存");
-					} else {
+					}
+					else {
 						model_.setStatus(L"编辑失败：找不到该商品");
 					}
 					break;
@@ -470,8 +469,8 @@ void ClientController::handleEvent(const sf::Event& event) {
 			else if (key == sf::Keyboard::Key::Tab) {
 				// Tab 在用户名/密码输入框之间切换
 				view_.setActiveField(view_.activeField() == ClientView::Field::Username
-					? ClientView::Field::Password
-					: ClientView::Field::Username);
+									 ? ClientView::Field::Password
+									 : ClientView::Field::Username);
 			}
 		}
 		else if (view_.panel() == ClientView::Panel::MerchantCreate) {
@@ -518,19 +517,19 @@ void ClientController::handleEvent(const sf::Event& event) {
 	}
 	// 鼠标滚轮：仅在"我的订单"面板内滚动订单列表
 	if (event.is<sf::Event::MouseWheelScrolled>()) {
-			const auto* mw = event.getIf<sf::Event::MouseWheelScrolled>();
-			if (mw == nullptr) return;
-			// SFML 3：delta>0 表示向上滚（向前），内容应向下滚动 → 偏移减小
-			// 每滚一格约 80 像素，便于快速浏览
-			constexpr float kScrollStep = 80.f;
-			if (view_.panel() == ClientView::Panel::MyOrders) {
-				view_.scrollMyOrders(-mw->delta * kScrollStep, model_);
-			}
-			else if (view_.panel() == ClientView::Panel::ProductList) {
-				view_.scrollProductList(-mw->delta * kScrollStep, model_);
-			}
+		const auto* mw = event.getIf<sf::Event::MouseWheelScrolled>();
+		if (mw == nullptr) return;
+		// SFML 3：delta>0 表示向上滚（向前），内容应向下滚动 → 偏移减小
+		// 每滚一格约 80 像素，便于快速浏览
+		constexpr float kScrollStep = 80.f;
+		if (view_.panel() == ClientView::Panel::MyOrders) {
+			view_.scrollMyOrders(-mw->delta * kScrollStep, model_);
+		}
+		else if (view_.panel() == ClientView::Panel::ProductList) {
+			view_.scrollProductList(-mw->delta * kScrollStep, model_);
 		}
 	}
+}
 
 void ClientController::update() {
 	std::queue<nlohmann::json> local;
@@ -641,9 +640,9 @@ void ClientController::processMessage(nlohmann::json& msg) {
 		case static_cast<int>(proto::ResponseCode::LoginResult): {
 			const auto success = msg.value("success", false);
 			if (success) {
-				const auto userId   = msg["user"].value("id",       std::int64_t{});
+				const auto userId = msg["user"].value("id", std::int64_t{});
 				const auto username = msg["user"].value("username", std::string{});
-				const auto role     = msg["user"].value("role",     std::int32_t{});
+				const auto role = msg["user"].value("role", std::int32_t{});
 				model_.setUser(userId, username, role);
 				view_.clearInputs();
 				// 按角色分流：商家进商家面板，普通用户进商品列表
@@ -669,9 +668,9 @@ void ClientController::processMessage(nlohmann::json& msg) {
 		case static_cast<int>(proto::ResponseCode::RegisterResult): {
 			const auto success = msg.value("success", false);
 			if (success) {
-				const auto userId   = msg["user"].value("id",       std::int64_t{});
+				const auto userId = msg["user"].value("id", std::int64_t{});
 				const auto username = msg["user"].value("username", std::string{});
-				const auto role     = msg["user"].value("role",     std::int32_t{});
+				const auto role = msg["user"].value("role", std::int32_t{});
 				model_.setUser(userId, username, role);
 				view_.clearInputs();
 				// 新注册用户默认普通用户，进商品列表

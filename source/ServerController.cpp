@@ -353,7 +353,7 @@ nlohmann::json ServerController::handleMerchantListProducts(const nlohmann::json
 nlohmann::json ServerController::handleMerchantSetOnSale(const nlohmann::json& req) {
 	if (auto err = requireMerchant(req)) return *err;
 	const auto productId = req.value("productId", std::int32_t{});
-	const auto onSale    = req.value("onSale", false);
+	const auto onSale = req.value("onSale", false);
 	if (productId <= 0) {
 		return {
 			{"code",    static_cast<int>(proto::ResponseCode::MerchantActionResult)},
@@ -380,7 +380,7 @@ nlohmann::json ServerController::handleMerchantSetOnSale(const nlohmann::json& r
 nlohmann::json ServerController::handleMerchantUpdateStock(const nlohmann::json& req) {
 	if (auto err = requireMerchant(req)) return *err;
 	const auto productId = req.value("productId", std::int32_t{});
-	const auto newStock  = req.value("stock", std::int32_t{});
+	const auto newStock = req.value("stock", std::int32_t{});
 	if (productId <= 0 || newStock < 0) {
 		return {
 			{"code",    static_cast<int>(proto::ResponseCode::MerchantActionResult)},
@@ -406,11 +406,11 @@ nlohmann::json ServerController::handleMerchantUpdateStock(const nlohmann::json&
 
 nlohmann::json ServerController::handleMerchantCreateProduct(const nlohmann::json& req) {
 	if (auto err = requireMerchant(req)) return *err;
-	const auto name        = req.value("name",        std::string{});
+	const auto name = req.value("name", std::string{});
 	const auto description = req.value("description", std::string{});
-	const auto price       = req.value("price",       -1.0);
-	const auto stock       = req.value("stock",       std::int32_t{});
-	const auto imagePath   = req.value("imagePath",   std::string{});
+	const auto price = req.value("price", -1.0);
+	const auto stock = req.value("stock", std::int32_t{});
+	const auto imagePath = req.value("imagePath", std::string{});
 	if (name.empty()) {
 		return {
 			{"code",    static_cast<int>(proto::ResponseCode::MerchantActionResult)},
@@ -468,24 +468,24 @@ nlohmann::json ServerController::handleMerchantDeleteProduct(const nlohmann::jso
 
 nlohmann::json ServerController::handleMerchantUpdateProduct(const nlohmann::json& req) {
 	if (auto err = requireMerchant(req)) return *err;
-	const auto productId   = req.value("productId",   std::int32_t{});
-	const auto name         = req.value("name",        std::string{});
+	const auto productId = req.value("productId", std::int32_t{});
+	const auto name = req.value("name", std::string{});
 	const auto description = req.value("description", std::string{});
-	const auto price       = req.value("price",       -1.0);
-	const auto stock       = req.value("stock",       std::int32_t{});
-	const auto imagePath   = req.value("imagePath",   std::string{});
+	const auto price = req.value("price", -1.0);
+	const auto stock = req.value("stock", std::int32_t{});
+	const auto imagePath = req.value("imagePath", std::string{});
 	if (productId <= 0) {
-		return {{"code", static_cast<int>(proto::ResponseCode::MerchantActionResult)}, {"success", false}, {"message", "编辑失败：商品 ID 无效"}};
+		return { {"code", static_cast<int>(proto::ResponseCode::MerchantActionResult)}, {"success", false}, {"message", "编辑失败：商品 ID 无效"} };
 	}
 	if (name.empty()) {
-		return {{"code", static_cast<int>(proto::ResponseCode::MerchantActionResult)}, {"success", false}, {"message", "编辑失败：商品名不能为空"}};
+		return { {"code", static_cast<int>(proto::ResponseCode::MerchantActionResult)}, {"success", false}, {"message", "编辑失败：商品名不能为空"} };
 	}
 	if (price < 0 || stock < 0) {
-		return {{"code", static_cast<int>(proto::ResponseCode::MerchantActionResult)}, {"success", false}, {"message", "编辑失败：价格和库存不能为负数"}};
+		return { {"code", static_cast<int>(proto::ResponseCode::MerchantActionResult)}, {"success", false}, {"message", "编辑失败：价格和库存不能为负数"} };
 	}
 	if (!productDao_.updateProduct(productId, name, description, price, stock, imagePath)) {
-		return {{"code", static_cast<int>(proto::ResponseCode::MerchantActionResult)}, {"success", false}, {"message", "编辑失败：商品不存在或数据库异常"}};
+		return { {"code", static_cast<int>(proto::ResponseCode::MerchantActionResult)}, {"success", false}, {"message", "编辑失败：商品不存在或数据库异常"} };
 	}
 	std::cout << "[ServerController] 商家编辑商品 id=" << productId << " name=" << name << std::endl;
-	return {{"code", static_cast<int>(proto::ResponseCode::MerchantActionResult)}, {"success", true}, {"message", "编辑成功"}};
+	return { {"code", static_cast<int>(proto::ResponseCode::MerchantActionResult)}, {"success", true}, {"message", "编辑成功"} };
 }
