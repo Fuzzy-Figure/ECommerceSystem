@@ -23,6 +23,7 @@ namespace proto {
         MerchantUpdateStock,   // 商家调整库存：{userId, productId, stock}
         MerchantCreateProduct,// 商家新增商品：{userId, name, description, price, stock, imagePath}
         MerchantDeleteProduct,// 商家删除商品：{userId, productId}
+        MerchantUpdateProduct,// 商家编辑商品：{userId, productId, name, description, price, stock, imagePath}
     };
 
     // 应答码（服务端响应）

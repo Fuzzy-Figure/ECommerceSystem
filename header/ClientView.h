@@ -16,7 +16,7 @@ class ClientView {
 public:
 	// 注意顺序：Login=0；商家面板 Merchant/MerchantCreate 独立（不参与 Tab 切换）；
 	// ProductList/Cart/MyOrders 三面板按顶部 Tab 切换，Tab 索引仍按 0/1/2。
-	enum class Panel { Login, Merchant, MerchantCreate, ProductList, Cart, MyOrders };
+	enum class Panel { Login, Merchant, MerchantCreate, MerchantEdit, ProductList, Cart, MyOrders };
 
 	// 当前聚焦的输入框（Login 面板用 Username/Password；MerchantCreate 面板用 Name/Price/Stock/Desc/Image）
 	enum class Field { Username, Password, ProductName, ProductPrice, ProductStock, ProductDesc, ProductImage };
@@ -36,7 +36,10 @@ public:
 			MerchantStockMinus,// 商家库存 -10：productId（不低于0）
 			MerchantCreateProduct,  // 商家新增商品：用 MerchantCreate 表单输入
 			MerchantCreateBack,     // 商家新增商品表单的"返回"按钮：切回 Merchant 面板
-			MerchantDeleteProduct   // 商家删除商品：productId
+			MerchantDeleteProduct,  // 商家删除商品：productId
+			MerchantEditProduct,    // 商家编辑商品：productId → 预填表单切到 MerchantEdit 面板
+			MerchantEditSubmit,     // 商家编辑表单的"保存修改"按钮
+			MerchantEditBack        // 商家编辑表单的"返回"按钮
 		} type{ None };
 		std::int32_t arg{ 0 };     // AddToCart/RemoveFromCart 用 productId；SwitchPanel 用 panel 索引；FocusField 用 Field 索引；MerchantSetOnSale 用 0/1
 		std::int64_t orderId{};  // ReturnItem 用 orderId
@@ -103,6 +106,8 @@ private:
 	std::string productDescInput_;
 	std::string productImageInput_;
 	Field       activeField_{ Field::Username };
+	// === 商家编辑商品的 productId ===
+	std::int32_t editingProductId_{ 0 };
 
 	// === "我的订单"面板垂直滚动偏移（>=0，绘制时 y - offset）===
 	float myOrdersScrollY_{ 0.f };
@@ -142,6 +147,8 @@ private:
 	sf::FloatRect merchantStockMinusBtnRect(const sf::Vector2f& rowPos) const;
 	// 商家商品行：删除按钮矩形（状态列后面）
 	sf::FloatRect merchantDeleteBtnRect(const sf::Vector2f& rowPos) const;
+	// 商家商品行：编辑按钮矩形（删除按钮左边）
+	sf::FloatRect merchantEditBtnRect(const sf::Vector2f& rowPos) const;
 	// 商家面板底部"新增商品"按钮矩形
 	sf::FloatRect merchantCreateBtnRect() const;
 
@@ -153,6 +160,14 @@ private:
 	static sf::FloatRect merchantCreateSubmitBtnRect();
 	// 表单"返回"按钮矩形
 	static sf::FloatRect merchantCreateBackBtnRect();
+
+	// === 商家编辑商品表单面板 ===
+	void drawMerchantEditPanel(const ClientModel& model);
+	// 预填商品信息到编辑表单输入框 + 记录编辑的 productId
+	void setEditProduct(std::int32_t id, const std::string& name, double price,
+						std::int32_t stock, const std::string& desc, const std::string& image);
+	// 当前正在编辑的 productId
+	std::int32_t editingProductId() const noexcept { return editingProductId_; }
 
 	// === 按钮矩形计算（与 drawXxxPanel 内的布局保持一致）===
 	// 商品卡片右下角的"+加购"按钮

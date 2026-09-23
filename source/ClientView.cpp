@@ -82,6 +82,7 @@ void ClientView::render(const ClientModel& model) {
 		case Panel::Login:           drawLoginPanel(model);           break;
 		case Panel::Merchant:        drawMerchantPanel(model);         break;
 		case Panel::MerchantCreate:  drawMerchantCreatePanel(model);  break;
+		case Panel::MerchantEdit:    drawMerchantEditPanel(model);    break;
 		case Panel::ProductList:     drawProductListPanel(model);     break;
 		case Panel::Cart:             drawCartPanel(model);            break;
 		case Panel::MyOrders:         drawMyOrdersPanel(model);        break;

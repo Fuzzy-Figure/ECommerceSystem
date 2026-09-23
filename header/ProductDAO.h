@@ -39,6 +39,10 @@ public:
 	// 商家删除商品：返回 true 表示成功
 	bool deleteProduct(std::int32_t id);
 
+	// 商家编辑商品：更新名称/描述/价格/库存/图片路径（不改 on_sale）
+	bool updateProduct(std::int32_t id, const std::string& name, const std::string& description,
+					   double price, std::int32_t stock, const std::string& imagePath);
+
 private:
 	// 把一行 JSON 映射为 Product
 	static Product mapRow(const nlohmann::json& row);

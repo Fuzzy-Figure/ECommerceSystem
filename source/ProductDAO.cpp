@@ -128,3 +128,17 @@ bool ProductDAO::deleteProduct(std::int32_t id) {
 	ss << "DELETE FROM products WHERE id = " << id << ";";
 	return db_.execute(ss.str()) > 0;
 }
+
+bool ProductDAO::updateProduct(std::int32_t id, const std::string& name, const std::string& description,
+								double price, std::int32_t stock, const std::string& imagePath) {
+	if (id <= 0 || name.empty() || price < 0 || stock < 0) return false;
+	const std::string img = imagePath.empty() ? "images/placeholder.png" : imagePath;
+	std::ostringstream ss;
+	ss << "UPDATE products SET name='" << escapeSql(name)
+		<< "', description='" << escapeSql(description)
+		<< "', price=" << price
+		<< ", stock=" << stock
+		<< ", imagePath='" << escapeSql(img)
+		<< "' WHERE id=" << id << ";";
+	return db_.execute(ss.str()) > 0;
+}
