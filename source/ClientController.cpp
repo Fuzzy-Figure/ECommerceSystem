@@ -327,7 +327,7 @@ void ClientController::processMessage(nlohmann::json& msg) {
 			}
 			model_.setProducts(std::move(products));
 			std::wostringstream ss;
-			ss << L"已加载 " << model_.products().size() << L" 件商品，按 R 刷新";
+			ss << L"已加载 " << model_.products().size() << L" 件商品（点击「商品列表」Tab 可重新拉取）";
 			model_.setStatus(ss.str());
 			break;
 		}
