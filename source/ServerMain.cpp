@@ -211,6 +211,7 @@ int main() {
 		ec::reloadServerConfig();
 	} catch (const std::exception& e) {
 		std::cerr << "加载配置失败：" << e.what() << std::endl;
+		system("pause");
 		return 1;
 	}
 
