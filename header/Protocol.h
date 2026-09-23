@@ -21,6 +21,7 @@ namespace proto {
         MerchantListProducts,  // 商家拉取全部商品（含下架）：{userId}
         MerchantSetOnSale,     // 商家上架/下架：{userId, productId, onSale}
         MerchantUpdateStock,   // 商家调整库存：{userId, productId, stock}
+        MerchantCreateProduct,// 商家新增商品：{userId, name, description, price, stock, imagePath}
     };
 
     // 应答码（服务端响应）

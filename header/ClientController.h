@@ -57,6 +57,9 @@ public:
 	// 商家：把指定商品库存调整为 currentStock + delta（delta 可正可负，结果不低于 0）
 	void requestMerchantUpdateStock(std::int32_t productId, std::int32_t delta);
 
+	// 商家：用 MerchantCreate 表单输入提交新增商品
+	void requestMerchantCreateProduct();
+
 	// 处理 SFML 事件（按键、关闭、文本输入等）
 	void handleEvent(const sf::Event& event);
 

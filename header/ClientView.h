@@ -14,12 +14,12 @@
 
 class ClientView {
 public:
-	// 注意顺序：Login=0；商家面板 Merchant 独立（不参与 Tab 切换）；
+	// 注意顺序：Login=0；商家面板 Merchant/MerchantCreate 独立（不参与 Tab 切换）；
 	// ProductList/Cart/MyOrders 三面板按顶部 Tab 切换，Tab 索引仍按 0/1/2。
-	enum class Panel { Login, Merchant, ProductList, Cart, MyOrders };
+	enum class Panel { Login, Merchant, MerchantCreate, ProductList, Cart, MyOrders };
 
-	// 当前聚焦的输入框（仅 Login 面板用）
-	enum class Field { Username, Password };
+	// 当前聚焦的输入框（Login 面板用 Username/Password；MerchantCreate 面板用 Name/Price/Stock/Desc/Image）
+	enum class Field { Username, Password, ProductName, ProductPrice, ProductStock, ProductDesc, ProductImage };
 
 	// 鼠标点击命中后返回的动作；type=None 表示未命中任何按钮
 	struct ClickAction {
@@ -33,7 +33,9 @@ public:
 			Logout,        // 登出按钮：清用户身份 + 切回登录面板
 			MerchantSetOnSale,  // 商家上架/下架：productId + arg(0=下架,1=上架)
 			MerchantStockPlus,  // 商家库存 +10：productId
-			MerchantStockMinus  // 商家库存 -10：productId（不低于0）
+			MerchantStockMinus,// 商家库存 -10：productId（不低于0）
+			MerchantCreateProduct,  // 商家新增商品：用 MerchantCreate 表单输入
+			MerchantCreateBack      // 商家新增商品表单的"返回"按钮：切回 Merchant 面板
 		} type{ None };
 		std::int32_t arg{ 0 };     // AddToCart/RemoveFromCart 用 productId；SwitchPanel 用 panel 索引；FocusField 用 Field 索引；MerchantSetOnSale 用 0/1
 		std::int64_t orderId{};  // ReturnItem 用 orderId
@@ -56,10 +58,17 @@ public:
 	void  appendInputChar(char c);
 	// 删除当前聚焦输入框末尾一个字符
 	void  backspaceInput();
-	// 清空两个输入框（登录/注册成功后调用）
+	// 清空输入框（登录/注册成功、切面板、提交新增商品后调用）
 	void  clearInputs() noexcept;
 	const std::string& usernameInput() const noexcept { return usernameInput_; }
 	const std::string& passwordInput() const noexcept { return passwordInput_; }
+
+	// === 商家新增商品表单输入框状态（仅 UI 状态，提交/返回后丢弃）===
+	const std::string& productNameInput()  const noexcept { return productNameInput_; }
+	const std::string& productPriceInput() const noexcept { return productPriceInput_; }
+	const std::string& productStockInput() const noexcept { return productStockInput_; }
+	const std::string& productDescInput()  const noexcept { return productDescInput_; }
+	const std::string& productImageInput() const noexcept { return productImageInput_; }
 
 	// === "我的订单"面板滚动 ===
 	// 滚动 deltaPx 像素（正值内容向上=向下滚动；负值相反），自动按内容/可见区夹取边界
@@ -79,6 +88,12 @@ private:
 	// === 登录面板输入框状态 ===
 	std::string usernameInput_;
 	std::string passwordInput_;
+	// === 商家新增商品表单输入框状态 ===
+	std::string productNameInput_;
+	std::string productPriceInput_;
+	std::string productStockInput_;
+	std::string productDescInput_;
+	std::string productImageInput_;
 	Field       activeField_{ Field::Username };
 
 	// === "我的订单"面板垂直滚动偏移（>=0，绘制时 y - offset）===
@@ -110,6 +125,17 @@ private:
 	sf::FloatRect merchantStockPlusBtnRect(const sf::Vector2f& rowPos) const;
 	// 商家商品行：库存 -10 按钮矩形
 	sf::FloatRect merchantStockMinusBtnRect(const sf::Vector2f& rowPos) const;
+	// 商家面板底部"新增商品"按钮矩形
+	sf::FloatRect merchantCreateBtnRect() const;
+
+	// === 商家新增商品表单面板 ===
+	void drawMerchantCreatePanel(const ClientModel& model);
+	// 表单输入框矩形；field 取 2..6 对应 ProductName/Price/Stock/Desc/Image
+	static sf::FloatRect merchantCreateFieldRect(int field);
+	// 表单"提交新增"按钮矩形
+	static sf::FloatRect merchantCreateSubmitBtnRect();
+	// 表单"返回"按钮矩形
+	static sf::FloatRect merchantCreateBackBtnRect();
 
 	// === 按钮矩形计算（与 drawXxxPanel 内的布局保持一致）===
 	// 商品卡片右下角的"+加购"按钮

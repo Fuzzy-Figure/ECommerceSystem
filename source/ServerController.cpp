@@ -86,6 +86,9 @@ void ServerController::handle(std::shared_ptr<sf::TcpSocket> socket, const nlohm
 		case static_cast<int>(proto::RequestCode::MerchantUpdateStock):
 			response = handleMerchantUpdateStock(request);
 			break;
+		case static_cast<int>(proto::RequestCode::MerchantCreateProduct):
+			response = handleMerchantCreateProduct(request);
+			break;
 		default:
 			response = {
 				{"code",    static_cast<int>(proto::ResponseCode::Error)},
@@ -392,5 +395,42 @@ nlohmann::json ServerController::handleMerchantUpdateStock(const nlohmann::json&
 		{"code",    static_cast<int>(proto::ResponseCode::MerchantActionResult)},
 		{"success", true},
 		{"message", "库存已更新"}
+	};
+}
+
+nlohmann::json ServerController::handleMerchantCreateProduct(const nlohmann::json& req) {
+	if (auto err = requireMerchant(req)) return *err;
+	const auto name        = req.value("name",        std::string{});
+	const auto description = req.value("description", std::string{});
+	const auto price       = req.value("price",       -1.0);
+	const auto stock       = req.value("stock",       std::int32_t{});
+	const auto imagePath   = req.value("imagePath",   std::string{});
+	if (name.empty()) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::MerchantActionResult)},
+			{"success", false},
+			{"message", "新增失败：商品名不能为空"}
+		};
+	}
+	if (price < 0 || stock < 0) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::MerchantActionResult)},
+			{"success", false},
+			{"message", "新增失败：价格和库存不能为负数"}
+		};
+	}
+	const auto newId = productDao_.createProduct(name, description, price, stock, imagePath);
+	if (newId <= 0) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::MerchantActionResult)},
+			{"success", false},
+			{"message", "新增失败：数据库写入异常"}
+		};
+	}
+	std::cout << "[ServerController] 商家新增商品 id=" << newId << " name=" << name << std::endl;
+	return {
+		{"code",    static_cast<int>(proto::ResponseCode::MerchantActionResult)},
+		{"success", true},
+		{"message", "新增成功"}
 	};
 }

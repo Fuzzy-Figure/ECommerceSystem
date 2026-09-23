@@ -90,3 +90,35 @@ bool ProductDAO::updateStock(std::int32_t id, std::int32_t newStock) {
 		<< " WHERE id = " << id << ";";
 	return db_.execute(ss.str()) > 0;
 }
+
+// 字符串转义：单引号 → ''
+static std::string escapeSql(const std::string& s) {
+	std::string out;
+	out.reserve(s.size());
+	for (char c : s) out += (c == '\'' ? "''" : std::string(1, c));
+	return out;
+}
+
+std::int32_t ProductDAO::createProduct(const std::string& name,
+										const std::string& description,
+										double             price,
+										std::int32_t       stock,
+										const std::string& imagePath) {
+	if (name.empty() || price < 0 || stock < 0) return 0;
+	const std::string img = imagePath.empty() ? "images/placeholder.png" : imagePath;
+	std::ostringstream ss;
+	ss << "INSERT INTO products (name, description, price, stock, imagePath, on_sale) VALUES ('"
+		<< escapeSql(name) << "', '"
+		<< escapeSql(description) << "', "
+		<< price << ", "
+		<< stock << ", '"
+		<< escapeSql(img) << "', 1);";
+	if (db_.execute(ss.str()) <= 0) return 0;
+	auto idRows = db_.query("SELECT last_insert_rowid() AS id;");
+	if (idRows.empty()) return 0;
+	const auto& v = idRows.front()["id"];
+	std::int32_t newId = 0;
+	if (v.is_number()) newId = v.get<std::int32_t>();
+	else if (v.is_string()) { try { newId = std::stoi(v.get<std::string>()); } catch (...) {} }
+	return newId;
+}

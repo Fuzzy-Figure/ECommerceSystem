@@ -29,6 +29,13 @@ public:
 	// 直接设置库存为 newStock（商家调整库存用）
 	bool updateStock(std::int32_t id, std::int32_t newStock);
 
+	// 商家新增商品：返回新商品 id（>0 表示成功）；imagePath 为空时用默认占位图
+	std::int32_t createProduct(const std::string& name,
+								const std::string& description,
+								double             price,
+								std::int32_t       stock,
+								const std::string& imagePath);
+
 private:
 	// 把一行 JSON 映射为 Product
 	static Product mapRow(const nlohmann::json& row);

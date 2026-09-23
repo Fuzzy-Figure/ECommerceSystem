@@ -61,11 +61,12 @@ namespace {
 
 void ClientView::render(const ClientModel& model) {
 	switch (panel_) {
-		case Panel::Login:       drawLoginPanel(model);       break;
-		case Panel::Merchant:    drawMerchantPanel(model);    break;
-		case Panel::ProductList: drawProductListPanel(model); break;
-		case Panel::Cart:         drawCartPanel(model);        break;
-		case Panel::MyOrders:     drawMyOrdersPanel(model);    break;
+		case Panel::Login:           drawLoginPanel(model);           break;
+		case Panel::Merchant:        drawMerchantPanel(model);         break;
+		case Panel::MerchantCreate:  drawMerchantCreatePanel(model);  break;
+		case Panel::ProductList:     drawProductListPanel(model);     break;
+		case Panel::Cart:             drawCartPanel(model);            break;
+		case Panel::MyOrders:         drawMyOrdersPanel(model);        break;
 	}
 }
 
@@ -237,31 +238,159 @@ void ClientView::drawMerchantPanel(const ClientModel& model) {
 
 		rowY += rowH + 4.f;
 	}
+
+	// 底部"新增商品"按钮（固定在窗口底部上方）
+	const auto cb = merchantCreateBtnRect();
+	sf::RectangleShape createBtn({ cb.size.x, cb.size.y });
+	createBtn.setPosition({ cb.position.x, cb.position.y });
+	createBtn.setFillColor(sf::Color(60, 140, 80));
+	createBtn.setOutlineColor(sf::Color(40, 110, 60));
+	createBtn.setOutlineThickness(1.f);
+	window_.draw(createBtn);
+	textMgr_.displayText(L"+ 新增商品",
+						{ cb.position.x + 30, cb.position.y + 10 },
+						{ 18, 24 }, sf::Color::White);
+}
+
+// ===================== 商家新增商品表单面板 =====================
+
+void ClientView::drawMerchantCreatePanel(const ClientModel& model) {
+	textMgr_.displayTextInUp(L"商家管理 - 新增商品", { 20, 12 }, sf::Color(40, 80, 160));
+
+	// 右上角用户名 + 登出（与商家面板一致）
+	if (model.loggedIn()) {
+		const auto lr = logoutBtnRect();
+		std::wostringstream user;
+		user << L"商家：" << ec::string::to_utf16(model.currentUsername());
+		textMgr_.displayText(user.str(),
+							 { lr.position.x - 220, lr.position.y + 8 },
+							 { 18, 24 }, sf::Color(60, 60, 60));
+		sf::RectangleShape btn({ lr.size.x, lr.size.y });
+		btn.setPosition({ lr.position.x, lr.position.y });
+		btn.setFillColor(sf::Color(200, 80, 80));
+		btn.setOutlineColor(sf::Color(160, 60, 60));
+		btn.setOutlineThickness(1.f);
+		window_.draw(btn);
+		textMgr_.displayText(L"登出",
+							 { lr.position.x + 30, lr.position.y + 8 },
+							 { 18, 24 }, sf::Color::White);
+	}
+
+	// 表单标题
+	textMgr_.displayText(L"填写商品信息（带 * 为必填）", { 100, 100 }, { 20, 26 }, sf::Color(60, 60, 60));
+
+	// 5 个输入框：名称/价格/库存/描述/图片路径
+	const wchar_t* labels[] = { L"商品名称 *", L"价格 (元) *", L"库存 *", L"描述", L"图片路径（留空用占位图）" };
+	const std::string* values[] = {
+		&productNameInput_, &productPriceInput_, &productStockInput_,
+		&productDescInput_, &productImageInput_
+	};
+	const Field fields[] = {
+		Field::ProductName, Field::ProductPrice, Field::ProductStock,
+		Field::ProductDesc, Field::ProductImage
+	};
+	for (int i = 0; i < 5; ++i) {
+		const auto r = merchantCreateFieldRect(i);
+		// 标签
+		textMgr_.displayText(labels[i],
+							{ r.position.x - 130, r.position.y + 8 },
+							{ 18, 24 }, sf::Color(80, 80, 80));
+		// 输入框背景
+		sf::RectangleShape bg({ r.size.x, r.size.y });
+		bg.setPosition({ r.position.x, r.position.y });
+		bg.setFillColor(sf::Color::White);
+		bg.setOutlineColor(activeField_ == fields[i] ? sf::Color(80, 130, 200) : sf::Color(200, 200, 200));
+		bg.setOutlineThickness(activeField_ == fields[i] ? 2.f : 1.f);
+		window_.draw(bg);
+		// 输入框文本
+		std::wstring shown = ec::string::to_utf16(*values[i]);
+		if (activeField_ == fields[i]) shown += L"_";  // 光标占位
+		textMgr_.displayText(shown,
+							{ r.position.x + 8, r.position.y + 8 },
+							{ 18, 24 }, sf::Color::Black);
+	}
+
+	// 提交 + 返回按钮
+	const auto sb = merchantCreateSubmitBtnRect();
+	sf::RectangleShape submitBtn({ sb.size.x, sb.size.y });
+	submitBtn.setPosition({ sb.position.x, sb.position.y });
+	submitBtn.setFillColor(sf::Color(60, 140, 80));
+	submitBtn.setOutlineColor(sf::Color(40, 110, 60));
+	submitBtn.setOutlineThickness(1.f);
+	window_.draw(submitBtn);
+	textMgr_.displayText(L"提交新增",
+						{ sb.position.x + 30, sb.position.y + 10 },
+						{ 18, 24 }, sf::Color::White);
+
+	const auto bb = merchantCreateBackBtnRect();
+	sf::RectangleShape backBtn({ bb.size.x, bb.size.y });
+	backBtn.setPosition({ bb.position.x, bb.position.y });
+	backBtn.setFillColor(sf::Color(150, 150, 150));
+	backBtn.setOutlineColor(sf::Color(120, 120, 120));
+	backBtn.setOutlineThickness(1.f);
+	window_.draw(backBtn);
+	textMgr_.displayText(L"返回",
+						{ bb.position.x + 30, bb.position.y + 10 },
+						{ 18, 24 }, sf::Color::White);
+
+	// 状态信息
+	if (!model.status().empty()) {
+		textMgr_.displayText(model.status(), { 100, 580 }, { 18, 22 }, sf::Color(200, 50, 50));
+	}
+
+	// 提示
+	textMgr_.displayText(L"（Tab 键切换输入框，Enter 键等同提交）",
+						{ 100, 620 }, { 16, 22 }, sf::Color(150, 150, 150));
 }
 
 void ClientView::appendInputChar(char c) {
 	// 只接收可打印 ASCII（32..126），其他字符忽略
 	if (c < 32 || c > 126) return;
-	if (activeField_ == Field::Username) {
-		if (usernameInput_.size() < 32) usernameInput_.push_back(c);
-	}
-	else {
-		if (passwordInput_.size() < 32) passwordInput_.push_back(c);
+	switch (activeField_) {
+		case Field::Username:
+			if (usernameInput_.size() < 32) usernameInput_.push_back(c); break;
+		case Field::Password:
+			if (passwordInput_.size() < 32) passwordInput_.push_back(c); break;
+		case Field::ProductName:
+			if (productNameInput_.size() < 64) productNameInput_.push_back(c); break;
+		case Field::ProductPrice:
+			if (productPriceInput_.size() < 12) productPriceInput_.push_back(c); break;
+		case Field::ProductStock:
+			if (productStockInput_.size() < 10) productStockInput_.push_back(c); break;
+		case Field::ProductDesc:
+			if (productDescInput_.size() < 128) productDescInput_.push_back(c); break;
+		case Field::ProductImage:
+			if (productImageInput_.size() < 128) productImageInput_.push_back(c); break;
 	}
 }
 
 void ClientView::backspaceInput() {
-	if (activeField_ == Field::Username) {
-		if (!usernameInput_.empty()) usernameInput_.pop_back();
-	}
-	else {
-		if (!passwordInput_.empty()) passwordInput_.pop_back();
+	switch (activeField_) {
+		case Field::Username:
+			if (!usernameInput_.empty()) usernameInput_.pop_back(); break;
+		case Field::Password:
+			if (!passwordInput_.empty()) passwordInput_.pop_back(); break;
+		case Field::ProductName:
+			if (!productNameInput_.empty()) productNameInput_.pop_back(); break;
+		case Field::ProductPrice:
+			if (!productPriceInput_.empty()) productPriceInput_.pop_back(); break;
+		case Field::ProductStock:
+			if (!productStockInput_.empty()) productStockInput_.pop_back(); break;
+		case Field::ProductDesc:
+			if (!productDescInput_.empty()) productDescInput_.pop_back(); break;
+		case Field::ProductImage:
+			if (!productImageInput_.empty()) productImageInput_.pop_back(); break;
 	}
 }
 
 void ClientView::clearInputs() noexcept {
 	usernameInput_.clear();
 	passwordInput_.clear();
+	productNameInput_.clear();
+	productPriceInput_.clear();
+	productStockInput_.clear();
+	productDescInput_.clear();
+	productImageInput_.clear();
 	activeField_ = Field::Username;
 }
 
@@ -680,6 +809,25 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 			}
 			rowY += rowH + 4.f;
 		}
+		// 底部"新增商品"按钮
+		if (hit(merchantCreateBtnRect(), mousePos)) {
+			return { ClickAction::SwitchPanel, static_cast<int>(Panel::MerchantCreate) };
+		}
+	}
+	else if (panel_ == Panel::MerchantCreate) {
+		// 5 个输入框命中 → 聚焦切换
+		for (int i = 0; i < 5; ++i) {
+			if (hit(merchantCreateFieldRect(i), mousePos)) {
+				ClickAction act{ ClickAction::FocusField, static_cast<int>(Field::ProductName) + i };
+				return act;
+			}
+		}
+		if (hit(merchantCreateSubmitBtnRect(), mousePos)) {
+			return { ClickAction::MerchantCreateProduct, 0 };
+		}
+		if (hit(merchantCreateBackBtnRect(), mousePos)) {
+			return { ClickAction::MerchantCreateBack, 0 };
+		}
 	}
 	return { ClickAction::None, 0 };
 }
@@ -747,6 +895,36 @@ sf::FloatRect ClientView::merchantStockPlusBtnRect(const sf::Vector2f& rowPos) c
 	const float minusX = rowPos.x + orderCardW - 70.f - 10.f - 80.f - 8.f;
 	const float x = minusX - w - 8.f;
 	return sf::FloatRect(sf::Vector2f{ x, rowPos.y + 7.f }, sf::Vector2f{ w, h });
+}
+
+// 商家面板底部"新增商品"按钮（左下角）
+sf::FloatRect ClientView::merchantCreateBtnRect() const {
+	constexpr float w = 160.f, h = 40.f;
+	const float x = orderCardX;
+	const float y = static_cast<float>(window_.getSize().y) - h - 20.f;
+	return sf::FloatRect(sf::Vector2f{ x, y }, sf::Vector2f{ w, h });
+}
+
+// 商家新增商品表单输入框矩形；field 取 0..4 对应 Name/Price/Stock/Desc/Image
+sf::FloatRect ClientView::merchantCreateFieldRect(int field) {
+	constexpr float w = 500.f, h = 40.f;
+	constexpr float startX = 250.f;
+	constexpr float startY = 150.f;
+	constexpr float gap = 50.f;
+	const float y = startY + field * gap;
+	return sf::FloatRect(sf::Vector2f{ startX, y }, sf::Vector2f{ w, h });
+}
+
+// 提交按钮（表单下方左侧）
+sf::FloatRect ClientView::merchantCreateSubmitBtnRect() {
+	constexpr float w = 160.f, h = 44.f;
+	return sf::FloatRect(sf::Vector2f{ 250, 440 }, sf::Vector2f{ w, h });
+}
+
+// 返回按钮（提交按钮右侧）
+sf::FloatRect ClientView::merchantCreateBackBtnRect() {
+	constexpr float w = 120.f, h = 44.f;
+	return sf::FloatRect(sf::Vector2f{ 430, 440 }, sf::Vector2f{ w, h });
 }
 
 // ===================== "我的订单"面板滚动 =====================

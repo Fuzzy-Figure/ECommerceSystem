@@ -177,6 +177,55 @@ void ClientController::requestMerchantUpdateStock(std::int32_t productId, std::i
 	model_.setStatus(ss.str());
 }
 
+void ClientController::requestMerchantCreateProduct() {
+	if (!socket_) {
+		model_.setStatus(L"未连接服务器，无法新增商品");
+		return;
+	}
+	const auto& name  = view_.productNameInput();
+	const auto& price = view_.productPriceInput();
+	const auto& stock = view_.productStockInput();
+	const auto& desc  = view_.productDescInput();
+	const auto& image = view_.productImageInput();
+	if (name.empty()) {
+		model_.setStatus(L"商品名称不能为空");
+		return;
+	}
+	// 价格/库存必须是合法数字
+	double priceVal = 0.0;
+	std::int32_t stockVal = 0;
+	try {
+		priceVal = std::stod(price);
+	} catch (...) {
+		model_.setStatus(L"价格必须是数字（如 19.9）");
+		return;
+	}
+	try {
+		stockVal = std::stoi(stock);
+	} catch (...) {
+		model_.setStatus(L"库存必须是整数（如 100）");
+		return;
+	}
+	if (priceVal < 0 || stockVal < 0) {
+		model_.setStatus(L"价格和库存不能为负数");
+		return;
+	}
+	const nlohmann::json req = {
+		{"code",        static_cast<int>(proto::RequestCode::MerchantCreateProduct)},
+		{"userId",      model_.currentUserId()},
+		{"name",        name},
+		{"description", desc},
+		{"price",       priceVal},
+		{"stock",       stockVal},
+		{"imagePath",   image}
+	};
+	if (!proto::sendJson(*socket_, req)) {
+		model_.setStatus(L"发送新增商品请求失败，连接可能已断开");
+		return;
+	}
+	model_.setStatus(L"正在提交新增商品...");
+}
+
 void ClientController::requestLogin() {
 	if (!socket_) {
 		model_.setStatus(L"未连接服务器，无法登录");
@@ -252,10 +301,16 @@ void ClientController::handleEvent(const sf::Event& event) {
 					break;
 				case ClientView::ClickAction::SwitchPanel: {
 						const int idx = action.arg;
-						// idx 取 Panel 枚举值；Login=0 不参与，故范围 [ProductList, MyOrders]
-						if (idx >= static_cast<int>(ClientView::Panel::ProductList)
+						const auto target = static_cast<ClientView::Panel>(idx);
+						// 允许切到 MerchantCreate（新增商品表单）或 [ProductList, MyOrders] 三面板
+						if (target == ClientView::Panel::MerchantCreate) {
+							view_.clearInputs();
+							view_.setActiveField(ClientView::Field::ProductName);
+							view_.setPanel(target);
+							model_.setStatus(L"新增商品：填写表单后点提交");
+						}
+						else if (idx >= static_cast<int>(ClientView::Panel::ProductList)
 							&& idx <= static_cast<int>(ClientView::Panel::MyOrders)) {
-							const auto target = static_cast<ClientView::Panel>(idx);
 							view_.setPanel(target);
 							// 进入商品列表/订单列表时自动拉取最新数据
 							if (target == ClientView::Panel::ProductList) {
@@ -295,6 +350,15 @@ void ClientController::handleEvent(const sf::Event& event) {
 				case ClientView::ClickAction::MerchantStockMinus:
 					requestMerchantUpdateStock(action.productId, -10);
 					break;
+				case ClientView::ClickAction::MerchantCreateProduct:
+					requestMerchantCreateProduct();
+					break;
+				case ClientView::ClickAction::MerchantCreateBack:
+					// 返回商家管理面板，清空表单输入
+					view_.clearInputs();
+					view_.setPanel(ClientView::Panel::Merchant);
+					model_.setStatus(L"已返回商家管理面板");
+					break;
 				case ClientView::ClickAction::None:
 				default: break;
 			}
@@ -324,13 +388,30 @@ void ClientController::handleEvent(const sf::Event& event) {
 					: ClientView::Field::Username);
 			}
 		}
+		else if (view_.panel() == ClientView::Panel::MerchantCreate) {
+			if (key == sf::Keyboard::Key::Enter) {
+				requestMerchantCreateProduct();
+			}
+			else if (key == sf::Keyboard::Key::Backspace) {
+				view_.backspaceInput();
+			}
+			else if (key == sf::Keyboard::Key::Tab) {
+				// Tab 在 5 个输入框之间循环切换
+				const auto f = view_.activeField();
+				const int next = (static_cast<int>(f) + 1 - static_cast<int>(ClientView::Field::ProductName)) % 5
+					+ static_cast<int>(ClientView::Field::ProductName);
+				view_.setActiveField(static_cast<ClientView::Field>(next));
+			}
+		}
 		return;
 	}
-	// 文本输入事件：登录面板接收 ASCII 字符到当前聚焦输入框
+	// 文本输入事件：Login/MerchantCreate 面板接收 ASCII 字符到当前聚焦输入框
 	if (event.is<sf::Event::TextEntered>()) {
 		const auto* te = event.getIf<sf::Event::TextEntered>();
 		if (te == nullptr) return;
-		if (view_.panel() != ClientView::Panel::Login) return;
+		// 仅 Login 和 MerchantCreate 两个面板接收文本输入
+		if (view_.panel() != ClientView::Panel::Login
+			&& view_.panel() != ClientView::Panel::MerchantCreate) return;
 		const auto ch = te->unicode;
 		// 只接收可打印 ASCII（32..126），其他忽略
 		if (ch >= 32 && ch <= 126) {
@@ -523,7 +604,12 @@ void ClientController::processMessage(nlohmann::json& msg) {
 			const auto m = msg.value("message", std::string{});
 			model_.setStatus(ec::string::to_utf16(m));
 			if (success) {
-				// 操作成功后刷新商家商品列表，看到最新上下架状态和库存
+				// 如果当前在 MerchantCreate 面板，说明是新增商品成功 → 清表单 + 切回 Merchant
+				if (view_.panel() == ClientView::Panel::MerchantCreate) {
+					view_.clearInputs();
+					view_.setPanel(ClientView::Panel::Merchant);
+				}
+				// 刷新商家商品列表，看到最新上下架状态/库存/新增的商品
 				requestMerchantListProducts();
 			}
 			break;
