@@ -4,6 +4,7 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/Network.hpp>
 #include <json.hpp>
+#include <algorithm>
 #include <atomic>
 #include <memory>
 #include <mutex>
@@ -46,6 +47,15 @@ public:
 
 	// 发起注册请求：取登录面板输入框的用户名/密码上传
 	void requestRegister();
+
+	// 商家：拉取全部商品（含下架）
+	void requestMerchantListProducts();
+
+	// 商家：上架/下架指定商品；onSale=true 上架，false 下架
+	void requestMerchantSetOnSale(std::int32_t productId, bool onSale);
+
+	// 商家：把指定商品库存调整为 currentStock + delta（delta 可正可负，结果不低于 0）
+	void requestMerchantUpdateStock(std::int32_t productId, std::int32_t delta);
 
 	// 处理 SFML 事件（按键、关闭、文本输入等）
 	void handleEvent(const sf::Event& event);

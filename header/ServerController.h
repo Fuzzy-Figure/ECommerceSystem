@@ -77,4 +77,13 @@ private:
     nlohmann::json handleLogin(const nlohmann::json& req);
     // 注册：{username, password} → RegisterResult
     nlohmann::json handleRegister(const nlohmann::json& req);
+    // 商家拉取全部商品（含下架）：{userId} → MerchantProductList
+    nlohmann::json handleMerchantListProducts(const nlohmann::json& req);
+    // 商家上架/下架：{userId, productId, onSale} → MerchantActionResult
+    nlohmann::json handleMerchantSetOnSale(const nlohmann::json& req);
+    // 商家调整库存：{userId, productId, stock} → MerchantActionResult
+    nlohmann::json handleMerchantUpdateStock(const nlohmann::json& req);
+    // 校验请求发起者是否为商家（role=1），不是则返回错误应答
+    // 成功返回 nullopt，失败返回已构造好的错误 JSON
+    std::optional<nlohmann::json> requireMerchant(const nlohmann::json& req);
 };

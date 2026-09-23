@@ -18,6 +18,9 @@ namespace proto {
         ListOrders,    // 拉取历史订单列表：{userId}
         Login,         // 登录：{username, password}
         Register,      // 注册：{username, password}
+        MerchantListProducts,  // 商家拉取全部商品（含下架）：{userId}
+        MerchantSetOnSale,     // 商家上架/下架：{userId, productId, onSale}
+        MerchantUpdateStock,   // 商家调整库存：{userId, productId, stock}
     };
 
     // 应答码（服务端响应）
@@ -30,6 +33,8 @@ namespace proto {
         OrderList,        // 历史订单列表：{orders:[...]}
         LoginResult,      // 登录结果：{success, userId, username, message}
         RegisterResult,   // 注册结果：{success, userId, message}
+        MerchantProductList,  // 商家商品列表：{products:[...]}
+        MerchantActionResult, // 商家操作结果：{success, message}
     };
 
 	// 阻塞发送一条 JSON 消息；处理 Partial 直至全部发出。

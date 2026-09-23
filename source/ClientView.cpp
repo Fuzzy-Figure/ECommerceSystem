@@ -62,6 +62,7 @@ namespace {
 void ClientView::render(const ClientModel& model) {
 	switch (panel_) {
 		case Panel::Login:       drawLoginPanel(model);       break;
+		case Panel::Merchant:    drawMerchantPanel(model);    break;
 		case Panel::ProductList: drawProductListPanel(model); break;
 		case Panel::Cart:         drawCartPanel(model);        break;
 		case Panel::MyOrders:     drawMyOrdersPanel(model);    break;
@@ -126,6 +127,116 @@ void ClientView::drawLoginPanel(const ClientModel& model) {
 	// 提示文字
 	textMgr_.displayText(L"（提示：点击输入框切换聚焦，Enter 键等同登录）",
 						 { 600, 620 }, { 16, 22 }, sf::Color(150, 150, 150));
+}
+
+// ===================== 商家管理面板 =====================
+
+void ClientView::drawMerchantPanel(const ClientModel& model) {
+	// 顶部标题栏 + 用户名 + 登出按钮（复用 drawTabBar 的登出逻辑，但不画 Tab）
+	textMgr_.displayTextInUp(L"商家管理 - 商品上下架与库存调整", { 20, 12 }, sf::Color(40, 80, 160));
+
+	// 右上角用户名 + 登出
+	if (model.loggedIn()) {
+		const auto lr = logoutBtnRect();
+		std::wostringstream user;
+		user << L"商家：" << ec::string::to_utf16(model.currentUsername());
+		textMgr_.displayText(user.str(),
+							 { lr.position.x - 220, lr.position.y + 8 },
+							 { 18, 24 }, sf::Color(60, 60, 60));
+		sf::RectangleShape btn({ lr.size.x, lr.size.y });
+		btn.setPosition({ lr.position.x, lr.position.y });
+		btn.setFillColor(sf::Color(200, 80, 80));
+		btn.setOutlineColor(sf::Color(160, 60, 60));
+		btn.setOutlineThickness(1.f);
+		window_.draw(btn);
+		textMgr_.displayText(L"登出",
+							 { lr.position.x + 30, lr.position.y + 8 },
+							 { 18, 24 }, sf::Color::White);
+	}
+
+	// 状态信息
+	if (!model.status().empty()) {
+		textMgr_.displayText(model.status(), { 700, statusY }, { 18, 22 }, sf::Color(150, 150, 150));
+	}
+
+	const auto& products = model.products();
+	if (products.empty()) {
+		textMgr_.displayTextInCenter(L"暂无商品数据", { 20, 30 }, sf::Color(150, 150, 150));
+		return;
+	}
+
+	// 表头
+	const float tableY = orderCardStartY;
+	textMgr_.displayText(L"商品名", { orderCardX + 12,  tableY }, { 18, 24 }, sf::Color(120, 120, 120));
+	textMgr_.displayText(L"价格",   { orderCardX + 300, tableY }, { 18, 24 }, sf::Color(120, 120, 120));
+	textMgr_.displayText(L"库存",   { orderCardX + 450, tableY }, { 18, 24 }, sf::Color(120, 120, 120));
+	textMgr_.displayText(L"状态",   { orderCardX + 600, tableY }, { 18, 24 }, sf::Color(120, 120, 120));
+
+	float rowY = tableY + 30.f;
+	constexpr float rowH = 44.f;
+	for (const auto& p : products) {
+		const sf::Vector2f rowPos{ orderCardX, rowY };
+
+		// 行背景
+		sf::RectangleShape rowBg({ orderCardW, rowH });
+		rowBg.setPosition({ rowPos.x, rowPos.y });
+		rowBg.setFillColor(p.onSale ? sf::Color(250, 250, 250) : sf::Color(240, 240, 240));
+		rowBg.setOutlineColor(sf::Color(220, 220, 220));
+		rowBg.setOutlineThickness(1.f);
+		window_.draw(rowBg);
+
+		// 商品名
+		textMgr_.displayText(ec::string::to_utf16(p.name),
+							 { rowPos.x + 12, rowPos.y + 12 }, { 18, 24 }, sf::Color::Black);
+		// 价格
+		std::wostringstream pp; pp << L"¥" << p.price;
+		textMgr_.displayText(pp.str(), { rowPos.x + 300, rowPos.y + 12 }, { 18, 24 }, sf::Color(80, 80, 80));
+		// 库存
+		std::wostringstream ss; ss << p.stock;
+		textMgr_.displayText(ss.str(), { rowPos.x + 450, rowPos.y + 12 }, { 18, 24 }, sf::Color::Black);
+		// 状态
+		textMgr_.displayText(p.onSale ? L"已上架" : L"已下架",
+							 { rowPos.x + 600, rowPos.y + 12 }, { 18, 24 },
+							 p.onSale ? sf::Color(50, 150, 50) : sf::Color(180, 80, 80));
+
+		// 上架/下架按钮
+		const auto saleRect = merchantSaleBtnRect(rowPos);
+		sf::RectangleShape saleBtn({ saleRect.size.x, saleRect.size.y });
+		saleBtn.setPosition({ saleRect.position.x, saleRect.position.y });
+		saleBtn.setFillColor(p.onSale ? sf::Color(180, 80, 80) : sf::Color(50, 150, 50));
+		saleBtn.setOutlineColor(p.onSale ? sf::Color(150, 60, 60) : sf::Color(40, 120, 40));
+		saleBtn.setOutlineThickness(1.f);
+		window_.draw(saleBtn);
+		textMgr_.displayText(p.onSale ? L"下架" : L"上架",
+							 { saleRect.position.x + 18, saleRect.position.y + 10 },
+							 { 16, 22 }, sf::Color::White);
+
+		// 库存 -10 按钮
+		const auto minusRect = merchantStockMinusBtnRect(rowPos);
+		sf::RectangleShape minusBtn({ minusRect.size.x, minusRect.size.y });
+		minusBtn.setPosition({ minusRect.position.x, minusRect.position.y });
+		minusBtn.setFillColor(sf::Color(220, 130, 30));
+		minusBtn.setOutlineColor(sf::Color(180, 100, 20));
+		minusBtn.setOutlineThickness(1.f);
+		window_.draw(minusBtn);
+		textMgr_.displayText(L"库存-10",
+							 { minusRect.position.x + 4, minusRect.position.y + 10 },
+							 { 14, 20 }, sf::Color::White);
+
+		// 库存 +10 按钮
+		const auto plusRect = merchantStockPlusBtnRect(rowPos);
+		sf::RectangleShape plusBtn({ plusRect.size.x, plusRect.size.y });
+		plusBtn.setPosition({ plusRect.position.x, plusRect.position.y });
+		plusBtn.setFillColor(sf::Color(80, 130, 200));
+		plusBtn.setOutlineColor(sf::Color(60, 100, 170));
+		plusBtn.setOutlineThickness(1.f);
+		window_.draw(plusBtn);
+		textMgr_.displayText(L"库存+10",
+							 { plusRect.position.x + 4, plusRect.position.y + 10 },
+							 { 14, 20 }, sf::Color::White);
+
+		rowY += rowH + 4.f;
+	}
 }
 
 void ClientView::appendInputChar(char c) {
@@ -522,7 +633,7 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 			return { ClickAction::Checkout, 0 };
 		}
 	}
-	else {  // Panel::MyOrders
+	else if (panel_ == Panel::MyOrders) {
 		// 复刻 drawMyOrdersPanel 的布局：从 orderCardStartY - 滚动偏移 起逐订单逐明细下移
 		float y = orderCardStartY - myOrdersScrollY_;
 		for (const auto& order : model.orders()) {
@@ -544,6 +655,30 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 			}
 			// 下一张订单起点：itemY + 间距（与 drawMyOrdersPanel 同步）
 			y = itemY + 12.f;
+		}
+	}
+	else if (panel_ == Panel::Merchant) {
+		// 复刻 drawMerchantPanel：tableY + 30 起，每行 rowH+4
+		constexpr float rowH = 44.f;
+		float rowY = orderCardStartY + 30.f;
+		for (const auto& p : model.products()) {
+			const sf::Vector2f rowPos{ orderCardX, rowY };
+			if (hit(merchantSaleBtnRect(rowPos), mousePos)) {
+				ClickAction act{ ClickAction::MerchantSetOnSale, p.onSale ? 0 : 1 };
+				act.productId = p.id;
+				return act;
+			}
+			if (hit(merchantStockMinusBtnRect(rowPos), mousePos)) {
+				ClickAction act{ ClickAction::MerchantStockMinus, 0 };
+				act.productId = p.id;
+				return act;
+			}
+			if (hit(merchantStockPlusBtnRect(rowPos), mousePos)) {
+				ClickAction act{ ClickAction::MerchantStockPlus, 0 };
+				act.productId = p.id;
+				return act;
+			}
+			rowY += rowH + 4.f;
 		}
 	}
 	return { ClickAction::None, 0 };
@@ -591,6 +726,27 @@ sf::FloatRect ClientView::logoutBtnRect() const {
 	constexpr float w = 100.f, h = tabH;
 	const float x = static_cast<float>(window_.getSize().x) - w - 20.f;
 	return sf::FloatRect(sf::Vector2f{ x, tabY }, sf::Vector2f{ w, h });
+}
+
+// 商家面板行内按钮：从右往左依次是 上架/下架、库存-10、库存+10
+sf::FloatRect ClientView::merchantSaleBtnRect(const sf::Vector2f& rowPos) const {
+	constexpr float w = 70.f, h = 30.f;
+	const float x = rowPos.x + orderCardW - w - 10.f;
+	return sf::FloatRect(sf::Vector2f{ x, rowPos.y + 7.f }, sf::Vector2f{ w, h });
+}
+
+sf::FloatRect ClientView::merchantStockMinusBtnRect(const sf::Vector2f& rowPos) const {
+	constexpr float w = 80.f, h = 30.f;
+	const float saleX = rowPos.x + orderCardW - 70.f - 10.f;  // 与 sale 按钮左对齐
+	const float x = saleX - w - 8.f;
+	return sf::FloatRect(sf::Vector2f{ x, rowPos.y + 7.f }, sf::Vector2f{ w, h });
+}
+
+sf::FloatRect ClientView::merchantStockPlusBtnRect(const sf::Vector2f& rowPos) const {
+	constexpr float w = 80.f, h = 30.f;
+	const float minusX = rowPos.x + orderCardW - 70.f - 10.f - 80.f - 8.f;
+	const float x = minusX - w - 8.f;
+	return sf::FloatRect(sf::Vector2f{ x, rowPos.y + 7.f }, sf::Vector2f{ w, h });
 }
 
 // ===================== "我的订单"面板滚动 =====================

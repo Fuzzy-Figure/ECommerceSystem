@@ -44,16 +44,20 @@ public:
 	std::int64_t         currentUserId() const noexcept { return currentUserId_; }
 	const std::string&   currentUsername() const noexcept { return currentUsername_; }
 	bool                 loggedIn() const noexcept { return loggedIn_; }
-	// 登录/注册成功后调用，写入服务端返回的 id + username
-	void setUser(std::int64_t id, std::string username) {
+	std::int32_t         currentRole() const noexcept { return currentRole_; }
+	bool                 isMerchant() const noexcept { return currentRole_ == 1; }
+	// 登录/注册成功后调用，写入服务端返回的 id + username + role
+	void setUser(std::int64_t id, std::string username, std::int32_t role) {
 		currentUserId_   = id;
 		currentUsername_ = std::move(username);
+		currentRole_     = role;
 		loggedIn_        = true;
 	}
-	// 登出（暂未实现入口，预留）
+	// 登出
 	void clearUser() noexcept {
 		currentUserId_ = 0;
 		currentUsername_.clear();
+		currentRole_    = 0;
 		loggedIn_       = false;
 	}
 
@@ -65,5 +69,6 @@ private:
 
 	std::int64_t          currentUserId_{ 0 };
 	std::string           currentUsername_;
+	std::int32_t          currentRole_{ 0 };  // 0=普通用户，1=商家
 	bool                  loggedIn_{ false };
 };

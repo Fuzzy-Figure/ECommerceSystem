@@ -38,11 +38,20 @@ Product ProductDAO::mapRow(const nlohmann::json& row) {
 	p.price = getDouble("price");
 	p.stock = getInt("stock");
 	p.imagePath = getStr("imagePath");
+	p.onSale = getInt("on_sale") != 0;
 	return p;
 }
 
 std::vector<Product> ProductDAO::findAll() {
-	auto rows = db_.query("SELECT id, name, description, price, stock, imagePath FROM products ORDER BY id ASC;");
+	auto rows = db_.query("SELECT id, name, description, price, stock, imagePath, on_sale FROM products WHERE on_sale = 1 ORDER BY id ASC;");
+	std::vector<Product> result;
+	result.reserve(rows.size());
+	for (const auto& row : rows) result.push_back(mapRow(row));
+	return result;
+}
+
+std::vector<Product> ProductDAO::findAllForMerchant() {
+	auto rows = db_.query("SELECT id, name, description, price, stock, imagePath, on_sale FROM products ORDER BY id ASC;");
 	std::vector<Product> result;
 	result.reserve(rows.size());
 	for (const auto& row : rows) result.push_back(mapRow(row));
@@ -51,7 +60,7 @@ std::vector<Product> ProductDAO::findAll() {
 
 std::optional<Product> ProductDAO::findById(std::int32_t id) {
 	std::ostringstream ss;
-	ss << "SELECT id, name, description, price, stock, imagePath FROM products WHERE id = " << id << ";";
+	ss << "SELECT id, name, description, price, stock, imagePath, on_sale FROM products WHERE id = " << id << ";";
 	auto rows = db_.query(ss.str());
 	if (rows.empty()) return std::nullopt;
 	return mapRow(rows.front());
@@ -65,4 +74,19 @@ bool ProductDAO::reduceStock(std::int32_t id, std::int32_t qty) {
 		<< " WHERE id = " << id << " AND stock >= " << qty << ";";
 	const int affected = db_.execute(ss.str());
 	return affected > 0;
+}
+
+bool ProductDAO::setOnSale(std::int32_t id, bool onSale) {
+	std::ostringstream ss;
+	ss << "UPDATE products SET on_sale = " << (onSale ? 1 : 0)
+		<< " WHERE id = " << id << ";";
+	return db_.execute(ss.str()) > 0;
+}
+
+bool ProductDAO::updateStock(std::int32_t id, std::int32_t newStock) {
+	if (newStock < 0) return false;
+	std::ostringstream ss;
+	ss << "UPDATE products SET stock = " << newStock
+		<< " WHERE id = " << id << ";";
+	return db_.execute(ss.str()) > 0;
 }

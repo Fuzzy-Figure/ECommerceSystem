@@ -14,8 +14,9 @@
 
 class ClientView {
 public:
-	// 注意顺序：Login 在前作为启动面板；后续三面板的 Tab 索引仍按 ProductList/Cart/MyOrders
-	enum class Panel { Login, ProductList, Cart, MyOrders };
+	// 注意顺序：Login=0；商家面板 Merchant 独立（不参与 Tab 切换）；
+	// ProductList/Cart/MyOrders 三面板按顶部 Tab 切换，Tab 索引仍按 0/1/2。
+	enum class Panel { Login, Merchant, ProductList, Cart, MyOrders };
 
 	// 当前聚焦的输入框（仅 Login 面板用）
 	enum class Field { Username, Password };
@@ -29,11 +30,14 @@ public:
 			Login,         // 登录按钮：用当前输入框的用户名/密码
 			Register,      // 注册按钮：同上
 			FocusField,    // 聚焦输入框：arg 是 Field 的 int 值
-			Logout         // 登出按钮：清用户身份 + 切回登录面板
+			Logout,        // 登出按钮：清用户身份 + 切回登录面板
+			MerchantSetOnSale,  // 商家上架/下架：productId + arg(0=下架,1=上架)
+			MerchantStockPlus,  // 商家库存 +10：productId
+			MerchantStockMinus  // 商家库存 -10：productId（不低于0）
 		} type{ None };
-		std::int32_t arg{ 0 };     // AddToCart/RemoveFromCart 用 productId；SwitchPanel 用 panel 索引；FocusField 用 Field 索引
+		std::int32_t arg{ 0 };     // AddToCart/RemoveFromCart 用 productId；SwitchPanel 用 panel 索引；FocusField 用 Field 索引；MerchantSetOnSale 用 0/1
 		std::int64_t orderId{};  // ReturnItem 用 orderId
-		std::int32_t productId{};// ReturnItem 用 productId
+		std::int32_t productId{};// ReturnItem/Merchant* 用 productId
 		std::int32_t qty{ 1 };      // ReturnItem 的退货数量（暂固定 1，可扩展）
 	};
 
@@ -97,6 +101,15 @@ private:
 
 	// === 登录面板 ===
 	void drawLoginPanel(const ClientModel& model);
+
+	// === 商家管理面板 ===
+	void drawMerchantPanel(const ClientModel& model);
+	// 商家商品行：上架/下架按钮矩形
+	sf::FloatRect merchantSaleBtnRect(const sf::Vector2f& rowPos) const;
+	// 商家商品行：库存 +10 按钮矩形
+	sf::FloatRect merchantStockPlusBtnRect(const sf::Vector2f& rowPos) const;
+	// 商家商品行：库存 -10 按钮矩形
+	sf::FloatRect merchantStockMinusBtnRect(const sf::Vector2f& rowPos) const;
 
 	// === 按钮矩形计算（与 drawXxxPanel 内的布局保持一致）===
 	// 商品卡片右下角的"+加购"按钮

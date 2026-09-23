@@ -119,6 +119,64 @@ void ClientController::requestAfterSale(std::int64_t orderId, std::int32_t produ
 	model_.setStatus(ss.str());
 }
 
+void ClientController::requestMerchantListProducts() {
+	if (!socket_) {
+		model_.setStatus(L"未连接服务器，无法拉取商家商品");
+		return;
+	}
+	const nlohmann::json req = {
+		{"code",   static_cast<int>(proto::RequestCode::MerchantListProducts)},
+		{"userId", model_.currentUserId()}
+	};
+	if (!proto::sendJson(*socket_, req)) {
+		model_.setStatus(L"发送商家商品请求失败，连接可能已断开");
+		return;
+	}
+	model_.setStatus(L"正在拉取商家商品列表...");
+}
+
+void ClientController::requestMerchantSetOnSale(std::int32_t productId, bool onSale) {
+	if (!socket_) {
+		model_.setStatus(L"未连接服务器，无法操作");
+		return;
+	}
+	const nlohmann::json req = {
+		{"code",      static_cast<int>(proto::RequestCode::MerchantSetOnSale)},
+		{"userId",    model_.currentUserId()},
+		{"productId", productId},
+		{"onSale",    onSale}
+	};
+	if (!proto::sendJson(*socket_, req)) {
+		model_.setStatus(L"发送上下架请求失败，连接可能已断开");
+		return;
+	}
+	model_.setStatus(onSale ? L"正在上架..." : L"正在下架...");
+}
+
+void ClientController::requestMerchantUpdateStock(std::int32_t productId, std::int32_t delta) {
+	if (!socket_) {
+		model_.setStatus(L"未连接服务器，无法调整库存");
+		return;
+	}
+	// 先从本地模型查到当前库存，计算目标值（服务端只接受绝对值，不接受 delta）
+	std::int32_t current = 0;
+	if (const auto* p = model_.findProduct(productId)) current = p->stock;
+	const std::int32_t target = std::max(0, current + delta);
+	const nlohmann::json req = {
+		{"code",      static_cast<int>(proto::RequestCode::MerchantUpdateStock)},
+		{"userId",    model_.currentUserId()},
+		{"productId", productId},
+		{"stock",     target}
+	};
+	if (!proto::sendJson(*socket_, req)) {
+		model_.setStatus(L"发送库存调整请求失败，连接可能已断开");
+		return;
+	}
+	std::wostringstream ss;
+	ss << L"正在将库存调整为 " << target << L"...";
+	model_.setStatus(ss.str());
+}
+
 void ClientController::requestLogin() {
 	if (!socket_) {
 		model_.setStatus(L"未连接服务器，无法登录");
@@ -227,6 +285,15 @@ void ClientController::handleEvent(const sf::Event& event) {
 					view_.clearInputs();
 					view_.setPanel(ClientView::Panel::Login);
 					model_.setStatus(L"已登出，请重新登录");
+					break;
+				case ClientView::ClickAction::MerchantSetOnSale:
+					requestMerchantSetOnSale(action.productId, action.arg != 0);
+					break;
+				case ClientView::ClickAction::MerchantStockPlus:
+					requestMerchantUpdateStock(action.productId, +10);
+					break;
+				case ClientView::ClickAction::MerchantStockMinus:
+					requestMerchantUpdateStock(action.productId, -10);
 					break;
 				case ClientView::ClickAction::None:
 				default: break;
@@ -394,13 +461,21 @@ void ClientController::processMessage(nlohmann::json& msg) {
 			if (success) {
 				const auto userId   = msg["user"].value("id",       std::int64_t{});
 				const auto username = msg["user"].value("username", std::string{});
-				model_.setUser(userId, username);
+				const auto role     = msg["user"].value("role",     std::int32_t{});
+				model_.setUser(userId, username, role);
 				view_.clearInputs();
-				view_.setPanel(ClientView::Panel::ProductList);
-				// 登录成功后立即拉取最新商品列表 + 该用户的订单
-				requestProductList();
+				// 按角色分流：商家进商家面板，普通用户进商品列表
+				if (model_.isMerchant()) {
+					view_.setPanel(ClientView::Panel::Merchant);
+					requestMerchantListProducts();
+				}
+				else {
+					view_.setPanel(ClientView::Panel::ProductList);
+					requestProductList();
+				}
 				std::wostringstream ss;
-				ss << L"欢迎 " << ec::string::to_utf16(username) << L"，已登录";
+				ss << L"欢迎 " << ec::string::to_utf16(username)
+					<< (model_.isMerchant() ? L"（商家）" : L"") << L"，已登录";
 				model_.setStatus(ss.str());
 			}
 			else {
@@ -414,8 +489,10 @@ void ClientController::processMessage(nlohmann::json& msg) {
 			if (success) {
 				const auto userId   = msg["user"].value("id",       std::int64_t{});
 				const auto username = msg["user"].value("username", std::string{});
-				model_.setUser(userId, username);
+				const auto role     = msg["user"].value("role",     std::int32_t{});
+				model_.setUser(userId, username, role);
 				view_.clearInputs();
+				// 新注册用户默认普通用户，进商品列表
 				view_.setPanel(ClientView::Panel::ProductList);
 				requestProductList();
 				std::wostringstream ss;
@@ -425,6 +502,29 @@ void ClientController::processMessage(nlohmann::json& msg) {
 			else {
 				const auto m = msg.value("message", std::string{ "注册失败" });
 				model_.setStatus(ec::string::to_utf16(m));
+			}
+			break;
+		}
+		case static_cast<int>(proto::ResponseCode::MerchantProductList): {
+			std::vector<Product> products;
+			if (msg.contains("products") && msg["products"].is_array()) {
+				for (const auto& pj : msg["products"]) {
+					products.push_back(Product::fromJson(pj));
+				}
+			}
+			model_.setProducts(std::move(products));
+			std::wostringstream ss;
+			ss << L"商家商品列表已加载 " << model_.products().size() << L" 件";
+			model_.setStatus(ss.str());
+			break;
+		}
+		case static_cast<int>(proto::ResponseCode::MerchantActionResult): {
+			const auto success = msg.value("success", false);
+			const auto m = msg.value("message", std::string{});
+			model_.setStatus(ec::string::to_utf16(m));
+			if (success) {
+				// 操作成功后刷新商家商品列表，看到最新上下架状态和库存
+				requestMerchantListProducts();
 			}
 			break;
 		}

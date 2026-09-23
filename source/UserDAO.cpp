@@ -33,12 +33,13 @@ std::optional<User> UserDAO::findByUsername(const std::string& username) {
     escaped.reserve(username.size());
     for (char c : username) { escaped += (c == '\'' ? "''" : std::string(1, c)); }
     std::ostringstream q;
-    q << "SELECT id, username FROM users WHERE username='" << escaped << "';";
+    q << "SELECT id, username, role FROM users WHERE username='" << escaped << "';";
     auto rows = db_.query(q.str());
     if (rows.empty()) return std::nullopt;
     User u;
     u.id       = toInt64(rows.front()["id"]);
     u.username = toStr(rows.front()["username"]);
+    u.role     = static_cast<std::int32_t>(toInt64(rows.front()["role"]));
     return u;
 }
 
@@ -48,13 +49,14 @@ std::optional<User> UserDAO::authenticate(const std::string& username, const std
     for (char c : username) { escaped += (c == '\'' ? "''" : std::string(1, c)); }
     const std::string hash = hashPassword(username, password);
     std::ostringstream q;
-    q << "SELECT id, username FROM users WHERE username='" << escaped
+    q << "SELECT id, username, role FROM users WHERE username='" << escaped
       << "' AND password_hash='" << hash << "';";
     auto rows = db_.query(q.str());
     if (rows.empty()) return std::nullopt;
     User u;
     u.id       = toInt64(rows.front()["id"]);
     u.username = toStr(rows.front()["username"]);
+    u.role     = static_cast<std::int32_t>(toInt64(rows.front()["role"]));
     return u;
 }
 
@@ -68,9 +70,10 @@ bool UserDAO::createUser(const std::string& username, const std::string& passwor
     const std::string hash = hashPassword(username, password);
     for (char c : hash) { escapedHash += (c == '\'' ? "''" : std::string(1, c)); }
 
+    // 新注册用户默认 role=0（普通用户），商家角色由种子数据或后台指定
     std::ostringstream ins;
-    ins << "INSERT INTO users (username, password_hash) VALUES ('"
-        << escapedUser << "', '" << escapedHash << "');";
+    ins << "INSERT INTO users (username, password_hash, role) VALUES ('"
+        << escapedUser << "', '" << escapedHash << "', 0);";
     db_.execute(ins.str());
 
     auto idRows = db_.query("SELECT last_insert_rowid() AS id;");

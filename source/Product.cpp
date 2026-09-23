@@ -8,6 +8,7 @@ nlohmann::json Product::toJson() const {
 		{"price",       price},
 		{"stock",       stock},
 		{"imagePath",   imagePath},
+		{"onSale",      onSale},
 	};
 }
 
@@ -19,5 +20,6 @@ Product Product::fromJson(const nlohmann::json& j) {
 	p.price = j.value("price", 0.0);
 	p.stock = j.value("stock", std::int32_t{});
 	p.imagePath = j.value("imagePath", std::string{});
+	p.onSale = j.value("onSale", true);
 	return p;
 }

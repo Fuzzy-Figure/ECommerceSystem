@@ -18,7 +18,8 @@ namespace {
 	//   v2 = orders 加 discount/final_total 列 + promotions 表 + 5 条种子促销
 	//   v3 = orders 加 status 列（退货状态）+ order_items 加 returned_qty 列
 	//   v4 = users 表 + orders 加 user_id 列 + 种子用户
-	constexpr int kSchemaVersion = 4;
+	//   v5 = products 加 on_sale 列（上下架）+ users 加 role 列（0普通/1商家）
+	constexpr int kSchemaVersion = 5;
 
 	// 创建 schema 并插入种子数据；旧版本库会先 DROP 再重建
 	void initDatabase(Database& db) {
@@ -53,7 +54,8 @@ namespace {
 			"  description TEXT,"
 			"  price       REAL NOT NULL,"
 			"  stock       INTEGER NOT NULL DEFAULT 0,"
-			"  imagePath   TEXT"
+			"  imagePath   TEXT,"
+			"  on_sale     INTEGER NOT NULL DEFAULT 1"
 			");"
 		);
 		// 订单主表 + 明细表：结算时由 OrderDAO 在同一事务内写入
@@ -94,11 +96,13 @@ namespace {
 			");"
 		);
 		// 用户表：username 唯一，password_hash 不存明文
+		// role: 0=普通用户，1=商家
 		db.execute(
 			"CREATE TABLE IF NOT EXISTS users ("
 			"  id            INTEGER PRIMARY KEY AUTOINCREMENT,"
 			"  username      TEXT NOT NULL UNIQUE,"
-			"  password_hash TEXT NOT NULL"
+			"  password_hash TEXT NOT NULL,"
+			"  role          INTEGER NOT NULL DEFAULT 0"
 			");"
 		);
 		// 写入当前 schema 版本号
@@ -119,13 +123,13 @@ namespace {
 		else {
 			db.execute("DELETE FROM products;");
 			db.execute(
-				"INSERT INTO products (id, name, description, price, stock, imagePath) VALUES "
-				"(1, '绿茶',     '清香型绿茶 250g 礼盒', 9.9,  100, 'images/绿茶.png'),"
-				"(2, '红茶',     '红茶礼盒装 200g',      19.9,  80, 'images/红茶.png'),"
-				"(3, '茉莉花茶', '茉莉花茶 100g 罐装',   14.5,  60, 'images/茉莉花茶.png'),"
-				"(4, '乌龙茶',   '高山乌龙茶 150g',      29.9,  50, 'images/乌龙茶.png'),"
-				"(5, '普洱茶',   '云南普洱茶饼 357g',    59.0,  30, 'images/普洱茶.png'),"
-				"(6, '白茶',     '福鼎白毫银针 100g',    78.0,  20, 'images/白茶.png');"
+				"INSERT INTO products (id, name, description, price, stock, imagePath, on_sale) VALUES "
+				"(1, '绿茶',     '清香型绿茶 250g 礼盒', 9.9,  100, 'images/绿茶.png',     1),"
+				"(2, '红茶',     '红茶礼盒装 200g',      19.9,  80, 'images/红茶.png',     1),"
+				"(3, '茉莉花茶', '茉莉花茶 100g 罐装',   14.5,  60, 'images/茉莉花茶.png', 1),"
+				"(4, '乌龙茶',   '高山乌龙茶 150g',      29.9,  50, 'images/乌龙茶.png',   1),"
+				"(5, '普洱茶',   '云南普洱茶饼 357g',    59.0,  30, 'images/普洱茶.png',   1),"
+				"(6, '白茶',     '福鼎白毫银针 100g',    78.0,  20, 'images/白茶.png',     1);"
 			);
 			std::cout << "[Init] 已插入种子商品数据" << std::endl;
 		}
@@ -185,11 +189,12 @@ namespace {
 			const auto adminHash = hashPwd("admin", "admin");
 			const auto user1Hash = hashPwd("user1", "123456");
 			std::ostringstream ins;
-			ins << "INSERT INTO users (username, password_hash) VALUES "
-				<< "('admin', '" << adminHash << "'),"
-				<< "('user1', '" << user1Hash << "');";
+			// admin 为商家（role=1），user1 为普通用户（role=0）
+			ins << "INSERT INTO users (username, password_hash, role) VALUES "
+				<< "('admin', '" << adminHash << "', 1),"
+				<< "('user1', '" << user1Hash << "', 0);";
 			db.execute(ins.str());
-			std::cout << "[Init] 已插入种子用户（admin/admin, user1/123456）" << std::endl;
+			std::cout << "[Init] 已插入种子用户（admin/admin 商家, user1/123456 普通用户）" << std::endl;
 		}
 	}
 }

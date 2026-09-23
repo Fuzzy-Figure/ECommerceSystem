@@ -1,5 +1,7 @@
 #include "../header/ServerController.h"
 #include <iostream>
+#include <optional>
+#include <sstream>
 #include <utility>
 
 ServerController::ServerController(Database& db)
@@ -74,6 +76,15 @@ void ServerController::handle(std::shared_ptr<sf::TcpSocket> socket, const nlohm
 			break;
 		case static_cast<int>(proto::RequestCode::Register):
 			response = handleRegister(request);
+			break;
+		case static_cast<int>(proto::RequestCode::MerchantListProducts):
+			response = handleMerchantListProducts(request);
+			break;
+		case static_cast<int>(proto::RequestCode::MerchantSetOnSale):
+			response = handleMerchantSetOnSale(request);
+			break;
+		case static_cast<int>(proto::RequestCode::MerchantUpdateStock):
+			response = handleMerchantUpdateStock(request);
 			break;
 		default:
 			response = {
@@ -280,7 +291,106 @@ nlohmann::json ServerController::handleRegister(const nlohmann::json& req) {
 	return {
 		{"code",    static_cast<int>(proto::ResponseCode::RegisterResult)},
 		{"success", true},
-		{"user",    { {"id", newId}, {"username", username} }},
+		{"user",    { {"id", newId}, {"username", username}, {"role", 0} }},
 		{"message", "注册成功"}
+	};
+}
+
+// ===================== 商家权限校验 =====================
+
+std::optional<nlohmann::json> ServerController::requireMerchant(const nlohmann::json& req) {
+	const auto userId = req.value("userId", std::int64_t{});
+	if (userId <= 0) {
+		return nlohmann::json{
+			{"code",    static_cast<int>(proto::ResponseCode::Error)},
+			{"message", "未登录，无权访问商家接口"}
+		};
+	}
+	// 按 userId 查用户角色
+	std::ostringstream q;
+	q << "SELECT role FROM users WHERE id = " << userId << ";";
+	auto rows = db_.query(q.str());
+	if (rows.empty()) {
+		return nlohmann::json{
+			{"code",    static_cast<int>(proto::ResponseCode::Error)},
+			{"message", "用户不存在"}
+		};
+	}
+	std::int32_t role = 0;
+	const auto& v = rows.front()["role"];
+	if (v.is_number()) role = v.get<std::int32_t>();
+	else if (v.is_string()) { try { role = std::stoi(v.get<std::string>()); } catch (...) {} }
+	if (role != 1) {
+		return nlohmann::json{
+			{"code",    static_cast<int>(proto::ResponseCode::Error)},
+			{"message", "无权操作：仅商家可管理商品"}
+		};
+	}
+	return std::nullopt;  // 校验通过
+}
+
+nlohmann::json ServerController::handleMerchantListProducts(const nlohmann::json& req) {
+	if (auto err = requireMerchant(req)) return *err;
+	auto products = productDao_.findAllForMerchant();
+	nlohmann::json arr = nlohmann::json::array();
+	for (const auto& p : products) arr.push_back(p.toJson());
+	std::cout << "[ServerController] 商家拉取全部商品 " << products.size() << " 件" << std::endl;
+	return {
+		{"code",     static_cast<int>(proto::ResponseCode::MerchantProductList)},
+		{"products", arr}
+	};
+}
+
+nlohmann::json ServerController::handleMerchantSetOnSale(const nlohmann::json& req) {
+	if (auto err = requireMerchant(req)) return *err;
+	const auto productId = req.value("productId", std::int32_t{});
+	const auto onSale    = req.value("onSale", false);
+	if (productId <= 0) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::MerchantActionResult)},
+			{"success", false},
+			{"message", "参数错误：productId 无效"}
+		};
+	}
+	if (!productDao_.setOnSale(productId, onSale)) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::MerchantActionResult)},
+			{"success", false},
+			{"message", "上架/下架失败：商品不存在"}
+		};
+	}
+	std::cout << "[ServerController] 商品 " << productId
+		<< (onSale ? " 已上架" : " 已下架") << std::endl;
+	return {
+		{"code",    static_cast<int>(proto::ResponseCode::MerchantActionResult)},
+		{"success", true},
+		{"message", onSale ? "上架成功" : "下架成功"}
+	};
+}
+
+nlohmann::json ServerController::handleMerchantUpdateStock(const nlohmann::json& req) {
+	if (auto err = requireMerchant(req)) return *err;
+	const auto productId = req.value("productId", std::int32_t{});
+	const auto newStock  = req.value("stock", std::int32_t{});
+	if (productId <= 0 || newStock < 0) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::MerchantActionResult)},
+			{"success", false},
+			{"message", "参数错误：productId 或 stock 无效"}
+		};
+	}
+	if (!productDao_.updateStock(productId, newStock)) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::MerchantActionResult)},
+			{"success", false},
+			{"message", "调整库存失败：商品不存在"}
+		};
+	}
+	std::cout << "[ServerController] 商品 " << productId
+		<< " 库存调整为 " << newStock << std::endl;
+	return {
+		{"code",    static_cast<int>(proto::ResponseCode::MerchantActionResult)},
+		{"success", true},
+		{"message", "库存已更新"}
 	};
 }
