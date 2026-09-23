@@ -87,6 +87,13 @@ public:
 	// 重置到顶部（切回 ProductList 面板时调用）
 	void  resetProductListScroll() noexcept { productListScrollY_ = 0.f; }
 
+	// === 商家编辑商品表单 ===
+	// 预填商品信息到编辑表单输入框 + 记录编辑的 productId
+	void setEditProduct(std::int32_t id, const std::string& name, double price,
+						std::int32_t stock, const std::string& desc, const std::string& image);
+	// 当前正在编辑的 productId
+	std::int32_t editingProductId() const noexcept { return editingProductId_; }
+
 	// 处理鼠标点击，返回命中按钮的动作；坐标为窗口世界坐标
 	ClickAction handleClick(const sf::Vector2f& mousePos, const ClientModel& model);
 
@@ -163,11 +170,6 @@ private:
 
 	// === 商家编辑商品表单面板 ===
 	void drawMerchantEditPanel(const ClientModel& model);
-	// 预填商品信息到编辑表单输入框 + 记录编辑的 productId
-	void setEditProduct(std::int32_t id, const std::string& name, double price,
-						std::int32_t stock, const std::string& desc, const std::string& image);
-	// 当前正在编辑的 productId
-	std::int32_t editingProductId() const noexcept { return editingProductId_; }
 
 	// === 按钮矩形计算（与 drawXxxPanel 内的布局保持一致）===
 	// 商品卡片右下角的"+加购"按钮

@@ -63,6 +63,9 @@ public:
 	// 商家：删除指定商品
 	void requestMerchantDeleteProduct(std::int32_t productId);
 
+	// 商家：用 MerchantEdit 表单输入提交编辑商品
+	void requestMerchantUpdateProduct(std::int32_t productId);
+
 	// 处理 SFML 事件（按键、关闭、文本输入等）
 	void handleEvent(const sf::Event& event);
 

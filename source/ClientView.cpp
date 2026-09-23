@@ -218,7 +218,18 @@ void ClientView::drawMerchantPanel(const ClientModel& model) {
 		textMgr_.displayText(p.onSale ? L"已上架" : L"已下架",
 							 { rowPos.x + 750, rowPos.y + 12 }, { 18, 24 },
 							 p.onSale ? sf::Color(50, 150, 50) : sf::Color(180, 80, 80));
-		// 删除按钮（状态列后面）
+		// 编辑按钮
+		const auto editRect = merchantEditBtnRect(rowPos);
+		sf::RectangleShape editBtn({ editRect.size.x, editRect.size.y });
+		editBtn.setPosition({ editRect.position.x, editRect.position.y });
+		editBtn.setFillColor(sf::Color(80, 130, 200));
+		editBtn.setOutlineColor(sf::Color(60, 100, 170));
+		editBtn.setOutlineThickness(1.f);
+		window_.draw(editBtn);
+		textMgr_.displayText(L"编辑",
+							 { editRect.position.x + 14, editRect.position.y + 8 },
+							 { 16, 22 }, sf::Color::White);
+		// 删除按钮
 		const auto delRect = merchantDeleteBtnRect(rowPos);
 		sf::RectangleShape delBtn({ delRect.size.x, delRect.size.y });
 		delBtn.setPosition({ delRect.position.x, delRect.position.y });
@@ -370,6 +381,108 @@ void ClientView::drawMerchantCreatePanel(const ClientModel& model) {
 
 	// 提示
 	textMgr_.displayText(L"（Tab 键切换输入框，Enter 键等同提交）",
+						{ 100, 620 }, { 16, 22 }, sf::Color(150, 150, 150));
+}
+
+// ===================== 商家编辑商品表单面板 =====================
+
+void ClientView::setEditProduct(std::int32_t id, const std::string& name, double price,
+								std::int32_t stock, const std::string& desc, const std::string& image) {
+	editingProductId_ = id;
+	productNameInput_  = name;
+	productPriceInput_ = std::to_string(price);
+	// 去掉 std::to_string(double) 可能的尾随零和小数点
+	auto& s = productPriceInput_;
+	if (s.find('.') != std::string::npos) {
+		while (s.back() == '0') s.pop_back();
+		if (s.back() == '.') s.pop_back();
+	}
+	productStockInput_ = std::to_string(stock);
+	productDescInput_  = desc;
+	productImageInput_ = image;
+	activeField_ = Field::ProductName;
+}
+
+void ClientView::drawMerchantEditPanel(const ClientModel& model) {
+	textMgr_.displayTextInUp(L"商家管理 - 编辑商品", { 20, 12 }, sf::Color(40, 80, 160));
+
+	// 右上角用户名 + 登出
+	if (model.loggedIn()) {
+		const auto lr = logoutBtnRect();
+		std::wostringstream user;
+		user << L"商家：" << ec::string::to_utf16(model.currentUsername());
+		textMgr_.displayText(user.str(),
+							 { lr.position.x - 220, lr.position.y + 8 },
+							 { 18, 24 }, sf::Color(60, 60, 60));
+		sf::RectangleShape btn({ lr.size.x, lr.size.y });
+		btn.setPosition({ lr.position.x, lr.position.y });
+		btn.setFillColor(sf::Color(200, 80, 80));
+		btn.setOutlineColor(sf::Color(160, 60, 60));
+		btn.setOutlineThickness(1.f);
+		window_.draw(btn);
+		textMgr_.displayText(L"登出",
+							 { lr.position.x + 30, lr.position.y + 8 },
+							 { 18, 24 }, sf::Color::White);
+	}
+
+	// 表单标题
+	textMgr_.displayText(L"修改商品信息（带 * 为必填）", { 100, 100 }, { 20, 26 }, sf::Color(60, 60, 60));
+
+	// 复用 MerchantCreate 的 5 个输入框布局
+	const wchar_t* labels[] = { L"商品名称 *", L"价格 (元) *", L"库存 *", L"描述", L"图片路径（留空用占位图）" };
+	const std::string* values[] = {
+		&productNameInput_, &productPriceInput_, &productStockInput_,
+		&productDescInput_, &productImageInput_
+	};
+	const Field fields[] = {
+		Field::ProductName, Field::ProductPrice, Field::ProductStock,
+		Field::ProductDesc, Field::ProductImage
+	};
+	for (int i = 0; i < 5; ++i) {
+		const auto r = merchantCreateFieldRect(i);
+		textMgr_.displayText(labels[i],
+							{ r.position.x - 130, r.position.y + 8 },
+							{ 18, 24 }, sf::Color(80, 80, 80));
+		sf::RectangleShape bg({ r.size.x, r.size.y });
+		bg.setPosition({ r.position.x, r.position.y });
+		bg.setFillColor(sf::Color::White);
+		bg.setOutlineColor(activeField_ == fields[i] ? sf::Color(80, 130, 200) : sf::Color(200, 200, 200));
+		bg.setOutlineThickness(activeField_ == fields[i] ? 2.f : 1.f);
+		window_.draw(bg);
+		std::wstring shown = ec::string::to_utf16(*values[i]);
+		if (activeField_ == fields[i]) shown += L"_";
+		textMgr_.displayText(shown,
+							{ r.position.x + 8, r.position.y + 8 },
+							{ 18, 24 }, sf::Color::Black);
+	}
+
+	// 提交（保存修改）+ 返回按钮
+	const auto sb = merchantCreateSubmitBtnRect();
+	sf::RectangleShape submitBtn({ sb.size.x, sb.size.y });
+	submitBtn.setPosition({ sb.position.x, sb.position.y });
+	submitBtn.setFillColor(sf::Color(60, 140, 80));
+	submitBtn.setOutlineColor(sf::Color(40, 110, 60));
+	submitBtn.setOutlineThickness(1.f);
+	window_.draw(submitBtn);
+	textMgr_.displayText(L"保存修改",
+						{ sb.position.x + 30, sb.position.y + 10 },
+						{ 18, 24 }, sf::Color::White);
+
+	const auto bb = merchantCreateBackBtnRect();
+	sf::RectangleShape backBtn({ bb.size.x, bb.size.y });
+	backBtn.setPosition({ bb.position.x, bb.position.y });
+	backBtn.setFillColor(sf::Color(150, 150, 150));
+	backBtn.setOutlineColor(sf::Color(120, 120, 120));
+	backBtn.setOutlineThickness(1.f);
+	window_.draw(backBtn);
+	textMgr_.displayText(L"返回",
+						{ bb.position.x + 30, bb.position.y + 10 },
+						{ 18, 24 }, sf::Color::White);
+
+	if (!model.status().empty()) {
+		textMgr_.displayText(model.status(), { 100, 580 }, { 18, 22 }, sf::Color(200, 50, 50));
+	}
+	textMgr_.displayText(L"（Tab 键切换输入框，Enter 键等同保存）",
 						{ 100, 620 }, { 16, 22 }, sf::Color(150, 150, 150));
 }
 
@@ -862,6 +975,11 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 				act.productId = p.id;
 				return act;
 			}
+			if (hit(merchantEditBtnRect(rowPos), mousePos)) {
+				ClickAction act{ ClickAction::MerchantEditProduct, 0 };
+				act.productId = p.id;
+				return act;
+			}
 			rowY += rowH + 4.f;
 		}
 		// 底部"新增商品"按钮
@@ -882,6 +1000,21 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 		}
 		if (hit(merchantCreateBackBtnRect(), mousePos)) {
 			return { ClickAction::MerchantCreateBack, 0 };
+		}
+	}
+	else if (panel_ == Panel::MerchantEdit) {
+		// 复用 MerchantCreate 表单布局的输入框/按钮命中
+		for (int i = 0; i < 5; ++i) {
+			if (hit(merchantCreateFieldRect(i), mousePos)) {
+				ClickAction act{ ClickAction::FocusField, static_cast<int>(Field::ProductName) + i };
+				return act;
+			}
+		}
+		if (hit(merchantCreateSubmitBtnRect(), mousePos)) {
+			return { ClickAction::MerchantEditSubmit, 0 };
+		}
+		if (hit(merchantCreateBackBtnRect(), mousePos)) {
+			return { ClickAction::MerchantEditBack, 0 };
 		}
 	}
 	return { ClickAction::None, 0 };
@@ -931,31 +1064,39 @@ sf::FloatRect ClientView::logoutBtnRect() const {
 	return sf::FloatRect(sf::Vector2f{ x, tabY }, sf::Vector2f{ w, h });
 }
 
-// 商家面板行内按钮：从右往左依次是 上架/下架、库存-10、库存+10
-// 按钮从右往左排列：删除(60) → 上架/下架(70) → 库存-10(80) → 库存+10(80)
+// 商家面板行内按钮：从右往左依次是 删除、编辑、上架/下架、库存-10、库存+10
 sf::FloatRect ClientView::merchantDeleteBtnRect(const sf::Vector2f& rowPos) const {
 	constexpr float w = 60.f, h = 30.f;
 	const float x = rowPos.x + orderCardW - w - 10.f;
 	return sf::FloatRect(sf::Vector2f{ x, rowPos.y + 7.f }, sf::Vector2f{ w, h });
 }
 
+// 编辑按钮（删除按钮左边）
+sf::FloatRect ClientView::merchantEditBtnRect(const sf::Vector2f& rowPos) const {
+	constexpr float w = 60.f, h = 30.f;
+	const float deleteX = rowPos.x + orderCardW - 60.f - 10.f;
+	const float x = deleteX - w - 8.f;
+	return sf::FloatRect(sf::Vector2f{ x, rowPos.y + 7.f }, sf::Vector2f{ w, h });
+}
+
 sf::FloatRect ClientView::merchantSaleBtnRect(const sf::Vector2f& rowPos) const {
 	constexpr float w = 70.f, h = 30.f;
-	const float deleteX = rowPos.x + orderCardW - 60.f - 10.f;  // 删除按钮左边
-	const float x = deleteX - w - 8.f;
+	// 编辑按钮左边
+	const float editX = rowPos.x + orderCardW - 60.f - 10.f - 60.f - 8.f;
+	const float x = editX - w - 8.f;
 	return sf::FloatRect(sf::Vector2f{ x, rowPos.y + 7.f }, sf::Vector2f{ w, h });
 }
 
 sf::FloatRect ClientView::merchantStockMinusBtnRect(const sf::Vector2f& rowPos) const {
 	constexpr float w = 80.f, h = 30.f;
-	const float saleX = rowPos.x + orderCardW - 60.f - 10.f - 70.f - 8.f;  // 上架/下架按钮左边
+	const float saleX = rowPos.x + orderCardW - 60.f - 10.f - 60.f - 8.f - 70.f - 8.f;
 	const float x = saleX - w - 8.f;
 	return sf::FloatRect(sf::Vector2f{ x, rowPos.y + 7.f }, sf::Vector2f{ w, h });
 }
 
 sf::FloatRect ClientView::merchantStockPlusBtnRect(const sf::Vector2f& rowPos) const {
 	constexpr float w = 80.f, h = 30.f;
-	const float minusX = rowPos.x + orderCardW - 60.f - 10.f - 70.f - 8.f - 80.f - 8.f;
+	const float minusX = rowPos.x + orderCardW - 60.f - 10.f - 60.f - 8.f - 70.f - 8.f - 80.f - 8.f;
 	const float x = minusX - w - 8.f;
 	return sf::FloatRect(sf::Vector2f{ x, rowPos.y + 7.f }, sf::Vector2f{ w, h });
 }

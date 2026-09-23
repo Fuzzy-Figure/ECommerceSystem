@@ -245,6 +245,47 @@ void ClientController::requestMerchantDeleteProduct(std::int32_t productId) {
 	model_.setStatus(ss.str());
 }
 
+void ClientController::requestMerchantUpdateProduct(std::int32_t productId) {
+	if (!socket_) {
+		model_.setStatus(L"未连接服务器，无法编辑商品");
+		return;
+	}
+	const auto& name  = view_.productNameInput();
+	const auto& price = view_.productPriceInput();
+	const auto& stock = view_.productStockInput();
+	const auto& desc  = view_.productDescInput();
+	const auto& image = view_.productImageInput();
+	if (name.empty()) {
+		model_.setStatus(L"商品名称不能为空");
+		return;
+	}
+	double priceVal = 0.0;
+	std::int32_t stockVal = 0;
+	try { priceVal = std::stod(price); }
+	catch (...) { model_.setStatus(L"价格必须是数字（如 19.9）"); return; }
+	try { stockVal = std::stoi(stock); }
+	catch (...) { model_.setStatus(L"库存必须是整数（如 100）"); return; }
+	if (priceVal < 0 || stockVal < 0) {
+		model_.setStatus(L"价格和库存不能为负数");
+		return;
+	}
+	const nlohmann::json req = {
+		{"code",        static_cast<int>(proto::RequestCode::MerchantUpdateProduct)},
+		{"userId",      model_.currentUserId()},
+		{"productId",   productId},
+		{"name",        name},
+		{"description", desc},
+		{"price",       priceVal},
+		{"stock",       stockVal},
+		{"imagePath",   image}
+	};
+	if (!proto::sendJson(*socket_, req)) {
+		model_.setStatus(L"发送编辑商品请求失败，连接可能已断开");
+		return;
+	}
+	model_.setStatus(L"正在保存修改...");
+}
+
 void ClientController::requestLogin() {
 	if (!socket_) {
 		model_.setStatus(L"未连接服务器，无法登录");
@@ -375,6 +416,29 @@ void ClientController::handleEvent(const sf::Event& event) {
 				case ClientView::ClickAction::MerchantDeleteProduct:
 					requestMerchantDeleteProduct(action.productId);
 					break;
+				case ClientView::ClickAction::MerchantEditProduct: {
+					// 从 model 找到对应商品，预填表单后切到编辑面板
+					const auto& products = model_.products();
+					const auto it = std::find_if(products.begin(), products.end(),
+						[&](const Product& p) { return p.id == action.productId; });
+					if (it != products.end()) {
+						view_.setEditProduct(it->id, it->name, it->price, it->stock,
+											 it->description, it->imagePath);
+						view_.setPanel(ClientView::Panel::MerchantEdit);
+						model_.setStatus(L"编辑商品：修改后点保存");
+					} else {
+						model_.setStatus(L"编辑失败：找不到该商品");
+					}
+					break;
+				}
+				case ClientView::ClickAction::MerchantEditSubmit:
+					requestMerchantUpdateProduct(view_.editingProductId());
+					break;
+				case ClientView::ClickAction::MerchantEditBack:
+					view_.clearInputs();
+					view_.setPanel(ClientView::Panel::Merchant);
+					model_.setStatus(L"已返回商家管理面板");
+					break;
 				case ClientView::ClickAction::MerchantCreateBack:
 					// 返回商家管理面板，清空表单输入
 					view_.clearInputs();
@@ -418,7 +482,20 @@ void ClientController::handleEvent(const sf::Event& event) {
 				view_.backspaceInput();
 			}
 			else if (key == sf::Keyboard::Key::Tab) {
-				// Tab 在 5 个输入框之间循环切换
+				const auto f = view_.activeField();
+				const int next = (static_cast<int>(f) + 1 - static_cast<int>(ClientView::Field::ProductName)) % 5
+					+ static_cast<int>(ClientView::Field::ProductName);
+				view_.setActiveField(static_cast<ClientView::Field>(next));
+			}
+		}
+		else if (view_.panel() == ClientView::Panel::MerchantEdit) {
+			if (key == sf::Keyboard::Key::Enter) {
+				requestMerchantUpdateProduct(view_.editingProductId());
+			}
+			else if (key == sf::Keyboard::Key::Backspace) {
+				view_.backspaceInput();
+			}
+			else if (key == sf::Keyboard::Key::Tab) {
 				const auto f = view_.activeField();
 				const int next = (static_cast<int>(f) + 1 - static_cast<int>(ClientView::Field::ProductName)) % 5
 					+ static_cast<int>(ClientView::Field::ProductName);
@@ -427,13 +504,14 @@ void ClientController::handleEvent(const sf::Event& event) {
 		}
 		return;
 	}
-	// 文本输入事件：Login/MerchantCreate 面板接收字符（ASCII 或中文 CJK）到当前聚焦输入框
+	// 文本输入事件：Login/MerchantCreate/MerchantEdit 面板接收字符（ASCII 或中文 CJK）到当前聚焦输入框
 	if (event.is<sf::Event::TextEntered>()) {
 		const auto* te = event.getIf<sf::Event::TextEntered>();
 		if (te == nullptr) return;
-		// 仅 Login 和 MerchantCreate 两个面板接收文本输入
+		// 仅 Login/MerchantCreate/MerchantEdit 三个面板接收文本输入
 		if (view_.panel() != ClientView::Panel::Login
-			&& view_.panel() != ClientView::Panel::MerchantCreate) return;
+			&& view_.panel() != ClientView::Panel::MerchantCreate
+			&& view_.panel() != ClientView::Panel::MerchantEdit) return;
 		// 传 UTF-32 码点；appendInputChar 内部按 ASCII/CJK 过滤并转 UTF-8
 		view_.appendInputChar(te->unicode);
 		return;
@@ -627,12 +705,13 @@ void ClientController::processMessage(nlohmann::json& msg) {
 			const auto m = msg.value("message", std::string{});
 			model_.setStatus(ec::string::to_utf16(m));
 			if (success) {
-				// 如果当前在 MerchantCreate 面板，说明是新增商品成功 → 清表单 + 切回 Merchant
-				if (view_.panel() == ClientView::Panel::MerchantCreate) {
+				// 新增/编辑成功后清表单 + 切回 Merchant 面板
+				if (view_.panel() == ClientView::Panel::MerchantCreate
+					|| view_.panel() == ClientView::Panel::MerchantEdit) {
 					view_.clearInputs();
 					view_.setPanel(ClientView::Panel::Merchant);
 				}
-				// 刷新商家商品列表，看到最新上下架状态/库存/新增的商品
+				// 刷新商家商品列表，看到最新上下架状态/库存/新增/编辑后的商品
 				requestMerchantListProducts();
 			}
 			break;
