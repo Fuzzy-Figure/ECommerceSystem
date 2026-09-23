@@ -405,31 +405,32 @@ void ClientController::handleEvent(const sf::Event& event) {
 		}
 		return;
 	}
-	// 文本输入事件：Login/MerchantCreate 面板接收 ASCII 字符到当前聚焦输入框
+	// 文本输入事件：Login/MerchantCreate 面板接收字符（ASCII 或中文 CJK）到当前聚焦输入框
 	if (event.is<sf::Event::TextEntered>()) {
 		const auto* te = event.getIf<sf::Event::TextEntered>();
 		if (te == nullptr) return;
 		// 仅 Login 和 MerchantCreate 两个面板接收文本输入
 		if (view_.panel() != ClientView::Panel::Login
 			&& view_.panel() != ClientView::Panel::MerchantCreate) return;
-		const auto ch = te->unicode;
-		// 只接收可打印 ASCII（32..126），其他忽略
-		if (ch >= 32 && ch <= 126) {
-			view_.appendInputChar(static_cast<char>(ch));
-		}
+		// 传 UTF-32 码点；appendInputChar 内部按 ASCII/CJK 过滤并转 UTF-8
+		view_.appendInputChar(te->unicode);
 		return;
 	}
 	// 鼠标滚轮：仅在"我的订单"面板内滚动订单列表
 	if (event.is<sf::Event::MouseWheelScrolled>()) {
-		const auto* mw = event.getIf<sf::Event::MouseWheelScrolled>();
-		if (mw == nullptr) return;
-		if (view_.panel() != ClientView::Panel::MyOrders) return;
-		// SFML 3：delta>0 表示向上滚（向前），内容应向下滚动 → 偏移减小
-		// 每滚一格约 80 像素，便于快速浏览
-		constexpr float kScrollStep = 80.f;
-		view_.scrollMyOrders(-mw->delta * kScrollStep, model_);
+			const auto* mw = event.getIf<sf::Event::MouseWheelScrolled>();
+			if (mw == nullptr) return;
+			// SFML 3：delta>0 表示向上滚（向前），内容应向下滚动 → 偏移减小
+			// 每滚一格约 80 像素，便于快速浏览
+			constexpr float kScrollStep = 80.f;
+			if (view_.panel() == ClientView::Panel::MyOrders) {
+				view_.scrollMyOrders(-mw->delta * kScrollStep, model_);
+			}
+			else if (view_.panel() == ClientView::Panel::ProductList) {
+				view_.scrollProductList(-mw->delta * kScrollStep, model_);
+			}
+		}
 	}
-}
 
 void ClientController::update() {
 	std::queue<nlohmann::json> local;

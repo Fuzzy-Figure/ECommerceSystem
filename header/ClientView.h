@@ -54,8 +54,9 @@ public:
 	// === 登录面板输入框状态（仅 UI 状态，登录后丢弃）===
 	Field activeField() const noexcept { return activeField_; }
 	void  setActiveField(Field f) noexcept { activeField_ = f; }
-	// 在当前聚焦输入框末尾追加一个 ASCII 字符（32..126）
-	void  appendInputChar(char c);
+	// 在当前聚焦输入框末尾追加一个字符（接收 UTF-32，ASCII 32..126 或中文 CJK 0x4E00..0x9FFF）
+	// 内部转 UTF-8 存储；其他字符忽略
+	void  appendInputChar(std::uint32_t ch);
 	// 删除当前聚焦输入框末尾一个字符
 	void  backspaceInput();
 	// 清空输入框（登录/注册成功、切面板、提交新增商品后调用）
@@ -75,6 +76,12 @@ public:
 	void  scrollMyOrders(float deltaPx, const ClientModel& model);
 	// 重置到顶部（切回 MyOrders 面板时调用）
 	void  resetMyOrdersScroll() noexcept { myOrdersScrollY_ = 0.f; }
+
+	// === 商品列表面板滚动 ===
+	// 滚动 deltaPx 像素（正值内容向上=向下滚动；负值相反），自动按内容/可见区夹取边界
+	void  scrollProductList(float deltaPx, const ClientModel& model);
+	// 重置到顶部（切回 ProductList 面板时调用）
+	void  resetProductListScroll() noexcept { productListScrollY_ = 0.f; }
 
 	// 处理鼠标点击，返回命中按钮的动作；坐标为窗口世界坐标
 	ClickAction handleClick(const sf::Vector2f& mousePos, const ClientModel& model);
@@ -102,6 +109,13 @@ private:
 	float computeMyOrdersContentHeight(const ClientModel& model) const noexcept;
 	// 计算 MyOrders 可见区高度（从 orderCardStartY 到窗口底部留 20 像素）
 	float computeMyOrdersVisibleHeight() const noexcept;
+
+	// === 商品列表面板垂直滚动偏移（>=0，绘制时 y - offset）===
+	float productListScrollY_{ 0.f };
+	// 计算 ProductList 内容总高度（所有商品卡片按 3 列网格布局累计）
+	float computeProductListContentHeight(const ClientModel& model) const noexcept;
+	// 计算 ProductList 可见区高度（从 startY 到窗口底部留 20 像素）
+	float computeProductListVisibleHeight() const noexcept;
 
 	// === 商品列表面板 ===
 	void drawProductListPanel(const ClientModel& model);

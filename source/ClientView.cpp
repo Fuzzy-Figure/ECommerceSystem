@@ -343,43 +343,63 @@ void ClientView::drawMerchantCreatePanel(const ClientModel& model) {
 						{ 100, 620 }, { 16, 22 }, sf::Color(150, 150, 150));
 }
 
-void ClientView::appendInputChar(char c) {
-	// 只接收可打印 ASCII（32..126），其他字符忽略
-	if (c < 32 || c > 126) return;
-	switch (activeField_) {
-		case Field::Username:
-			if (usernameInput_.size() < 32) usernameInput_.push_back(c); break;
-		case Field::Password:
-			if (passwordInput_.size() < 32) passwordInput_.push_back(c); break;
-		case Field::ProductName:
-			if (productNameInput_.size() < 64) productNameInput_.push_back(c); break;
-		case Field::ProductPrice:
-			if (productPriceInput_.size() < 12) productPriceInput_.push_back(c); break;
-		case Field::ProductStock:
-			if (productStockInput_.size() < 10) productStockInput_.push_back(c); break;
-		case Field::ProductDesc:
-			if (productDescInput_.size() < 128) productDescInput_.push_back(c); break;
-		case Field::ProductImage:
-			if (productImageInput_.size() < 128) productImageInput_.push_back(c); break;
+void ClientView::appendInputChar(std::uint32_t ch) {
+	// 只接收可打印字符：ASCII 32..126 或中文 CJK 0x4E00..0x9FFF；其他忽略
+	const bool isAscii = (ch >= 32 && ch <= 126);
+	const bool isCjk = (ch >= 0x4E00 && ch <= 0x9FFF);
+	if (!isAscii && !isCjk) return;
+	// UTF-32 → UTF-8
+	std::string utf8;
+	if (ch < 0x80) {
+		utf8.push_back(static_cast<char>(ch));
+	} else if (ch < 0x800) {
+		utf8.push_back(static_cast<char>(0xC0 | (ch >> 6)));
+		utf8.push_back(static_cast<char>(0x80 | (ch & 0x3F)));
+	} else if (ch < 0x10000) {
+		utf8.push_back(static_cast<char>(0xE0 | (ch >> 12)));
+		utf8.push_back(static_cast<char>(0x80 | ((ch >> 6) & 0x3F)));
+		utf8.push_back(static_cast<char>(0x80 | (ch & 0x3F)));
+	} else {
+		utf8.push_back(static_cast<char>(0xF0 | (ch >> 18)));
+		utf8.push_back(static_cast<char>(0x80 | ((ch >> 12) & 0x3F)));
+		utf8.push_back(static_cast<char>(0x80 | ((ch >> 6) & 0x3F)));
+		utf8.push_back(static_cast<char>(0x80 | (ch & 0x3F)));
 	}
+	// 用字节限制 + UTF-8 字节数共同约束
+	const auto append = [this, &utf8](std::string& dst, std::size_t maxBytes) {
+		if (dst.size() + utf8.size() <= maxBytes) dst += utf8;
+	};
+	switch (activeField_) {
+		case Field::Username:       append(usernameInput_, 64); break;
+		case Field::Password:       append(passwordInput_, 64); break;
+		case Field::ProductName:    append(productNameInput_, 128); break;
+		case Field::ProductPrice:   append(productPriceInput_, 12); break;
+		case Field::ProductStock:   append(productStockInput_, 10); break;
+		case Field::ProductDesc:    append(productDescInput_, 256); break;
+		case Field::ProductImage:   append(productImageInput_, 256); break;
+	}
+}
+
+// 从 UTF-8 末尾删掉一个完整字符（1..4 字节），避免把中文删半个
+static void popUtf8Char(std::string& s) {
+	if (s.empty()) return;
+	// 找最后一个字符的起始字节：连续的 0x80..0xBF 是后续字节
+	auto it = s.end() - 1;
+	while (it != s.begin() && (static_cast<unsigned char>(*it) & 0xC0) == 0x80) {
+		--it;
+	}
+	s.erase(it, s.end());
 }
 
 void ClientView::backspaceInput() {
 	switch (activeField_) {
-		case Field::Username:
-			if (!usernameInput_.empty()) usernameInput_.pop_back(); break;
-		case Field::Password:
-			if (!passwordInput_.empty()) passwordInput_.pop_back(); break;
-		case Field::ProductName:
-			if (!productNameInput_.empty()) productNameInput_.pop_back(); break;
-		case Field::ProductPrice:
-			if (!productPriceInput_.empty()) productPriceInput_.pop_back(); break;
-		case Field::ProductStock:
-			if (!productStockInput_.empty()) productStockInput_.pop_back(); break;
-		case Field::ProductDesc:
-			if (!productDescInput_.empty()) productDescInput_.pop_back(); break;
-		case Field::ProductImage:
-			if (!productImageInput_.empty()) productImageInput_.pop_back(); break;
+		case Field::Username:       popUtf8Char(usernameInput_); break;
+		case Field::Password:       popUtf8Char(passwordInput_); break;
+		case Field::ProductName:    popUtf8Char(productNameInput_); break;
+		case Field::ProductPrice:   popUtf8Char(productPriceInput_); break;
+		case Field::ProductStock:   popUtf8Char(productStockInput_); break;
+		case Field::ProductDesc:    popUtf8Char(productDescInput_); break;
+		case Field::ProductImage:   popUtf8Char(productImageInput_); break;
 	}
 }
 
@@ -460,7 +480,7 @@ void ClientView::drawProductListPanel(const ClientModel& model) {
 		const auto col = static_cast<int>(i % perRow);
 		const auto row = static_cast<int>(i / perRow);
 		const sf::Vector2f pos{ startX + col * (cardW + gapX),
-								startY + row * (cardH + gapY) };
+								startY - productListScrollY_ + row * (cardH + gapY) };
 		drawCard(products[i], pos, { cardW, cardH });
 	}
 }
@@ -744,7 +764,7 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 			const auto col = static_cast<int>(i % perRow);
 			const auto row = static_cast<int>(i / perRow);
 			const sf::Vector2f cardPos{ startX + col * (cardW + gapX),
-										startY + row * (cardH + gapY) };
+										startY - productListScrollY_ + row * (cardH + gapY) };
 			if (hit(addToCartBtnRect(cardPos), mousePos)) {
 				return { ClickAction::AddToCart, products[i].id };
 			}
@@ -956,4 +976,31 @@ void ClientView::scrollMyOrders(float deltaPx, const ClientModel& model) {
 	if (newY < 0.f) newY = 0.f;
 	if (newY > maxOffset) newY = maxOffset;
 	myOrdersScrollY_ = newY;
+}
+
+// ===================== 商品列表面板滚动 =====================
+
+float ClientView::computeProductListContentHeight(const ClientModel& model) const noexcept {
+	const auto& products = model.products();
+	if (products.empty()) return 0.f;
+	// 与 drawProductListPanel 布局同步：每行 perRow 张卡片，每张 cardH + gapY
+	const int rows = static_cast<int>((products.size() + perRow - 1) / perRow);
+	return static_cast<float>(rows) * (cardH + gapY);
+}
+
+float ClientView::computeProductListVisibleHeight() const noexcept {
+	// 从 startY 到窗口底部，底部留 20 像素边距
+	return std::max(100.f, static_cast<float>(window_.getSize().y) - startY - 20.f);
+}
+
+void ClientView::scrollProductList(float deltaPx, const ClientModel& model) {
+	// 仅 ProductList 面板应用滚动；其他面板忽略（防止误滚后切回时位置错乱）
+	if (panel_ != Panel::ProductList) return;
+	const float contentH = computeProductListContentHeight(model);
+	const float visibleH = computeProductListVisibleHeight();
+	const float maxOffset = (contentH > visibleH) ? (contentH - visibleH) : 0.f;
+	float newY = productListScrollY_ + deltaPx;
+	if (newY < 0.f) newY = 0.f;
+	if (newY > maxOffset) newY = maxOffset;
+	productListScrollY_ = newY;
 }
