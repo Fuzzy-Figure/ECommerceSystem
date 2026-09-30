@@ -19,7 +19,7 @@ public:
 	enum class Panel { Login, Merchant, MerchantCreate, MerchantEdit, ProductList, Cart, MyOrders, Promotion, PromotionForm };
 
 	// 当前聚焦的输入框
-	enum class Field { Username, Password, ProductName, ProductPrice, ProductStock, ProductDesc, ProductImage, ProductSearch, PromotionParams };
+	enum class Field { Username, Password, ProductName, ProductPrice, ProductStock, ProductDesc, ProductImage, ProductSearch, PromoSlot0, PromoSlot1, PromoSlot2, PromoSlot3 };
 
 	// 鼠标点击命中后返回的动作；type=None 表示未命中任何按钮
 	struct ClickAction {
@@ -107,16 +107,16 @@ public:
 	// === 商家促销表单（创建/编辑共用）===
 	// 进入创建模式：清空表单，promotionId=0
 	void resetPromotionForm();
-	// 进入编辑模式：预填 type + params JSON，记录 promotionId
+	// 进入编辑模式：预填 type + params JSON（拆入对应槽位），记录 promotionId
 	void setEditPromotion(std::int32_t id, const std::string& type, const nlohmann::json& params);
 	// 当前编辑的促销 id（0=创建模式）
 	std::int32_t editingPromotionId() const noexcept { return editingPromotionId_; }
 	// 当前选中的促销类型（创建模式下由用户选，编辑模式下固定）
 	const std::string& promoType() const noexcept { return promoType_; }
 	// 设置促销类型（创建模式下选择类型按钮调用）
-	void setPromoType(const std::string& type) { promoType_ = type; }
-	// 促销参数 JSON 文本输入框内容
-	const std::string& promotionParamsInput() const noexcept { return promotionParamsInput_; }
+	void setPromoType(const std::string& type);
+	// 根据当前类型 + 各槽位输入拼装 params JSON；校验失败返回空对象
+	nlohmann::json buildPromotionParams() const;
 
 	// 处理鼠标点击，返回命中按钮的动作；坐标为窗口世界坐标
 	ClickAction handleClick(const sf::Vector2f& mousePos, const ClientModel& model);
@@ -142,7 +142,8 @@ private:
 	// === 商家编辑商品的 productId ===
 	std::int32_t editingProductId_{ 0 };
 	// === 商家促销表单 ===
-	std::string promotionParamsInput_;  // params JSON 文本
+	// 4 个参数槽位，根据类型填充不同含义（如满减：[满额, 减额]；折扣：[折数]）
+	std::string promoSlotValue_[4];
 	std::int32_t editingPromotionId_{ 0 }; // 0=创建模式，>0=编辑模式
 	std::string promoType_;               // 当前促销类型
 
@@ -216,8 +217,8 @@ private:
 	void drawPromotionFormPanel(const ClientModel& model);
 	// 促销类型选择按钮矩形；index 0..4 对应 5 种类型
 	sf::FloatRect promoTypeBtnRect(int index) const;
-	// 促销参数输入框矩形
-	sf::FloatRect promoParamsRect() const;
+	// 促销参数槽位输入框矩形；index 0..3 对应 4 个槽位
+	sf::FloatRect promoSlotRect(int index) const;
 	// 促销表单提交按钮矩形
 	sf::FloatRect promoSubmitBtnRect() const;
 	// 促销表单返回按钮矩形

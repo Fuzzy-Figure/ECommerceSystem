@@ -373,7 +373,7 @@ void ClientController::requestMerchantSetPromotionEnabled(std::int32_t promotion
 	model_.setStatus(enabled ? L"正在启用促销..." : L"正在禁用促销...");
 }
 
-void ClientController::requestMerchantCreatePromotion(const std::string& type, const std::string& paramsJson) {
+void ClientController::requestMerchantCreatePromotion(const std::string& type, const nlohmann::json& params) {
 	if (!socket_) {
 		model_.setStatus(L"未连接服务器");
 		return;
@@ -382,13 +382,8 @@ void ClientController::requestMerchantCreatePromotion(const std::string& type, c
 		model_.setStatus(L"请先选择促销类型");
 		return;
 	}
-	// 校验 params JSON 合法性
-	nlohmann::json params;
-	try {
-		params = nlohmann::json::parse(paramsJson);
-	}
-	catch (...) {
-		model_.setStatus(L"参数不是合法的 JSON，请检查格式");
+	if (params.is_null()) {
+		model_.setStatus(L"请完整填写促销参数（数字格式）");
 		return;
 	}
 	const nlohmann::json req = {
@@ -404,17 +399,13 @@ void ClientController::requestMerchantCreatePromotion(const std::string& type, c
 	model_.setStatus(L"正在提交新增促销...");
 }
 
-void ClientController::requestMerchantUpdatePromotion(std::int32_t promotionId, const std::string& paramsJson) {
+void ClientController::requestMerchantUpdatePromotion(std::int32_t promotionId, const nlohmann::json& params) {
 	if (!socket_) {
 		model_.setStatus(L"未连接服务器");
 		return;
 	}
-	nlohmann::json params;
-	try {
-		params = nlohmann::json::parse(paramsJson);
-	}
-	catch (...) {
-		model_.setStatus(L"参数不是合法的 JSON，请检查格式");
+	if (params.is_null()) {
+		model_.setStatus(L"请完整填写促销参数（数字格式）");
 		return;
 	}
 	const nlohmann::json req = {
@@ -657,14 +648,16 @@ void ClientController::handleEvent(const sf::Event& event) {
 					}
 					break;
 				}
-				case ClientView::ClickAction::MerchantPromoFormSubmit:
+				case ClientView::ClickAction::MerchantPromoFormSubmit: {
+					const auto params = view_.buildPromotionParams();
 					if (view_.editingPromotionId() > 0) {
-						requestMerchantUpdatePromotion(view_.editingPromotionId(), view_.promotionParamsInput());
+						requestMerchantUpdatePromotion(view_.editingPromotionId(), params);
 					}
 					else {
-						requestMerchantCreatePromotion(view_.promoType(), view_.promotionParamsInput());
+						requestMerchantCreatePromotion(view_.promoType(), params);
 					}
 					break;
+				}
 				case ClientView::ClickAction::MerchantPromoFormBack:
 					view_.resetPromotionForm();
 					view_.setPanel(ClientView::Panel::Promotion);
@@ -741,15 +734,29 @@ void ClientController::handleEvent(const sf::Event& event) {
 		}
 		else if (view_.panel() == ClientView::Panel::PromotionForm) {
 			if (key == sf::Keyboard::Key::Enter) {
+				const auto params = view_.buildPromotionParams();
 				if (view_.editingPromotionId() > 0) {
-					requestMerchantUpdatePromotion(view_.editingPromotionId(), view_.promotionParamsInput());
+					requestMerchantUpdatePromotion(view_.editingPromotionId(), params);
 				}
 				else {
-					requestMerchantCreatePromotion(view_.promoType(), view_.promotionParamsInput());
+					requestMerchantCreatePromotion(view_.promoType(), params);
 				}
 			}
 			else if (key == sf::Keyboard::Key::Backspace) {
 				view_.backspaceInput();
+			}
+			else if (key == sf::Keyboard::Key::Tab) {
+				// 在当前类型使用的槽位之间循环切换焦点
+				int slotCount = 1;
+				const std::string& t = view_.promoType();
+				if (t == "reduction")      slotCount = 2;
+				else if (t == "discount")  slotCount = 1;
+				else if (t == "tiered")    slotCount = 4;
+				else if (t == "freeitem")  slotCount = 2;
+				else if (t == "coupon")    slotCount = 1;
+				const int cur = static_cast<int>(view_.activeField()) - static_cast<int>(ClientView::Field::PromoSlot0);
+				const int next = (cur + 1) % slotCount;
+				view_.setActiveField(static_cast<ClientView::Field>(static_cast<int>(ClientView::Field::PromoSlot0) + next));
 			}
 		}
 		else if (view_.panel() == ClientView::Panel::ProductList) {

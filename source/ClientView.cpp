@@ -694,29 +694,67 @@ void ClientView::drawPromotionFormPanel(const ClientModel& model) {
 		}
 	}
 
-	// 参数 JSON 输入框
-	textMgr_.displayText(L"参数（JSON）：", { 100, 190 }, { 18, 24 }, sf::Color(120, 120, 120));
-	const auto pr = promoParamsRect();
-	sf::RectangleShape paramsBg({ pr.size.x, pr.size.y });
-	paramsBg.setPosition({ pr.position.x, pr.position.y });
-	paramsBg.setFillColor(sf::Color::White);
-	paramsBg.setOutlineColor(activeField_ == Field::PromotionParams ? sf::Color(80, 130, 200) : sf::Color(200, 200, 200));
-	paramsBg.setOutlineThickness(activeField_ == Field::PromotionParams ? 2.f : 1.f);
-	window_.draw(paramsBg);
-	if (!promotionParamsInput_.empty()) {
-		textMgr_.displayText(ec::string::to_utf16(promotionParamsInput_),
-							 { pr.position.x + 10, pr.position.y + 10 }, { 16, 22 }, sf::Color::Black);
+	// 各类型对应的槽位标签（最多 4 个）；空串表示该槽位不显示
+	const wchar_t* slotLabels[4] = { nullptr, nullptr, nullptr, nullptr };
+	if (promoType_ == "reduction") {
+		slotLabels[0] = L"满（元）";
+		slotLabels[1] = L"减（元）";
+	}
+	else if (promoType_ == "discount") {
+		slotLabels[0] = L"折扣（9=9折）";
+	}
+	else if (promoType_ == "tiered") {
+		slotLabels[0] = L"第1档件数";
+		slotLabels[1] = L"第1档折扣（9=9折）";
+		slotLabels[2] = L"第2档件数";
+		slotLabels[3] = L"第2档折扣（9=9折）";
+	}
+	else if (promoType_ == "freeitem") {
+		slotLabels[0] = L"买（件）";
+		slotLabels[1] = L"送（件）";
+	}
+	else if (promoType_ == "coupon") {
+		slotLabels[0] = L"抵扣（元）";
 	}
 
-	// 参数格式提示
-	std::wstring hint;
-	if (promoType_ == "reduction")      hint = L"如：{\"threshold\":50,\"reduce\":5}  表示满50减5";
-	else if (promoType_ == "discount")  hint = L"如：{\"rate\":0.9}  表示全场9折";
-	else if (promoType_ == "tiered")    hint = L"如：{\"tiers\":[[2,0.9],[3,0.8]]}  第2件9折、第3件8折";
-	else if (promoType_ == "freeitem")  hint = L"如：{\"buyN\":3,\"freeM\":1}  买3送1";
-	else if (promoType_ == "coupon")    hint = L"如：{\"amount\":10}  抵扣10元";
-	else                                hint = L"请先选择促销类型";
-	textMgr_.displayText(hint, { 100, 320 }, { 15, 20 }, sf::Color(150, 150, 150));
+	// 参数区标题
+	const float paramsY = 160.f;
+	if (promoType_.empty()) {
+		textMgr_.displayText(L"请先在上方选择促销类型", { 100, paramsY }, { 18, 24 }, sf::Color(180, 80, 80));
+	}
+	else {
+		textMgr_.displayText(L"填写参数：", { 100, paramsY }, { 18, 24 }, sf::Color(120, 120, 120));
+		// 2 列 × 2 行布局绘制各槽位
+		const Field slotFields[4] = { Field::PromoSlot0, Field::PromoSlot1, Field::PromoSlot2, Field::PromoSlot3 };
+		for (int i = 0; i < 4; ++i) {
+			if (slotLabels[i] == nullptr) continue;
+			const auto r = promoSlotRect(i);
+			// 标签
+			textMgr_.displayText(slotLabels[i],
+								 { r.position.x, r.position.y - 22.f }, { 15, 20 }, sf::Color(80, 80, 80));
+			// 输入框
+			sf::RectangleShape box({ r.size.x, r.size.y });
+			box.setPosition({ r.position.x, r.position.y });
+			box.setFillColor(sf::Color::White);
+			box.setOutlineColor(activeField_ == slotFields[i] ? sf::Color(80, 130, 200) : sf::Color(200, 200, 200));
+			box.setOutlineThickness(activeField_ == slotFields[i] ? 2.f : 1.f);
+			window_.draw(box);
+			if (!promoSlotValue_[i].empty()) {
+				textMgr_.displayText(ec::string::to_utf16(promoSlotValue_[i]),
+									 { r.position.x + 10, r.position.y + 8 }, { 16, 22 }, sf::Color::Black);
+			}
+		}
+		// 实时预览规则效果
+		const auto preview = buildPromotionParams();
+		if (!preview.is_null()) {
+			std::wostringstream prev;
+			prev << L"规则预览：" << describePromotion(promoType_, preview);
+			textMgr_.displayText(prev.str(), { 100, 330 }, { 16, 22 }, sf::Color(50, 120, 50));
+		}
+		else {
+			textMgr_.displayText(L"规则预览：请填写全部必填参数", { 100, 330 }, { 16, 22 }, sf::Color(150, 150, 150));
+		}
+	}
 
 	// 提交按钮
 	const auto sb = promoSubmitBtnRect();
@@ -740,24 +778,110 @@ void ClientView::drawPromotionFormPanel(const ClientModel& model) {
 	textMgr_.displayText(L"返回", { bb.position.x + 30, bb.position.y + 10 }, { 18, 24 }, sf::Color::White);
 
 	if (!model.status().empty()) {
-		textMgr_.displayText(model.status(), { 100, 420 }, { 18, 22 }, sf::Color(200, 50, 50));
+		textMgr_.displayText(model.status(), { 100, 450 }, { 18, 22 }, sf::Color(200, 50, 50));
 	}
 }
 
 // === 促销表单状态管理 ===
 
 void ClientView::resetPromotionForm() {
-	promotionParamsInput_.clear();
+	for (auto& s : promoSlotValue_) s.clear();
 	editingPromotionId_ = 0;
 	promoType_.clear();
-	activeField_ = Field::PromotionParams;
+	activeField_ = Field::PromoSlot0;
+}
+
+void ClientView::setPromoType(const std::string& type) {
+	if (promoType_ == type) return;
+	promoType_ = type;
+	// 切换类型时清空槽位，避免旧类型的数值残留到新类型
+	for (auto& s : promoSlotValue_) s.clear();
+	activeField_ = Field::PromoSlot0;
 }
 
 void ClientView::setEditPromotion(std::int32_t id, const std::string& type, const nlohmann::json& params) {
 	editingPromotionId_ = id;
 	promoType_ = type;
-	promotionParamsInput_ = params.dump();
-	activeField_ = Field::PromotionParams;
+	for (auto& s : promoSlotValue_) s.clear();
+	// 按类型把 params 拆入对应槽位
+	if (type == "reduction") {
+		promoSlotValue_[0] = std::to_string(params.value("threshold", 0.0));
+		promoSlotValue_[1] = std::to_string(params.value("reduce", 0.0));
+	}
+	else if (type == "discount") {
+		// 存储是 0~1 的 rate，展示为"几折"（×10）
+		const double rate = params.value("rate", 1.0);
+		promoSlotValue_[0] = std::to_string(rate * 10.0);
+	}
+	else if (type == "tiered") {
+		if (params.contains("tiers") && params["tiers"].is_array()) {
+			const auto& tiers = params["tiers"];
+			if (tiers.size() > 0 && tiers[0].is_array() && tiers[0].size() >= 2) {
+				promoSlotValue_[0] = std::to_string(tiers[0][0].get<int>());
+				promoSlotValue_[1] = std::to_string(tiers[0][1].get<double>() * 10.0);
+			}
+			if (tiers.size() > 1 && tiers[1].is_array() && tiers[1].size() >= 2) {
+				promoSlotValue_[2] = std::to_string(tiers[1][0].get<int>());
+				promoSlotValue_[3] = std::to_string(tiers[1][1].get<double>() * 10.0);
+			}
+		}
+	}
+	else if (type == "freeitem") {
+		promoSlotValue_[0] = std::to_string(params.value("buyN", 0));
+		promoSlotValue_[1] = std::to_string(params.value("freeM", 0));
+	}
+	else if (type == "coupon") {
+		promoSlotValue_[0] = std::to_string(params.value("amount", 0.0));
+	}
+	activeField_ = Field::PromoSlot0;
+}
+
+// 根据当前类型 + 各槽位输入拼装 params JSON；校验失败返回空对象（is_null 为 true）
+nlohmann::json ClientView::buildPromotionParams() const {
+	auto parseDouble = [](const std::string& s, double& out) -> bool {
+		try { out = std::stod(s); return true; } catch (...) { return false; }
+	};
+	auto parseInt = [](const std::string& s, int& out) -> bool {
+		try { out = std::stoi(s); return true; } catch (...) { return false; }
+	};
+
+	nlohmann::json params;
+	if (promoType_ == "reduction") {
+		double threshold = 0, reduce = 0;
+		if (!parseDouble(promoSlotValue_[0], threshold) || !parseDouble(promoSlotValue_[1], reduce)) return nullptr;
+		params = { {"threshold", threshold}, {"reduce", reduce} };
+	}
+	else if (promoType_ == "discount") {
+		double zhe = 0;
+		if (!parseDouble(promoSlotValue_[0], zhe)) return nullptr;
+		params = { {"rate", zhe / 10.0} };
+	}
+	else if (promoType_ == "tiered") {
+		int c1 = 0, c2 = 0;
+		double r1 = 0, r2 = 0;
+		if (!parseInt(promoSlotValue_[0], c1) || !parseDouble(promoSlotValue_[1], r1)) return nullptr;
+		nlohmann::json::array_t tiers = { {c1, r1 / 10.0} };
+		// 第2档可选：两个都填了才追加
+		if (!promoSlotValue_[2].empty() || !promoSlotValue_[3].empty()) {
+			if (!parseInt(promoSlotValue_[2], c2) || !parseDouble(promoSlotValue_[3], r2)) return nullptr;
+			tiers.push_back({ c2, r2 / 10.0 });
+		}
+		params = { {"tiers", tiers} };
+	}
+	else if (promoType_ == "freeitem") {
+		int buyN = 0, freeM = 0;
+		if (!parseInt(promoSlotValue_[0], buyN) || !parseInt(promoSlotValue_[1], freeM)) return nullptr;
+		params = { {"buyN", buyN}, {"freeM", freeM} };
+	}
+	else if (promoType_ == "coupon") {
+		double amount = 0;
+		if (!parseDouble(promoSlotValue_[0], amount)) return nullptr;
+		params = { {"amount", amount} };
+	}
+	else {
+		return nullptr;
+	}
+	return params;
 }
 
 // === 促销面板按钮矩形 ===
@@ -798,9 +922,16 @@ sf::FloatRect ClientView::promoTypeBtnRect(int index) const {
 	return sf::FloatRect(sf::Vector2f{ x, y }, sf::Vector2f{ w, h });
 }
 
-sf::FloatRect ClientView::promoParamsRect() const {
-	constexpr float w = 800.f, h = 100.f;
-	return sf::FloatRect(sf::Vector2f{ 100.f, 220.f }, sf::Vector2f{ w, h });
+sf::FloatRect ClientView::promoSlotRect(int index) const {
+	// 2 列 × 2 行布局
+	constexpr float colW = 320.f, rowH = 36.f;
+	constexpr float colGap = 60.f, rowGap = 50.f;
+	constexpr float startX = 100.f, startY = 220.f;
+	const int col = index % 2;
+	const int row = index / 2;
+	const float x = startX + col * (colW + colGap);
+	const float y = startY + row * (rowH + rowGap);
+	return sf::FloatRect(sf::Vector2f{ x, y }, sf::Vector2f{ colW, rowH });
 }
 
 sf::FloatRect ClientView::promoSubmitBtnRect() const {
@@ -851,7 +982,10 @@ void ClientView::appendInputChar(std::uint32_t ch) {
 		case Field::ProductDesc:    append(productDescInput_, 256); break;
 		case Field::ProductImage:   append(productImageInput_, 256); break;
 		case Field::ProductSearch:  append(searchInput_, 128); break;
-		case Field::PromotionParams: append(promotionParamsInput_, 512); break;
+		case Field::PromoSlot0: append(promoSlotValue_[0], 32); break;
+		case Field::PromoSlot1: append(promoSlotValue_[1], 32); break;
+		case Field::PromoSlot2: append(promoSlotValue_[2], 32); break;
+		case Field::PromoSlot3: append(promoSlotValue_[3], 32); break;
 	}
 }
 
@@ -876,7 +1010,10 @@ void ClientView::backspaceInput() {
 		case Field::ProductDesc:    popUtf8Char(productDescInput_); break;
 		case Field::ProductImage:   popUtf8Char(productImageInput_); break;
 		case Field::ProductSearch:  popUtf8Char(searchInput_); break;
-		case Field::PromotionParams: popUtf8Char(promotionParamsInput_); break;
+		case Field::PromoSlot0: popUtf8Char(promoSlotValue_[0]); break;
+		case Field::PromoSlot1: popUtf8Char(promoSlotValue_[1]); break;
+		case Field::PromoSlot2: popUtf8Char(promoSlotValue_[2]); break;
+		case Field::PromoSlot3: popUtf8Char(promoSlotValue_[3]); break;
 	}
 }
 
@@ -1495,10 +1632,19 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 				}
 			}
 		}
-		// 参数输入框：点击聚焦
-		if (hit(promoParamsRect(), mousePos)) {
-			activeField_ = Field::PromotionParams;
-			return { ClickAction::None, 0 };
+		// 各槽位输入框：点击聚焦（按类型只对应当前类型用到的槽位）
+		const Field slotFields[4] = { Field::PromoSlot0, Field::PromoSlot1, Field::PromoSlot2, Field::PromoSlot3 };
+		int slotCount = 0;
+		if (promoType_ == "reduction")      slotCount = 2;
+		else if (promoType_ == "discount")  slotCount = 1;
+		else if (promoType_ == "tiered")    slotCount = 4;
+		else if (promoType_ == "freeitem")  slotCount = 2;
+		else if (promoType_ == "coupon")    slotCount = 1;
+		for (int i = 0; i < slotCount; ++i) {
+			if (hit(promoSlotRect(i), mousePos)) {
+				activeField_ = slotFields[i];
+				return { ClickAction::None, 0 };
+			}
 		}
 		if (hit(promoSubmitBtnRect(), mousePos)) {
 			return { ClickAction::MerchantPromoFormSubmit, 0 };
