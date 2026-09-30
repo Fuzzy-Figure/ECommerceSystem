@@ -104,6 +104,21 @@ void ServerController::handle(std::shared_ptr<sf::TcpSocket> socket, const nlohm
 		case static_cast<int>(proto::RequestCode::UserConfirmReceive):
 			response = handleUserConfirmReceive(request);
 			break;
+		case static_cast<int>(proto::RequestCode::MerchantListPromotions):
+			response = handleMerchantListPromotions(request);
+			break;
+		case static_cast<int>(proto::RequestCode::MerchantSetPromotionEnabled):
+			response = handleMerchantSetPromotionEnabled(request);
+			break;
+		case static_cast<int>(proto::RequestCode::MerchantUpdatePromotion):
+			response = handleMerchantUpdatePromotion(request);
+			break;
+		case static_cast<int>(proto::RequestCode::MerchantCreatePromotion):
+			response = handleMerchantCreatePromotion(request);
+			break;
+		case static_cast<int>(proto::RequestCode::MerchantDeletePromotion):
+			response = handleMerchantDeletePromotion(request);
+			break;
 		default:
 			response = {
 				{"code",    static_cast<int>(proto::ResponseCode::Error)},
@@ -550,4 +565,88 @@ nlohmann::json ServerController::handleUserConfirmReceive(const nlohmann::json& 
 	}
 	std::cout << "[ServerController] 用户确认收货 orderId=" << orderId << " userId=" << userId << std::endl;
 	return { {"code", static_cast<int>(proto::ResponseCode::OrderStatusUpdateResult)}, {"success", true}, {"message", "已确认收货"} };
+}
+
+// ===================== 商家促销管理 =====================
+
+// 校验促销类型是否合法
+static bool isValidPromoType(const std::string& type) {
+	return type == "reduction" || type == "discount" || type == "tiered"
+		|| type == "freeitem" || type == "coupon";
+}
+
+nlohmann::json ServerController::handleMerchantListPromotions(const nlohmann::json& req) {
+	if (auto err = requireMerchant(req)) return *err;
+	auto list = promotionDao_.findAll();
+	nlohmann::json arr = nlohmann::json::array();
+	for (const auto& c : list) {
+		arr.push_back({
+			{"id",      c.id},
+			{"type",    c.type},
+			{"params",  c.params},
+			{"enabled", c.enabled}
+		});
+	}
+	return { {"code", static_cast<int>(proto::ResponseCode::MerchantPromotionList)}, {"promotions", arr} };
+}
+
+nlohmann::json ServerController::handleMerchantSetPromotionEnabled(const nlohmann::json& req) {
+	if (auto err = requireMerchant(req)) return *err;
+	const auto id = req.value("id", std::int32_t{});
+	const bool enabled = req.value("enabled", false);
+	if (id <= 0) {
+		return { {"code", static_cast<int>(proto::ResponseCode::MerchantPromotionResult)}, {"success", false}, {"message", "促销 ID 无效"} };
+	}
+	if (!promotionDao_.setEnabled(id, enabled)) {
+		return { {"code", static_cast<int>(proto::ResponseCode::MerchantPromotionResult)}, {"success", false}, {"message", "操作失败：促销不存在"} };
+	}
+	reloadPromotions();
+	std::cout << "[ServerController] 商家" << (enabled ? "启用" : "禁用") << "促销 id=" << id << std::endl;
+	return { {"code", static_cast<int>(proto::ResponseCode::MerchantPromotionResult)}, {"success", true}, {"message", enabled ? "已启用" : "已禁用"} };
+}
+
+nlohmann::json ServerController::handleMerchantUpdatePromotion(const nlohmann::json& req) {
+	if (auto err = requireMerchant(req)) return *err;
+	const auto id = req.value("id", std::int32_t{});
+	if (id <= 0 || !req.contains("params")) {
+		return { {"code", static_cast<int>(proto::ResponseCode::MerchantPromotionResult)}, {"success", false}, {"message", "参数无效"} };
+	}
+	if (!promotionDao_.updateParams(id, req["params"])) {
+		return { {"code", static_cast<int>(proto::ResponseCode::MerchantPromotionResult)}, {"success", false}, {"message", "编辑失败：促销不存在"} };
+	}
+	reloadPromotions();
+	std::cout << "[ServerController] 商家编辑促销参数 id=" << id << std::endl;
+	return { {"code", static_cast<int>(proto::ResponseCode::MerchantPromotionResult)}, {"success", true}, {"message", "编辑成功，促销链已更新"} };
+}
+
+nlohmann::json ServerController::handleMerchantCreatePromotion(const nlohmann::json& req) {
+	if (auto err = requireMerchant(req)) return *err;
+	const std::string type = req.value("type", std::string{});
+	if (type.empty() || !isValidPromoType(type)) {
+		return { {"code", static_cast<int>(proto::ResponseCode::MerchantPromotionResult)}, {"success", false}, {"message", "新增失败：促销类型无效"} };
+	}
+	if (!req.contains("params")) {
+		return { {"code", static_cast<int>(proto::ResponseCode::MerchantPromotionResult)}, {"success", false}, {"message", "新增失败：缺少参数"} };
+	}
+	const auto newId = promotionDao_.create(type, req["params"]);
+	if (newId <= 0) {
+		return { {"code", static_cast<int>(proto::ResponseCode::MerchantPromotionResult)}, {"success", false}, {"message", "新增失败：数据库异常"} };
+	}
+	reloadPromotions();
+	std::cout << "[ServerController] 商家新增促销 id=" << newId << " type=" << type << std::endl;
+	return { {"code", static_cast<int>(proto::ResponseCode::MerchantPromotionResult)}, {"success", true}, {"message", "新增成功"} };
+}
+
+nlohmann::json ServerController::handleMerchantDeletePromotion(const nlohmann::json& req) {
+	if (auto err = requireMerchant(req)) return *err;
+	const auto id = req.value("id", std::int32_t{});
+	if (id <= 0) {
+		return { {"code", static_cast<int>(proto::ResponseCode::MerchantPromotionResult)}, {"success", false}, {"message", "促销 ID 无效"} };
+	}
+	if (!promotionDao_.remove(id)) {
+		return { {"code", static_cast<int>(proto::ResponseCode::MerchantPromotionResult)}, {"success", false}, {"message", "删除失败：促销不存在"} };
+	}
+	reloadPromotions();
+	std::cout << "[ServerController] 商家删除促销 id=" << id << std::endl;
+	return { {"code", static_cast<int>(proto::ResponseCode::MerchantPromotionResult)}, {"success", true}, {"message", "删除成功"} };
 }

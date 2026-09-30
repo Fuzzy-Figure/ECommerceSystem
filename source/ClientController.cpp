@@ -338,6 +338,115 @@ void ClientController::requestMerchantUpdateProduct(std::int32_t productId) {
 	model_.setStatus(L"正在保存修改...");
 }
 
+// ===================== 商家促销管理 =====================
+
+void ClientController::requestMerchantListPromotions() {
+	if (!socket_) {
+		model_.setStatus(L"未连接服务器，无法获取促销列表");
+		return;
+	}
+	const nlohmann::json req = {
+		{"code",   static_cast<int>(proto::RequestCode::MerchantListPromotions)},
+		{"userId", model_.currentUserId()}
+	};
+	if (!proto::sendJson(*socket_, req)) {
+		model_.setStatus(L"发送促销列表请求失败，连接可能已断开");
+		return;
+	}
+}
+
+void ClientController::requestMerchantSetPromotionEnabled(std::int32_t promotionId, bool enabled) {
+	if (!socket_) {
+		model_.setStatus(L"未连接服务器");
+		return;
+	}
+	const nlohmann::json req = {
+		{"code",     static_cast<int>(proto::RequestCode::MerchantSetPromotionEnabled)},
+		{"userId",   model_.currentUserId()},
+		{"id",       promotionId},
+		{"enabled",  enabled}
+	};
+	if (!proto::sendJson(*socket_, req)) {
+		model_.setStatus(L"发送请求失败，连接可能已断开");
+		return;
+	}
+	model_.setStatus(enabled ? L"正在启用促销..." : L"正在禁用促销...");
+}
+
+void ClientController::requestMerchantCreatePromotion(const std::string& type, const std::string& paramsJson) {
+	if (!socket_) {
+		model_.setStatus(L"未连接服务器");
+		return;
+	}
+	if (type.empty()) {
+		model_.setStatus(L"请先选择促销类型");
+		return;
+	}
+	// 校验 params JSON 合法性
+	nlohmann::json params;
+	try {
+		params = nlohmann::json::parse(paramsJson);
+	}
+	catch (...) {
+		model_.setStatus(L"参数不是合法的 JSON，请检查格式");
+		return;
+	}
+	const nlohmann::json req = {
+		{"code",   static_cast<int>(proto::RequestCode::MerchantCreatePromotion)},
+		{"userId", model_.currentUserId()},
+		{"type",   type},
+		{"params", params}
+	};
+	if (!proto::sendJson(*socket_, req)) {
+		model_.setStatus(L"发送新增促销请求失败，连接可能已断开");
+		return;
+	}
+	model_.setStatus(L"正在提交新增促销...");
+}
+
+void ClientController::requestMerchantUpdatePromotion(std::int32_t promotionId, const std::string& paramsJson) {
+	if (!socket_) {
+		model_.setStatus(L"未连接服务器");
+		return;
+	}
+	nlohmann::json params;
+	try {
+		params = nlohmann::json::parse(paramsJson);
+	}
+	catch (...) {
+		model_.setStatus(L"参数不是合法的 JSON，请检查格式");
+		return;
+	}
+	const nlohmann::json req = {
+		{"code",     static_cast<int>(proto::RequestCode::MerchantUpdatePromotion)},
+		{"userId",   model_.currentUserId()},
+		{"id",       promotionId},
+		{"params",   params}
+	};
+	if (!proto::sendJson(*socket_, req)) {
+		model_.setStatus(L"发送修改促销请求失败，连接可能已断开");
+		return;
+	}
+	model_.setStatus(L"正在保存促销修改...");
+}
+
+void ClientController::requestMerchantDeletePromotion(std::int32_t promotionId) {
+	if (!socket_) {
+		model_.setStatus(L"未连接服务器");
+		return;
+	}
+	const nlohmann::json req = {
+		{"code",   static_cast<int>(proto::RequestCode::MerchantDeletePromotion)},
+		{"userId", model_.currentUserId()},
+		{"id",     promotionId}
+	};
+	if (!proto::sendJson(*socket_, req)) {
+		model_.setStatus(L"发送删除促销请求失败，连接可能已断开");
+		return;
+	}
+	model_.setStatus(L"正在删除促销...");
+}
+
 void ClientController::requestLogin() {
 	if (!socket_) {
 		model_.setStatus(L"未连接服务器，无法登录");
@@ -427,6 +536,11 @@ void ClientController::handleEvent(const sf::Event& event) {
 						view_.setPanel(target);
 						model_.setStatus(L"新增商品：填写表单后点提交");
 					}
+					else if (target == ClientView::Panel::Promotion) {
+						view_.setPanel(target);
+						requestMerchantListPromotions();
+						model_.setStatus(L"商家促销管理");
+					}
 					else if (idx >= static_cast<int>(ClientView::Panel::ProductList)
 							 && idx <= static_cast<int>(ClientView::Panel::MyOrders)) {
 						// 商家点"商品列表"Tab → 回商家商品管理面板；其余 Tab 正常切
@@ -513,6 +627,56 @@ void ClientController::handleEvent(const sf::Event& event) {
 					view_.setPanel(ClientView::Panel::Merchant);
 					model_.setStatus(L"已返回商家管理面板");
 					break;
+				case ClientView::ClickAction::MerchantPromoToggle:
+					requestMerchantSetPromotionEnabled(action.promotionId, action.arg != 0);
+					break;
+				case ClientView::ClickAction::MerchantPromoDelete:
+					requestMerchantDeletePromotion(action.promotionId);
+					break;
+				case ClientView::ClickAction::MerchantPromoCreate:
+					view_.resetPromotionForm();
+					view_.setPanel(ClientView::Panel::PromotionForm);
+					model_.setStatus(L"新增促销：选择类型并填写参数");
+					break;
+				case ClientView::ClickAction::MerchantPromoEdit: {
+					const auto& promotions = model_.promotions();
+					const auto it = std::find_if(promotions.begin(), promotions.end(),
+												 [&](const Promotion& p) { return p.id == action.promotionId; });
+					if (it != promotions.end()) {
+						view_.setEditPromotion(it->id, it->type, it->params);
+						view_.setPanel(ClientView::Panel::PromotionForm);
+						model_.setStatus(L"编辑促销：修改参数后点保存");
+					}
+					else {
+						model_.setStatus(L"编辑失败：找不到该促销规则");
+					}
+					break;
+				}
+				case ClientView::ClickAction::MerchantPromoFormSubmit:
+					if (view_.editingPromotionId() > 0) {
+						requestMerchantUpdatePromotion(view_.editingPromotionId(), view_.promotionParamsInput());
+					}
+					else {
+						requestMerchantCreatePromotion(view_.promoType(), view_.promotionParamsInput());
+					}
+					break;
+				case ClientView::ClickAction::MerchantPromoFormBack:
+					view_.resetPromotionForm();
+					view_.setPanel(ClientView::Panel::Promotion);
+					requestMerchantListPromotions();
+					model_.setStatus(L"已返回促销列表面板");
+					break;
+				case ClientView::ClickAction::MerchantPromoSelectType: {
+					const char* types[] = { "reduction", "discount", "tiered", "freeitem", "coupon" };
+					const int i = action.arg;
+					if (i >= 0 && i < 5) {
+						view_.setPromoType(types[i]);
+						model_.setStatus(std::wstring(L"已选择：") + (
+							i == 0 ? L"满减" : i == 1 ? L"统一折扣" :
+							i == 2 ? L"阶梯折扣" : i == 3 ? L"免单" : L"抵扣券"));
+					}
+					break;
+				}
 				case ClientView::ClickAction::None:
 				default: break;
 			}
@@ -570,6 +734,19 @@ void ClientController::handleEvent(const sf::Event& event) {
 				view_.setActiveField(static_cast<ClientView::Field>(next));
 			}
 		}
+		else if (view_.panel() == ClientView::Panel::PromotionForm) {
+			if (key == sf::Keyboard::Key::Enter) {
+				if (view_.editingPromotionId() > 0) {
+					requestMerchantUpdatePromotion(view_.editingPromotionId(), view_.promotionParamsInput());
+				}
+				else {
+					requestMerchantCreatePromotion(view_.promoType(), view_.promotionParamsInput());
+				}
+			}
+			else if (key == sf::Keyboard::Key::Backspace) {
+				view_.backspaceInput();
+			}
+		}
 		else if (view_.panel() == ClientView::Panel::ProductList) {
 			// 商品列表搜索框：Backspace 删字符（清空所有字符即恢复显示全部商品）
 			if (key == sf::Keyboard::Key::Backspace) {
@@ -578,7 +755,7 @@ void ClientController::handleEvent(const sf::Event& event) {
 		}
 		return;
 	}
-	// 文本输入事件：Login/MerchantCreate/MerchantEdit/ProductList 面板接收字符（ASCII 或中文 CJK）到当前聚焦输入框
+	// 文本输入事件：Login/MerchantCreate/MerchantEdit/PromotionForm/ProductList 面板接收字符（ASCII 或中文 CJK）到当前聚焦输入框
 	if (event.is<sf::Event::TextEntered>()) {
 		const auto* te = event.getIf<sf::Event::TextEntered>();
 		if (te == nullptr) return;
@@ -586,6 +763,7 @@ void ClientController::handleEvent(const sf::Event& event) {
 		if (view_.panel() != ClientView::Panel::Login
 			&& view_.panel() != ClientView::Panel::MerchantCreate
 			&& view_.panel() != ClientView::Panel::MerchantEdit
+			&& view_.panel() != ClientView::Panel::PromotionForm
 			&& view_.panel() != ClientView::Panel::ProductList) return;
 		// 传 UTF-32 码点；appendInputChar 内部按 ASCII/CJK 过滤并转 UTF-8
 		view_.appendInputChar(te->unicode);
@@ -802,6 +980,43 @@ void ClientController::processMessage(nlohmann::json& msg) {
 				// 刷新商家商品列表 + 订单列表，统计数据保持最新
 				requestMerchantListProducts();
 				if (model_.isMerchant()) requestMerchantListOrders();
+			}
+			break;
+		}
+
+		case static_cast<int>(proto::ResponseCode::MerchantPromotionList): {
+			std::vector<Promotion> promotions;
+			if (msg.contains("promotions") && msg["promotions"].is_array()) {
+				for (const auto& pj : msg["promotions"]) {
+					Promotion p;
+					p.id      = pj.value("id", 0);
+					p.type    = pj.value("type", std::string{});
+					p.enabled = pj.value("enabled", false);
+					if (pj.contains("params")) {
+						p.params = pj["params"];
+					}
+					promotions.push_back(std::move(p));
+				}
+			}
+			model_.setPromotions(std::move(promotions));
+			std::wostringstream ss;
+			ss << L"促销列表已加载 " << model_.promotions().size() << L" 条规则";
+			model_.setStatus(ss.str());
+			break;
+		}
+
+		case static_cast<int>(proto::ResponseCode::MerchantPromotionResult): {
+			const auto success = msg.value("success", false);
+			const auto m = msg.value("message", std::string{});
+			model_.setStatus(ec::string::to_utf16(m));
+			if (success) {
+				// 创建/编辑成功：清促销表单，切回促销列表面板
+				if (view_.panel() == ClientView::Panel::PromotionForm) {
+					view_.resetPromotionForm();
+					view_.setPanel(ClientView::Panel::Promotion);
+				}
+				// 刷新促销列表
+				requestMerchantListPromotions();
 			}
 			break;
 		}

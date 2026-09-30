@@ -27,6 +27,11 @@ namespace proto {
         MerchantListOrders,   // 商家拉取全部订单（含用户名）：{userId}
         MerchantShipOrder,    // 商家发货：{userId, orderId}（待发货→已发货）
         UserConfirmReceive,   // 用户确认收货：{userId, orderId}（已发货→已完成）
+        MerchantListPromotions,     // 商家拉取全部促销规则：{userId}
+        MerchantSetPromotionEnabled,// 商家启用/禁用促销：{userId, id, enabled}
+        MerchantUpdatePromotion,    // 商家编辑促销参数：{userId, id, params}
+        MerchantCreatePromotion,    // 商家新增促销：{userId, type, params}
+        MerchantDeletePromotion,    // 商家删除促销：{userId, id}
     };
 
 	// 应答码（服务端响应）
@@ -43,6 +48,8 @@ namespace proto {
 		MerchantActionResult, // 商家操作结果：{success, message}
 		MerchantOrderList,    // 商家订单列表（含用户名）：{orders:[...]}
 		OrderStatusUpdateResult, // 订单状态更新结果：{success, message}
+		MerchantPromotionList,   // 商家促销列表：{promotions:[{id,type,params,enabled}]}
+		MerchantPromotionResult, // 商家促销操作结果：{success, message}
 	};
 
 	// 阻塞发送一条 JSON 消息；处理 Partial 直至全部发出。

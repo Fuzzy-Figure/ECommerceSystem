@@ -89,6 +89,8 @@ void ClientView::render(const ClientModel& model) {
 		case Panel::ProductList:     drawProductListPanel(model);     break;
 		case Panel::Cart:             drawCartPanel(model);            break;
 		case Panel::MyOrders:         drawMyOrdersPanel(model);        break;
+		case Panel::Promotion:        drawPromotionPanel(model);       break;
+		case Panel::PromotionForm:    drawPromotionFormPanel(model);   break;
 	}
 }
 
@@ -523,6 +525,294 @@ void ClientView::drawMerchantEditPanel(const ClientModel& model) {
 						 { 100, 620 }, { 16, 22 }, sf::Color(150, 150, 150));
 }
 
+// ===================== 促销参数描述辅助 =====================
+
+// 把促销 type + params 转成人类可读的描述（用于列表展示）
+static std::wstring describePromotion(const std::string& type, const nlohmann::json& params) {
+	std::wostringstream ss;
+	if (type == "reduction") {
+		const double t = params.value("threshold", 0.0);
+		const double r = params.value("reduce", 0.0);
+		ss << L"满" << t << L"减" << r;
+	}
+	else if (type == "discount") {
+		const double rate = params.value("rate", 1.0);
+		ss << L"全场" << (rate * 10.0) << L"折";
+	}
+	else if (type == "tiered") {
+		ss << L"阶梯折：";
+		if (params.contains("tiers") && params["tiers"].is_array()) {
+			bool first = true;
+			for (const auto& tier : params["tiers"]) {
+				if (!tier.is_array() || tier.size() < 2) continue;
+				if (!first) ss << L"，";
+				ss << L"第" << tier[0].get<int>() << L"件" << (tier[1].get<double>() * 10.0) << L"折";
+				first = false;
+			}
+		}
+	}
+	else if (type == "freeitem") {
+		const int buyN = params.value("buyN", 0);
+		const int freeM = params.value("freeM", 0);
+		ss << L"买" << buyN << L"送" << freeM;
+	}
+	else if (type == "coupon") {
+		const double amt = params.value("amount", 0.0);
+		ss << L"抵扣券" << amt << L"元";
+	}
+	else {
+		ss << ec::string::to_utf16(type);
+	}
+	return ss.str();
+}
+
+// 促销类型中文名
+static const wchar_t* promoTypeName(const std::string& type) {
+	if (type == "reduction") return L"满减";
+	if (type == "discount")  return L"统一折扣";
+	if (type == "tiered")    return L"阶梯折扣";
+	if (type == "freeitem")  return L"免单";
+	if (type == "coupon")    return L"抵扣券";
+	return L"未知";
+}
+
+// ===================== 商家促销列表面板 =====================
+
+void ClientView::drawPromotionPanel(const ClientModel& model) {
+	drawTabBar(model);
+	if (!model.status().empty()) {
+		textMgr_.displayText(model.status(), { 700, statusY }, { 18, 22 }, sf::Color(150, 150, 150));
+	}
+
+	const auto& promotions = model.promotions();
+	if (promotions.empty()) {
+		textMgr_.displayTextInCenter(L"暂无促销规则，点击下方按钮新增", { 20, 30 }, sf::Color(150, 150, 150));
+	}
+	else {
+		// 表头
+		const float tableY = orderCardStartY;
+		textMgr_.displayText(L"类型",   { orderCardX + 12,  tableY }, { 18, 24 }, sf::Color(120, 120, 120));
+		textMgr_.displayText(L"规则",   { orderCardX + 200, tableY }, { 18, 24 }, sf::Color(120, 120, 120));
+		textMgr_.displayText(L"状态",   { orderCardX + 650, tableY }, { 18, 24 }, sf::Color(120, 120, 120));
+
+		float rowY = tableY + 30.f;
+		constexpr float rowH = 44.f;
+		for (const auto& p : promotions) {
+			const sf::Vector2f rowPos{ orderCardX, rowY };
+
+			sf::RectangleShape rowBg({ orderCardW, rowH });
+			rowBg.setPosition({ rowPos.x, rowPos.y });
+			rowBg.setFillColor(p.enabled ? sf::Color(250, 250, 250) : sf::Color(240, 240, 240));
+			rowBg.setOutlineColor(sf::Color(220, 220, 220));
+			rowBg.setOutlineThickness(1.f);
+			window_.draw(rowBg);
+
+			// 类型
+			textMgr_.displayText(promoTypeName(p.type),
+								 { rowPos.x + 12, rowPos.y + 12 }, { 18, 24 }, sf::Color::Black);
+			// 规则描述
+			textMgr_.displayText(describePromotion(p.type, p.params),
+								 { rowPos.x + 200, rowPos.y + 12 }, { 18, 24 }, sf::Color(80, 80, 80));
+			// 状态
+			textMgr_.displayText(p.enabled ? L"已启用" : L"已禁用",
+								 { rowPos.x + 650, rowPos.y + 12 }, { 18, 24 },
+								 p.enabled ? sf::Color(50, 150, 50) : sf::Color(180, 80, 80));
+
+			// 启用/禁用按钮
+			const auto tg = promoToggleBtnRect(rowPos);
+			sf::RectangleShape tgBtn({ tg.size.x, tg.size.y });
+			tgBtn.setPosition({ tg.position.x, tg.position.y });
+			tgBtn.setFillColor(p.enabled ? sf::Color(180, 80, 80) : sf::Color(50, 150, 50));
+			tgBtn.setOutlineThickness(1.f);
+			window_.draw(tgBtn);
+			textMgr_.displayText(p.enabled ? L"禁用" : L"启用",
+								 { tg.position.x + 14, tg.position.y + 8 }, { 16, 22 }, sf::Color::White);
+
+			// 编辑按钮
+			const auto ed = promoEditBtnRect(rowPos);
+			sf::RectangleShape edBtn({ ed.size.x, ed.size.y });
+			edBtn.setPosition({ ed.position.x, ed.position.y });
+			edBtn.setFillColor(sf::Color(80, 130, 200));
+			edBtn.setOutlineThickness(1.f);
+			window_.draw(edBtn);
+			textMgr_.displayText(L"编辑", { ed.position.x + 14, ed.position.y + 8 }, { 16, 22 }, sf::Color::White);
+
+			// 删除按钮
+			const auto dl = promoDeleteBtnRect(rowPos);
+			sf::RectangleShape dlBtn({ dl.size.x, dl.size.y });
+			dlBtn.setPosition({ dl.position.x, dl.position.y });
+			dlBtn.setFillColor(sf::Color(220, 80, 80));
+			dlBtn.setOutlineThickness(1.f);
+			window_.draw(dlBtn);
+			textMgr_.displayText(L"删除", { dl.position.x + 14, dl.position.y + 8 }, { 16, 22 }, sf::Color::White);
+
+			rowY += rowH + 4.f;
+		}
+	}
+
+	// 底部"新增促销"按钮
+	const auto cb = promoCreateBtnRect();
+	sf::RectangleShape createBtn({ cb.size.x, cb.size.y });
+	createBtn.setPosition({ cb.position.x, cb.position.y });
+	createBtn.setFillColor(sf::Color(60, 140, 80));
+	createBtn.setOutlineColor(sf::Color(40, 110, 60));
+	createBtn.setOutlineThickness(1.f);
+	window_.draw(createBtn);
+	textMgr_.displayText(L"+ 新增促销",
+						 { cb.position.x + 20, cb.position.y + 8 },
+						 { 18, 24 }, sf::Color::White);
+}
+
+// ===================== 商家促销表单面板（创建/编辑）=====================
+
+void ClientView::drawPromotionFormPanel(const ClientModel& model) {
+	drawTabBar(model);
+	const bool isEdit = (editingPromotionId_ > 0);
+	textMgr_.displayTextInUp(isEdit ? L"编辑促销" : L"新增促销", { 20, 60 }, sf::Color(40, 80, 160));
+
+	// 5 种类型按钮（编辑模式下固定类型，仅显示当前类型文字）
+	const char* types[] = { "reduction", "discount", "tiered", "freeitem", "coupon" };
+	constexpr int typeCount = 5;
+	if (isEdit) {
+		textMgr_.displayText(std::wstring(L"类型：") + promoTypeName(promoType_),
+							 { 100, 120 }, { 18, 24 }, sf::Color::Black);
+	}
+	else {
+		textMgr_.displayText(L"选择类型：", { 100, 120 }, { 18, 24 }, sf::Color(120, 120, 120));
+		for (int i = 0; i < typeCount; ++i) {
+			const auto r = promoTypeBtnRect(i);
+			const bool selected = (promoType_ == types[i]);
+			sf::RectangleShape btn({ r.size.x, r.size.y });
+			btn.setPosition({ r.position.x, r.position.y });
+			btn.setFillColor(selected ? sf::Color(80, 130, 200) : sf::Color(230, 230, 230));
+			btn.setOutlineColor(selected ? sf::Color(60, 100, 170) : sf::Color(200, 200, 200));
+			btn.setOutlineThickness(1.f);
+			window_.draw(btn);
+			textMgr_.displayText(promoTypeName(types[i]),
+								 { r.position.x + 14, r.position.y + 8 },
+								 { 16, 22 }, selected ? sf::Color::White : sf::Color::Black);
+		}
+	}
+
+	// 参数 JSON 输入框
+	textMgr_.displayText(L"参数（JSON）：", { 100, 190 }, { 18, 24 }, sf::Color(120, 120, 120));
+	const auto pr = promoParamsRect();
+	sf::RectangleShape paramsBg({ pr.size.x, pr.size.y });
+	paramsBg.setPosition({ pr.position.x, pr.position.y });
+	paramsBg.setFillColor(sf::Color::White);
+	paramsBg.setOutlineColor(activeField_ == Field::PromotionParams ? sf::Color(80, 130, 200) : sf::Color(200, 200, 200));
+	paramsBg.setOutlineThickness(activeField_ == Field::PromotionParams ? 2.f : 1.f);
+	window_.draw(paramsBg);
+	if (!promotionParamsInput_.empty()) {
+		textMgr_.displayText(ec::string::to_utf16(promotionParamsInput_),
+							 { pr.position.x + 10, pr.position.y + 10 }, { 16, 22 }, sf::Color::Black);
+	}
+
+	// 参数格式提示
+	std::wstring hint;
+	if (promoType_ == "reduction")      hint = L"如：{\"threshold\":50,\"reduce\":5}  表示满50减5";
+	else if (promoType_ == "discount")  hint = L"如：{\"rate\":0.9}  表示全场9折";
+	else if (promoType_ == "tiered")    hint = L"如：{\"tiers\":[[2,0.9],[3,0.8]]}  第2件9折、第3件8折";
+	else if (promoType_ == "freeitem")  hint = L"如：{\"buyN\":3,\"freeM\":1}  买3送1";
+	else if (promoType_ == "coupon")    hint = L"如：{\"amount\":10}  抵扣10元";
+	else                                hint = L"请先选择促销类型";
+	textMgr_.displayText(hint, { 100, 320 }, { 15, 20 }, sf::Color(150, 150, 150));
+
+	// 提交按钮
+	const auto sb = promoSubmitBtnRect();
+	sf::RectangleShape submitBtn({ sb.size.x, sb.size.y });
+	submitBtn.setPosition({ sb.position.x, sb.position.y });
+	submitBtn.setFillColor(sf::Color(60, 140, 80));
+	submitBtn.setOutlineColor(sf::Color(40, 110, 60));
+	submitBtn.setOutlineThickness(1.f);
+	window_.draw(submitBtn);
+	textMgr_.displayText(isEdit ? L"保存修改" : L"提交新增",
+						 { sb.position.x + 30, sb.position.y + 10 }, { 18, 24 }, sf::Color::White);
+
+	// 返回按钮
+	const auto bb = promoBackBtnRect();
+	sf::RectangleShape backBtn({ bb.size.x, bb.size.y });
+	backBtn.setPosition({ bb.position.x, bb.position.y });
+	backBtn.setFillColor(sf::Color(150, 150, 150));
+	backBtn.setOutlineColor(sf::Color(120, 120, 120));
+	backBtn.setOutlineThickness(1.f);
+	window_.draw(backBtn);
+	textMgr_.displayText(L"返回", { bb.position.x + 30, bb.position.y + 10 }, { 18, 24 }, sf::Color::White);
+
+	if (!model.status().empty()) {
+		textMgr_.displayText(model.status(), { 100, 420 }, { 18, 22 }, sf::Color(200, 50, 50));
+	}
+}
+
+// === 促销表单状态管理 ===
+
+void ClientView::resetPromotionForm() {
+	promotionParamsInput_.clear();
+	editingPromotionId_ = 0;
+	promoType_.clear();
+	activeField_ = Field::PromotionParams;
+}
+
+void ClientView::setEditPromotion(std::int32_t id, const std::string& type, const nlohmann::json& params) {
+	editingPromotionId_ = id;
+	promoType_ = type;
+	promotionParamsInput_ = params.dump();
+	activeField_ = Field::PromotionParams;
+}
+
+// === 促销面板按钮矩形 ===
+
+sf::FloatRect ClientView::promoToggleBtnRect(const sf::Vector2f& rowPos) const {
+	constexpr float w = 60.f, h = 30.f;
+	const float x = rowPos.x + orderCardW - w - 10.f;
+	return sf::FloatRect(sf::Vector2f{ x, rowPos.y + 7.f }, sf::Vector2f{ w, h });
+}
+
+sf::FloatRect ClientView::promoEditBtnRect(const sf::Vector2f& rowPos) const {
+	constexpr float w = 60.f, h = 30.f;
+	const float toggleX = rowPos.x + orderCardW - 60.f - 10.f;
+	const float x = toggleX - w - 8.f;
+	return sf::FloatRect(sf::Vector2f{ x, rowPos.y + 7.f }, sf::Vector2f{ w, h });
+}
+
+sf::FloatRect ClientView::promoDeleteBtnRect(const sf::Vector2f& rowPos) const {
+	constexpr float w = 60.f, h = 30.f;
+	const float editX = rowPos.x + orderCardW - 60.f - 10.f - 60.f - 8.f;
+	const float x = editX - w - 8.f;
+	return sf::FloatRect(sf::Vector2f{ x, rowPos.y + 7.f }, sf::Vector2f{ w, h });
+}
+
+sf::FloatRect ClientView::promoCreateBtnRect() const {
+	constexpr float w = 160.f, h = 40.f;
+	const float x = orderCardX;
+	const float y = static_cast<float>(window_.getSize().y) - h - 20.f;
+	return sf::FloatRect(sf::Vector2f{ x, y }, sf::Vector2f{ w, h });
+}
+
+// === 促销表单按钮矩形 ===
+
+sf::FloatRect ClientView::promoTypeBtnRect(int index) const {
+	constexpr float w = 120.f, h = 36.f;
+	constexpr float startX = 220.f, y = 116.f, gap = 12.f;
+	const float x = startX + index * (w + gap);
+	return sf::FloatRect(sf::Vector2f{ x, y }, sf::Vector2f{ w, h });
+}
+
+sf::FloatRect ClientView::promoParamsRect() const {
+	constexpr float w = 800.f, h = 100.f;
+	return sf::FloatRect(sf::Vector2f{ 100.f, 220.f }, sf::Vector2f{ w, h });
+}
+
+sf::FloatRect ClientView::promoSubmitBtnRect() const {
+	constexpr float w = 160.f, h = 44.f;
+	return sf::FloatRect(sf::Vector2f{ 100.f, 360.f }, sf::Vector2f{ w, h });
+}
+
+sf::FloatRect ClientView::promoBackBtnRect() const {
+	constexpr float w = 120.f, h = 44.f;
+	return sf::FloatRect(sf::Vector2f{ 280.f, 360.f }, sf::Vector2f{ w, h });
+}
+
 void ClientView::appendInputChar(std::uint32_t ch) {
 	// 只接收可打印字符：ASCII 32..126 或中文 CJK 0x4E00..0x9FFF；其他忽略
 	const bool isAscii = (ch >= 32 && ch <= 126);
@@ -561,6 +851,7 @@ void ClientView::appendInputChar(std::uint32_t ch) {
 		case Field::ProductDesc:    append(productDescInput_, 256); break;
 		case Field::ProductImage:   append(productImageInput_, 256); break;
 		case Field::ProductSearch:  append(searchInput_, 128); break;
+		case Field::PromotionParams: append(promotionParamsInput_, 512); break;
 	}
 }
 
@@ -585,6 +876,7 @@ void ClientView::backspaceInput() {
 		case Field::ProductDesc:    popUtf8Char(productDescInput_); break;
 		case Field::ProductImage:   popUtf8Char(productImageInput_); break;
 		case Field::ProductSearch:  popUtf8Char(searchInput_); break;
+		case Field::PromotionParams: popUtf8Char(promotionParamsInput_); break;
 	}
 }
 
@@ -602,25 +894,28 @@ void ClientView::clearInputs() noexcept {
 // ===================== 顶部 Tab 标签栏 =====================
 
 void ClientView::drawTabBar(const ClientModel& model) {
-	const wchar_t* labels[] = { L"商品列表", L"购物车", L"我的订单" };
-	// Panel 枚举包含 Login/Merchant/MerchantCreate/MerchantEdit，Tab 索引 0/1/2 对应 ProductList/Cart/MyOrders。
-	// 商家面板 Merchant 视为 Tab 0（商品列表）高亮，其余面板按差值计算。
-	int current;
-	if (panel_ == Panel::Merchant) {
-		current = 0;
-	}
-	else {
-		current = static_cast<int>(panel_) - static_cast<int>(Panel::ProductList);
-	}
-	for (int i = 0; i < 3; ++i) {
-		// 商家不显示"购物车"Tab（index 1），商品管理/订单管理即可
-		if (model.isMerchant() && i == 1) continue;
-		// 商家时把可见 Tab 紧凑排列：商品列表(0)→位置0，我的订单(2)→位置1
-		const int visIdx = model.isMerchant() ? (i == 2 ? 1 : 0) : i;
-		const auto r = tabBtnRect(visIdx);
+	// 商家 3 个 Tab：商品列表(Merchant) / 我的订单(MyOrders) / 促销管理(Promotion)
+	// 普通用户 3 个 Tab：商品列表(ProductList) / 购物车(Cart) / 我的订单(MyOrders)
+	struct TabDef { const wchar_t* label; Panel panel; };
+	const TabDef userTabs[] = {
+		{ L"商品列表", Panel::ProductList },
+		{ L"购物车",   Panel::Cart },
+		{ L"我的订单", Panel::MyOrders },
+	};
+	const TabDef merchantTabs[] = {
+		{ L"商品列表", Panel::Merchant },
+		{ L"我的订单", Panel::MyOrders },
+		{ L"促销管理", Panel::Promotion },
+	};
+	const TabDef* tabs = model.isMerchant() ? merchantTabs : userTabs;
+	const int tabCount = 3;
+
+	for (int i = 0; i < tabCount; ++i) {
+		const bool active = (panel_ == tabs[i].panel);
+		const auto r = tabBtnRect(i);
 		sf::RectangleShape bg({ r.size.x, r.size.y });
 		bg.setPosition({ r.position.x, r.position.y });
-		if (i == current) {
+		if (active) {
 			bg.setFillColor(sf::Color(80, 130, 200));
 			bg.setOutlineColor(sf::Color(60, 100, 170));
 		}
@@ -630,8 +925,8 @@ void ClientView::drawTabBar(const ClientModel& model) {
 		}
 		bg.setOutlineThickness(1.f);
 		window_.draw(bg);
-		const auto textColor = (i == current) ? sf::Color::White : sf::Color::Black;
-		textMgr_.displayText(labels[i],
+		const auto textColor = active ? sf::Color::White : sf::Color::Black;
+		textMgr_.displayText(tabs[i].label,
 							 { r.position.x + 50, r.position.y + 8 },
 							 { 18, 24 }, textColor);
 	}
@@ -1006,16 +1301,14 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 		return { ClickAction::None, 0 };
 	}
 
-	// 顶部 Tab 标签优先（ProductList/Cart/MyOrders 三面板共用）
-	// i=0 对应 ProductList；arg 用 Panel 枚举值便于 controller 直接 static_cast
+	// 顶部 Tab 标签：商家 3 个(商品列表/我的订单/促销管理)，用户 3 个(商品列表/购物车/我的订单)
+	struct TabDef { Panel panel; };
+	const TabDef userTabs[] = { Panel::ProductList, Panel::Cart, Panel::MyOrders };
+	const TabDef merchantTabs[] = { Panel::Merchant, Panel::MyOrders, Panel::Promotion };
+	const TabDef* tabs = model.isMerchant() ? merchantTabs : userTabs;
 	for (int i = 0; i < 3; ++i) {
-		// 商家跳过"购物车"Tab（index 1）
-		if (model.isMerchant() && i == 1) continue;
-		// 商家时 Tab 紧凑排列，命中测试用可见位置
-		const int visIdx = model.isMerchant() ? (i == 2 ? 1 : 0) : i;
-		if (hit(tabBtnRect(visIdx), mousePos)) {
-			const int panelIdx = static_cast<int>(Panel::ProductList) + i;
-			return { ClickAction::SwitchPanel, panelIdx };
+		if (hit(tabBtnRect(i), mousePos)) {
+			return { ClickAction::SwitchPanel, static_cast<int>(tabs[i].panel) };
 		}
 	}
 	// 右上角登出按钮（登录后才显示）
@@ -1169,6 +1462,49 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 		}
 		if (hit(merchantCreateBackBtnRect(), mousePos)) {
 			return { ClickAction::MerchantEditBack, 0 };
+		}
+	}
+	else if (panel_ == Panel::Promotion) {
+		const auto& promotions = model.promotions();
+		float rowY = orderCardStartY + 30.f;
+		constexpr float rowH = 44.f;
+		for (const auto& p : promotions) {
+			const sf::Vector2f rowPos{ orderCardX, rowY };
+			if (hit(promoToggleBtnRect(rowPos), mousePos)) {
+				return { ClickAction::MerchantPromoToggle, p.enabled ? 0 : 1, 0, 0, p.id };
+			}
+			if (hit(promoEditBtnRect(rowPos), mousePos)) {
+				return { ClickAction::MerchantPromoEdit, 0, 0, 0, p.id };
+			}
+			if (hit(promoDeleteBtnRect(rowPos), mousePos)) {
+				return { ClickAction::MerchantPromoDelete, 0, 0, 0, p.id };
+			}
+			rowY += rowH + 4.f;
+		}
+		if (hit(promoCreateBtnRect(), mousePos)) {
+			return { ClickAction::MerchantPromoCreate, 0 };
+		}
+	}
+	else if (panel_ == Panel::PromotionForm) {
+		// 创建模式下：类型选择按钮
+		if (editingPromotionId_ == 0) {
+			const char* types[] = { "reduction", "discount", "tiered", "freeitem", "coupon" };
+			for (int i = 0; i < 5; ++i) {
+				if (hit(promoTypeBtnRect(i), mousePos)) {
+					return { ClickAction::MerchantPromoSelectType, i };
+				}
+			}
+		}
+		// 参数输入框：点击聚焦
+		if (hit(promoParamsRect(), mousePos)) {
+			activeField_ = Field::PromotionParams;
+			return { ClickAction::None, 0 };
+		}
+		if (hit(promoSubmitBtnRect(), mousePos)) {
+			return { ClickAction::MerchantPromoFormSubmit, 0 };
+		}
+		if (hit(promoBackBtnRect(), mousePos)) {
+			return { ClickAction::MerchantPromoFormBack, 0 };
 		}
 	}
 	return { ClickAction::None, 0 };

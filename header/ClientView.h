@@ -14,12 +14,12 @@
 
 class ClientView {
 public:
-	// 注意顺序：Login=0；商家面板 Merchant/MerchantCreate 独立（不参与 Tab 切换）；
-	// ProductList/Cart/MyOrders 三面板按顶部 Tab 切换，Tab 索引仍按 0/1/2。
-	enum class Panel { Login, Merchant, MerchantCreate, MerchantEdit, ProductList, Cart, MyOrders };
+	// 注意顺序：Login=0；商家面板 Merchant/MerchantCreate/MerchantEdit/Promotion/PromotionForm 独立（不参与 Tab 切换）；
+	// ProductList/Cart/MyOrders 三面板按顶部 Tab 切换，Tab 索引仍按 0/1/2；商家 Tab 为 商品列表/我的订单/促销管理。
+	enum class Panel { Login, Merchant, MerchantCreate, MerchantEdit, ProductList, Cart, MyOrders, Promotion, PromotionForm };
 
-	// 当前聚焦的输入框（Login 面板用 Username/Password；MerchantCreate 面板用 Name/Price/Stock/Desc/Image）
-	enum class Field { Username, Password, ProductName, ProductPrice, ProductStock, ProductDesc, ProductImage, ProductSearch };
+	// 当前聚焦的输入框
+	enum class Field { Username, Password, ProductName, ProductPrice, ProductStock, ProductDesc, ProductImage, ProductSearch, PromotionParams };
 
 	// 鼠标点击命中后返回的动作；type=None 表示未命中任何按钮
 	struct ClickAction {
@@ -41,11 +41,19 @@ public:
 			MerchantEditSubmit,     // 商家编辑表单的"保存修改"按钮
 			MerchantEditBack,       // 商家编辑表单的"返回"按钮
 			MerchantShipOrder,      // 商家发货：orderId（待发货→已发货）
-			UserConfirmReceive      // 用户确认收货：orderId（已发货→已完成）
+			UserConfirmReceive,     // 用户确认收货：orderId（已发货→已完成）
+			MerchantPromoToggle,    // 商家启用/禁用促销：promotionId + arg(0=禁用,1=启用)
+			MerchantPromoEdit,      // 商家编辑促销：promotionId → 切到 PromotionForm 面板
+			MerchantPromoDelete,    // 商家删除促销：promotionId
+			MerchantPromoCreate,    // 商家新增促销入口：切到 PromotionForm 面板（创建模式）
+			MerchantPromoFormSubmit,// 促销表单提交（创建或编辑）
+			MerchantPromoFormBack,  // 促销表单返回：切回 Promotion 面板
+			MerchantPromoSelectType // 促销表单选择类型：arg 是类型索引 0..4
 		} type{ None };
-		std::int32_t arg{ 0 };     // AddToCart/RemoveFromCart 用 productId；SwitchPanel 用 panel 索引；FocusField 用 Field 索引；MerchantSetOnSale 用 0/1
+		std::int32_t arg{ 0 };     // 通用参数
 		std::int64_t orderId{};  // ReturnItem 用 orderId
 		std::int32_t productId{};// ReturnItem/Merchant* 用 productId
+		std::int32_t promotionId{}; // 促销操作的 promotionId
 		std::int32_t qty{ 1 };      // ReturnItem 的退货数量（暂固定 1，可扩展）
 	};
 
@@ -96,6 +104,20 @@ public:
 	// 当前正在编辑的 productId
 	std::int32_t editingProductId() const noexcept { return editingProductId_; }
 
+	// === 商家促销表单（创建/编辑共用）===
+	// 进入创建模式：清空表单，promotionId=0
+	void resetPromotionForm();
+	// 进入编辑模式：预填 type + params JSON，记录 promotionId
+	void setEditPromotion(std::int32_t id, const std::string& type, const nlohmann::json& params);
+	// 当前编辑的促销 id（0=创建模式）
+	std::int32_t editingPromotionId() const noexcept { return editingPromotionId_; }
+	// 当前选中的促销类型（创建模式下由用户选，编辑模式下固定）
+	const std::string& promoType() const noexcept { return promoType_; }
+	// 设置促销类型（创建模式下选择类型按钮调用）
+	void setPromoType(const std::string& type) { promoType_ = type; }
+	// 促销参数 JSON 文本输入框内容
+	const std::string& promotionParamsInput() const noexcept { return promotionParamsInput_; }
+
 	// 处理鼠标点击，返回命中按钮的动作；坐标为窗口世界坐标
 	ClickAction handleClick(const sf::Vector2f& mousePos, const ClientModel& model);
 
@@ -119,6 +141,10 @@ private:
 	Field       activeField_{ Field::Username };
 	// === 商家编辑商品的 productId ===
 	std::int32_t editingProductId_{ 0 };
+	// === 商家促销表单 ===
+	std::string promotionParamsInput_;  // params JSON 文本
+	std::int32_t editingPromotionId_{ 0 }; // 0=创建模式，>0=编辑模式
+	std::string promoType_;               // 当前促销类型
 
 	// === "我的订单"面板垂直滚动偏移（>=0，绘制时 y - offset）===
 	float myOrdersScrollY_{ 0.f };
@@ -174,6 +200,28 @@ private:
 
 	// === 商家编辑商品表单面板 ===
 	void drawMerchantEditPanel(const ClientModel& model);
+
+	// === 商家促销列表面板 ===
+	void drawPromotionPanel(const ClientModel& model);
+	// 促销行：启用/禁用按钮矩形
+	sf::FloatRect promoToggleBtnRect(const sf::Vector2f& rowPos) const;
+	// 促销行：编辑按钮矩形
+	sf::FloatRect promoEditBtnRect(const sf::Vector2f& rowPos) const;
+	// 促销行：删除按钮矩形
+	sf::FloatRect promoDeleteBtnRect(const sf::Vector2f& rowPos) const;
+	// 促销面板底部"新增促销"按钮矩形
+	sf::FloatRect promoCreateBtnRect() const;
+
+	// === 商家促销表单面板（创建/编辑）===
+	void drawPromotionFormPanel(const ClientModel& model);
+	// 促销类型选择按钮矩形；index 0..4 对应 5 种类型
+	sf::FloatRect promoTypeBtnRect(int index) const;
+	// 促销参数输入框矩形
+	sf::FloatRect promoParamsRect() const;
+	// 促销表单提交按钮矩形
+	sf::FloatRect promoSubmitBtnRect() const;
+	// 促销表单返回按钮矩形
+	sf::FloatRect promoBackBtnRect() const;
 
 	// === 按钮矩形计算（与 drawXxxPanel 内的布局保持一致）===
 	// 商品卡片右下角的"+加购"按钮

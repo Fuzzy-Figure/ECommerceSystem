@@ -75,6 +75,18 @@ public:
 	// 商家：用 MerchantEdit 表单输入提交编辑商品
 	void requestMerchantUpdateProduct(std::int32_t productId);
 
+	// === 商家促销管理 ===
+	// 拉取全部促销规则
+	void requestMerchantListPromotions();
+	// 启用/禁用指定促销规则
+	void requestMerchantSetPromotionEnabled(std::int32_t promotionId, bool enabled);
+	// 新建促销规则（type + params JSON 文本）
+	void requestMerchantCreatePromotion(const std::string& type, const std::string& paramsJson);
+	// 修改促销规则参数（仅 params，type 不可改）
+	void requestMerchantUpdatePromotion(std::int32_t promotionId, const std::string& paramsJson);
+	// 删除促销规则
+	void requestMerchantDeletePromotion(std::int32_t promotionId);
+
 	// 处理 SFML 事件（按键、关闭、文本输入等）
 	void handleEvent(const sf::Event& event);
 

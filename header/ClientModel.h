@@ -6,9 +6,18 @@
 #include <cstdint>
 #include <vector>
 #include <string>
+#include <json.hpp>
 #include "Product.h"
 #include "CartItem.h"
 #include "Order.h"
+
+// 促销规则（客户端展示用）
+struct Promotion {
+	std::int32_t  id{ 0 };
+	std::string   type;       // reduction/discount/tiered/freeitem/coupon
+	nlohmann::json params;
+	bool          enabled{ true };
+};
 
 class ClientModel {
 public:
@@ -40,6 +49,11 @@ public:
 	// 清空订单缓存（登出时调用，防止下个用户看到上一个用户的订单）
 	void clearOrders() noexcept { orders_.clear(); }
 
+	// === 商家促销规则 ===
+	void setPromotions(std::vector<Promotion> promotions) { promotions_ = std::move(promotions); }
+	const std::vector<Promotion>& promotions() const noexcept { return promotions_; }
+	void clearPromotions() noexcept { promotions_.clear(); }
+
 	// === 当前登录用户身份（业务状态，非 UI 状态）===
 	std::int64_t         currentUserId() const noexcept { return currentUserId_; }
 	const std::string& currentUsername() const noexcept { return currentUsername_; }
@@ -62,10 +76,11 @@ public:
 	}
 
 private:
-	std::vector<Product>  products_;
-	std::vector<CartItem> cart_;
-	std::vector<Order>    orders_;
-	std::wstring          status_;  // 当前状态/提示信息
+	std::vector<Product>   products_;
+	std::vector<CartItem>  cart_;
+	std::vector<Order>     orders_;
+	std::vector<Promotion> promotions_;
+	std::wstring           status_;  // 当前状态/提示信息
 
 	std::int64_t          currentUserId_{ 0 };
 	std::string           currentUsername_;
