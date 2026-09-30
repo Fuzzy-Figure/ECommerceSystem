@@ -95,6 +95,15 @@ void ServerController::handle(std::shared_ptr<sf::TcpSocket> socket, const nlohm
 		case static_cast<int>(proto::RequestCode::MerchantUpdateProduct):
 			response = handleMerchantUpdateProduct(request);
 			break;
+		case static_cast<int>(proto::RequestCode::MerchantListOrders):
+			response = handleMerchantListOrders(request);
+			break;
+		case static_cast<int>(proto::RequestCode::MerchantShipOrder):
+			response = handleMerchantShipOrder(request);
+			break;
+		case static_cast<int>(proto::RequestCode::UserConfirmReceive):
+			response = handleUserConfirmReceive(request);
+			break;
 		default:
 			response = {
 				{"code",    static_cast<int>(proto::ResponseCode::Error)},
@@ -488,4 +497,57 @@ nlohmann::json ServerController::handleMerchantUpdateProduct(const nlohmann::jso
 	}
 	std::cout << "[ServerController] 商家编辑商品 id=" << productId << " name=" << name << std::endl;
 	return { {"code", static_cast<int>(proto::ResponseCode::MerchantActionResult)}, {"success", true}, {"message", "编辑成功"} };
+}
+
+nlohmann::json ServerController::handleMerchantListOrders(const nlohmann::json& req) {
+	if (auto err = requireMerchant(req)) return *err;
+	auto orders = orderDao_.findAllWithItemsForMerchant();
+	nlohmann::json arr = nlohmann::json::array();
+	for (const auto& o : orders) arr.push_back(o.toJson());
+	return { {"code", static_cast<int>(proto::ResponseCode::MerchantOrderList)}, {"orders", arr} };
+}
+
+nlohmann::json ServerController::handleMerchantShipOrder(const nlohmann::json& req) {
+	if (auto err = requireMerchant(req)) return *err;
+	const auto orderId = req.value("orderId", std::int64_t{});
+	if (orderId <= 0) {
+		return { {"code", static_cast<int>(proto::ResponseCode::OrderStatusUpdateResult)}, {"success", false}, {"message", "发货失败：订单 ID 无效"} };
+	}
+	int shipStatus = 0;
+	std::int64_t orderUserId = 0;
+	if (!orderDao_.findOrderShipStatus(orderId, shipStatus, orderUserId)) {
+		return { {"code", static_cast<int>(proto::ResponseCode::OrderStatusUpdateResult)}, {"success", false}, {"message", "发货失败：订单不存在"} };
+	}
+	if (shipStatus != 0) {
+		return { {"code", static_cast<int>(proto::ResponseCode::OrderStatusUpdateResult)}, {"success", false}, {"message", "发货失败：订单已发货或已完成"} };
+	}
+	if (!orderDao_.updateShipStatus(orderId, 1)) {
+		return { {"code", static_cast<int>(proto::ResponseCode::OrderStatusUpdateResult)}, {"success", false}, {"message", "发货失败：数据库异常"} };
+	}
+	std::cout << "[ServerController] 商家发货 orderId=" << orderId << std::endl;
+	return { {"code", static_cast<int>(proto::ResponseCode::OrderStatusUpdateResult)}, {"success", true}, {"message", "发货成功"} };
+}
+
+nlohmann::json ServerController::handleUserConfirmReceive(const nlohmann::json& req) {
+	const auto userId = req.value("userId", std::int64_t{});
+	const auto orderId = req.value("orderId", std::int64_t{});
+	if (userId <= 0 || orderId <= 0) {
+		return { {"code", static_cast<int>(proto::ResponseCode::OrderStatusUpdateResult)}, {"success", false}, {"message", "确认收货失败：参数无效"} };
+	}
+	int shipStatus = 0;
+	std::int64_t orderUserId = 0;
+	if (!orderDao_.findOrderShipStatus(orderId, shipStatus, orderUserId)) {
+		return { {"code", static_cast<int>(proto::ResponseCode::OrderStatusUpdateResult)}, {"success", false}, {"message", "确认收货失败：订单不存在"} };
+	}
+	if (orderUserId != userId) {
+		return { {"code", static_cast<int>(proto::ResponseCode::OrderStatusUpdateResult)}, {"success", false}, {"message", "确认收货失败：无权操作他人订单"} };
+	}
+	if (shipStatus != 1) {
+		return { {"code", static_cast<int>(proto::ResponseCode::OrderStatusUpdateResult)}, {"success", false}, {"message", "确认收货失败：订单未发货或已完成"} };
+	}
+	if (!orderDao_.updateShipStatus(orderId, 2)) {
+		return { {"code", static_cast<int>(proto::ResponseCode::OrderStatusUpdateResult)}, {"success", false}, {"message", "确认收货失败：数据库异常"} };
+	}
+	std::cout << "[ServerController] 用户确认收货 orderId=" << orderId << " userId=" << userId << std::endl;
+	return { {"code", static_cast<int>(proto::ResponseCode::OrderStatusUpdateResult)}, {"success", true}, {"message", "已确认收货"} };
 }

@@ -152,27 +152,8 @@ void ClientView::drawLoginPanel(const ClientModel& model) {
 // ===================== 商家管理面板 =====================
 
 void ClientView::drawMerchantPanel(const ClientModel& model) {
-	// 顶部标题栏 + 用户名 + 登出按钮（复用 drawTabBar 的登出逻辑，但不画 Tab）
-	textMgr_.displayTextInUp(L"商家管理 - 商品上下架与库存调整", { 20, 12 }, sf::Color(40, 80, 160));
-
-	// 右上角用户名 + 登出
-	if (model.loggedIn()) {
-		const auto lr = logoutBtnRect();
-		std::wostringstream user;
-		user << L"商家：" << ec::string::to_utf16(model.currentUsername());
-		textMgr_.displayText(user.str(),
-							 { lr.position.x - 220, lr.position.y + 8 },
-							 { 18, 24 }, sf::Color(60, 60, 60));
-		sf::RectangleShape btn({ lr.size.x, lr.size.y });
-		btn.setPosition({ lr.position.x, lr.position.y });
-		btn.setFillColor(sf::Color(200, 80, 80));
-		btn.setOutlineColor(sf::Color(160, 60, 60));
-		btn.setOutlineThickness(1.f);
-		window_.draw(btn);
-		textMgr_.displayText(L"登出",
-							 { lr.position.x + 30, lr.position.y + 8 },
-							 { 18, 24 }, sf::Color::White);
-	}
+	// 画 Tab 栏（商家可在商品管理/我的订单间切换；右上角有用户名+登出）
+	drawTabBar(model);
 
 	// 状态信息
 	if (!model.status().empty()) {
@@ -564,8 +545,14 @@ void ClientView::clearInputs() noexcept {
 
 void ClientView::drawTabBar(const ClientModel& model) {
 	const wchar_t* labels[] = { L"商品列表", L"购物车", L"我的订单" };
-	// Panel 枚举包含 Login=0，Tab 索引 0/1/2 对应 ProductList/Cart/MyOrders，故减去 Login 偏移
-	const int current = static_cast<int>(panel_) - static_cast<int>(Panel::ProductList);
+	// Panel 枚举包含 Login/Merchant/MerchantCreate/MerchantEdit，Tab 索引 0/1/2 对应 ProductList/Cart/MyOrders。
+	// 商家面板 Merchant 视为 Tab 0（商品列表）高亮，其余面板按差值计算。
+	int current;
+	if (panel_ == Panel::Merchant) {
+		current = 0;
+	} else {
+		current = static_cast<int>(panel_) - static_cast<int>(Panel::ProductList);
+	}
 	for (int i = 0; i < 3; ++i) {
 		const auto r = tabBtnRect(i);
 		sf::RectangleShape bg({ r.size.x, r.size.y });
@@ -809,13 +796,23 @@ void ClientView::drawMyOrdersPanel(const ClientModel& model) {
 		bg.setOutlineThickness(1.f);
 		window_.draw(bg);
 
-		// 订单头：ID + 时间 + 状态
+		// 订单头：ID + 时间 + 状态 + 发货状态
 		std::wostringstream head;
 		head << L"订单 #" << order.id << L"   " << ec::string::to_utf16(order.createdAt);
+		// 商家看全部订单时显示下单用户名
+		if (model.isMerchant() && !order.username.empty()) {
+			head << L"   用户：" << ec::string::to_utf16(order.username);
+		}
 		switch (order.status) {
 			case 1:  head << L"   [部分退货]"; break;
 			case 2:  head << L"   [全部退货]"; break;
 			default: head << L"   [正常]";    break;
+		}
+		// 发货状态
+		switch (order.shipStatus) {
+			case 1: head << L"   [已发货]"; break;
+			case 2: head << L"   [已完成]"; break;
+			default: head << L"   [待发货]"; break;
 		}
 		textMgr_.displayText(head.str(), { orderCardX + 12, y + 8 }, { 18, 24 }, sf::Color::Black);
 
@@ -825,6 +822,33 @@ void ClientView::drawMyOrdersPanel(const ClientModel& model) {
 			<< L"  折扣 -¥" << order.discount
 			<< L"  实付 ¥" << order.finalTotal;
 		textMgr_.displayText(money.str(), { orderCardX + 12, y + 38 }, { 18, 22 }, sf::Color(80, 80, 80));
+
+		// 商家发货按钮（仅待发货状态）/ 用户确认收货按钮（仅已发货状态）
+		const sf::Vector2f cardTop{ orderCardX, y };
+		if (model.isMerchant() && order.shipStatus == 0) {
+			const auto r = orderActionBtnRect(cardTop);
+			sf::RectangleShape btn({ r.size.x, r.size.y });
+			btn.setPosition({ r.position.x, r.position.y });
+			btn.setFillColor(sf::Color(50, 150, 50));
+			btn.setOutlineColor(sf::Color(40, 120, 40));
+			btn.setOutlineThickness(1.f);
+			window_.draw(btn);
+			textMgr_.displayText(L"发货",
+								 { r.position.x + 18, r.position.y + 8 },
+								 { 16, 22 }, sf::Color::White);
+		}
+		else if (!model.isMerchant() && order.shipStatus == 1) {
+			const auto r = orderActionBtnRect(cardTop);
+			sf::RectangleShape btn({ r.size.x, r.size.y });
+			btn.setPosition({ r.position.x, r.position.y });
+			btn.setFillColor(sf::Color(80, 130, 200));
+			btn.setOutlineColor(sf::Color(60, 100, 170));
+			btn.setOutlineThickness(1.f);
+			window_.draw(btn);
+			textMgr_.displayText(L"确认收货",
+								 { r.position.x + 12, r.position.y + 8 },
+								 { 16, 22 }, sf::Color::White);
+		}
 
 		// 明细表头
 		float itemY = y + 70.f;
@@ -836,9 +860,9 @@ void ClientView::drawMyOrdersPanel(const ClientModel& model) {
 		itemY += 20.f;
 		for (const auto& it : order.items) {
 			const sf::Vector2f rowPos{ orderCardX, itemY };
-			// 仅当该明细还有可退数量（status≠2 且 qty>returnedQty）时绘制退货按钮
+			// 仅普通用户、订单已完成（shipStatus==2）且该明细还有可退数量时绘制退货按钮
 			const std::int32_t returnable = it.qty - it.returnedQty;
-			if (order.status != 2 && returnable > 0) {
+			if (!model.isMerchant() && order.shipStatus == 2 && order.status != 2 && returnable > 0) {
 				const auto r = returnBtnRect(rowPos);
 				sf::RectangleShape btn({ r.size.x, r.size.y });
 				btn.setPosition({ r.position.x, r.position.y });
@@ -932,12 +956,29 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 		// 复刻 drawMyOrdersPanel 的布局：从 orderCardStartY - 滚动偏移 起逐订单逐明细下移
 		float y = orderCardStartY - myOrdersScrollY_;
 		for (const auto& order : model.orders()) {
+			// 订单卡片右上角操作按钮：商家发货 / 用户确认收货
+			const sf::Vector2f cardTop{ orderCardX, y };
+			if (model.isMerchant() && order.shipStatus == 0) {
+				if (hit(orderActionBtnRect(cardTop), mousePos)) {
+					ClickAction act{ ClickAction::MerchantShipOrder, 0 };
+					act.orderId = order.id;
+					return act;
+				}
+			}
+			else if (!model.isMerchant() && order.shipStatus == 1) {
+				if (hit(orderActionBtnRect(cardTop), mousePos)) {
+					ClickAction act{ ClickAction::UserConfirmReceive, 0 };
+					act.orderId = order.id;
+					return act;
+				}
+			}
 			const float itemY0 = y + 70.f + 20.f;  // 头 + 表头
 			float itemY = itemY0;
 			for (const auto& it : order.items) {
 				const sf::Vector2f rowPos{ orderCardX, itemY };
 				const std::int32_t returnable = it.qty - it.returnedQty;
-				if (order.status != 2 && returnable > 0) {
+				// 仅普通用户、已完成订单可退货
+				if (!model.isMerchant() && order.shipStatus == 2 && order.status != 2 && returnable > 0) {
 					if (hit(returnBtnRect(rowPos), mousePos)) {
 						ClickAction act{ ClickAction::ReturnItem, 0 };
 						act.orderId = order.id;
@@ -1041,6 +1082,12 @@ sf::FloatRect ClientView::checkoutBtnRect() {
 sf::FloatRect ClientView::returnBtnRect(const sf::Vector2f& rowPos) {
 	return sf::FloatRect(sf::Vector2f{ rowPos.x + retBtnDX, rowPos.y + retBtnDY },
 						 sf::Vector2f{ retBtnW, retBtnH });
+}
+
+sf::FloatRect ClientView::orderActionBtnRect(const sf::Vector2f& cardTop) const {
+	constexpr float w = 90.f, h = 32.f;
+	const float x = cardTop.x + orderCardW - w - 10.f;
+	return sf::FloatRect(sf::Vector2f{ x, cardTop.y + 6.f }, sf::Vector2f{ w, h });
 }
 
 sf::FloatRect ClientView::tabBtnRect(int index) {

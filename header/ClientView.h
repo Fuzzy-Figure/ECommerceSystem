@@ -39,7 +39,9 @@ public:
 			MerchantDeleteProduct,  // 商家删除商品：productId
 			MerchantEditProduct,    // 商家编辑商品：productId → 预填表单切到 MerchantEdit 面板
 			MerchantEditSubmit,     // 商家编辑表单的"保存修改"按钮
-			MerchantEditBack        // 商家编辑表单的"返回"按钮
+			MerchantEditBack,       // 商家编辑表单的"返回"按钮
+			MerchantShipOrder,      // 商家发货：orderId（待发货→已发货）
+			UserConfirmReceive      // 用户确认收货：orderId（已发货→已完成）
 		} type{ None };
 		std::int32_t arg{ 0 };     // AddToCart/RemoveFromCart 用 productId；SwitchPanel 用 panel 索引；FocusField 用 Field 索引；MerchantSetOnSale 用 0/1
 		std::int64_t orderId{};  // ReturnItem 用 orderId
@@ -180,6 +182,8 @@ private:
 	static sf::FloatRect checkoutBtnRect();
 	// 订单明细行右端的"退货"按钮；rowPos 是该明细行左上角
 	static sf::FloatRect returnBtnRect(const sf::Vector2f& rowPos);
+	// 订单卡片右上角操作按钮（发货/确认收货）；cardTop 是卡片左上角
+	sf::FloatRect orderActionBtnRect(const sf::Vector2f& cardTop) const;
 	// 顶部 Tab 标签矩形；index 取 0/1/2 对应 ProductList/Cart/MyOrders
 	static sf::FloatRect tabBtnRect(int index);
 	// 登录面板输入框矩形；field=0 用户名，1 密码

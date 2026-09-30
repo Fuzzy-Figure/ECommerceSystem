@@ -99,6 +99,60 @@ void ClientController::requestListOrders() {
 	model_.setStatus(L"已请求历史订单，等待服务器响应...");
 }
 
+void ClientController::requestMerchantListOrders() {
+	if (!socket_) {
+		model_.setStatus(L"未连接服务器，无法拉取订单");
+		return;
+	}
+	const nlohmann::json req = {
+		{"code",   static_cast<int>(proto::RequestCode::MerchantListOrders)},
+		{"userId", model_.currentUserId()}
+	};
+	if (!proto::sendJson(*socket_, req)) {
+		model_.setStatus(L"发送商家订单列表请求失败，连接可能已断开");
+		return;
+	}
+	model_.setStatus(L"已请求全部订单，等待服务器响应...");
+}
+
+void ClientController::requestMerchantShipOrder(std::int64_t orderId) {
+	if (!socket_) {
+		model_.setStatus(L"未连接服务器，无法发货");
+		return;
+	}
+	const nlohmann::json req = {
+		{"code",    static_cast<int>(proto::RequestCode::MerchantShipOrder)},
+		{"userId",  model_.currentUserId()},
+		{"orderId", orderId}
+	};
+	if (!proto::sendJson(*socket_, req)) {
+		model_.setStatus(L"发送发货请求失败，连接可能已断开");
+		return;
+	}
+	std::wostringstream ss;
+	ss << L"正在对订单 #" << orderId << L" 发货...";
+	model_.setStatus(ss.str());
+}
+
+void ClientController::requestUserConfirmReceive(std::int64_t orderId) {
+	if (!socket_) {
+		model_.setStatus(L"未连接服务器，无法确认收货");
+		return;
+	}
+	const nlohmann::json req = {
+		{"code",    static_cast<int>(proto::RequestCode::UserConfirmReceive)},
+		{"userId",  model_.currentUserId()},
+		{"orderId", orderId}
+	};
+	if (!proto::sendJson(*socket_, req)) {
+		model_.setStatus(L"发送确认收货请求失败，连接可能已断开");
+		return;
+	}
+	std::wostringstream ss;
+	ss << L"正在确认订单 #" << orderId << L" 收货...";
+	model_.setStatus(ss.str());
+}
+
 void ClientController::requestAfterSale(std::int64_t orderId, std::int32_t productId, std::int32_t qty) {
 	if (!socket_) {
 		model_.setStatus(L"未连接服务器，无法发起售后");
@@ -357,6 +411,12 @@ void ClientController::handleEvent(const sf::Event& event) {
 				case ClientView::ClickAction::ReturnItem:
 					requestAfterSale(action.orderId, action.productId, action.qty);
 					break;
+				case ClientView::ClickAction::MerchantShipOrder:
+					requestMerchantShipOrder(action.orderId);
+					break;
+				case ClientView::ClickAction::UserConfirmReceive:
+					requestUserConfirmReceive(action.orderId);
+					break;
 				case ClientView::ClickAction::SwitchPanel: {
 					const int idx = action.arg;
 					const auto target = static_cast<ClientView::Panel>(idx);
@@ -369,14 +429,23 @@ void ClientController::handleEvent(const sf::Event& event) {
 					}
 					else if (idx >= static_cast<int>(ClientView::Panel::ProductList)
 							 && idx <= static_cast<int>(ClientView::Panel::MyOrders)) {
-						view_.setPanel(target);
+						// 商家点"商品列表"Tab → 回商家商品管理面板；其余 Tab 正常切
+						if (model_.isMerchant() && target == ClientView::Panel::ProductList) {
+							view_.setPanel(ClientView::Panel::Merchant);
+							model_.setStatus(L"商家商品管理");
+						}
+						else {
+							view_.setPanel(target);
+						}
 						// 进入商品列表/订单列表时自动拉取最新数据
-						if (target == ClientView::Panel::ProductList) {
+						if (target == ClientView::Panel::ProductList && !model_.isMerchant()) {
 							requestProductList();
 						}
 						else if (target == ClientView::Panel::MyOrders) {
 							view_.resetMyOrdersScroll();  // 切回时重置滚动到顶
-							requestListOrders();
+							// 商家看全部订单，普通用户看自己的订单
+							if (model_.isMerchant()) requestMerchantListOrders();
+							else requestListOrders();
 						}
 					}
 					break;
@@ -603,7 +672,8 @@ void ClientController::processMessage(nlohmann::json& msg) {
 			}
 			break;
 		}
-		case static_cast<int>(proto::ResponseCode::OrderList): {
+		case static_cast<int>(proto::ResponseCode::OrderList):
+		case static_cast<int>(proto::ResponseCode::MerchantOrderList): {
 			std::vector<Order> orders;
 			if (msg.contains("orders") && msg["orders"].is_array()) {
 				for (const auto& oj : msg["orders"]) {
@@ -612,8 +682,19 @@ void ClientController::processMessage(nlohmann::json& msg) {
 			}
 			model_.setOrders(std::move(orders));
 			std::wostringstream ss;
-			ss << L"已加载 " << model_.orders().size() << L" 条历史订单";
+			ss << L"已加载 " << model_.orders().size() << L" 条订单";
 			model_.setStatus(ss.str());
+			break;
+		}
+		case static_cast<int>(proto::ResponseCode::OrderStatusUpdateResult): {
+			const auto success = msg.value("success", false);
+			const auto m = msg.value("message", std::string{});
+			model_.setStatus(ec::string::to_utf16(m));
+			if (success) {
+				// 发货/确认收货成功后刷新订单列表
+				if (model_.isMerchant()) requestMerchantListOrders();
+				else requestListOrders();
+			}
 			break;
 		}
 		case static_cast<int>(proto::ResponseCode::AfterSaleResult): {

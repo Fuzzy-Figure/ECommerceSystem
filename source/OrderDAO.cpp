@@ -142,7 +142,7 @@ void OrderDAO::loadItemsOf(Order& order) {
 std::vector<Order> OrderDAO::findAllWithItems(std::int64_t userId) {
 	// 查订单按 id 倒序（最新在前）；userId > 0 只查该用户订单
 	std::ostringstream q;
-	q << "SELECT id, total, discount, final_total, status, created_at FROM orders";
+	q << "SELECT id, total, discount, final_total, status, ship_status, created_at FROM orders";
 	if (userId > 0) q << " WHERE user_id=" << userId;
 	q << " ORDER BY id DESC;";
 	auto rows = db_.query(q.str());
@@ -155,11 +155,55 @@ std::vector<Order> OrderDAO::findAllWithItems(std::int64_t userId) {
 		o.discount = toDouble(r["discount"]);
 		o.finalTotal = toDouble(r["final_total"]);
 		o.status = toInt32(r["status"]);
+		o.shipStatus = toInt32(r["ship_status"]);
 		o.createdAt = toStr(r["created_at"]);
 		loadItemsOf(o);
 		result.push_back(std::move(o));
 	}
 	return result;
+}
+
+std::vector<Order> OrderDAO::findAllWithItemsForMerchant() {
+	// 商家看全部订单 + 联查 users 拿下单用户名
+	std::ostringstream q;
+	q << "SELECT o.id, o.total, o.discount, o.final_total, o.status, o.ship_status, o.created_at, "
+		"COALESCE(u.username, '未知用户') AS username "
+		"FROM orders o LEFT JOIN users u ON o.user_id = u.id ORDER BY o.id DESC;";
+	auto rows = db_.query(q.str());
+	std::vector<Order> result;
+	result.reserve(rows.size());
+	for (const auto& r : rows) {
+		Order o;
+		o.id = toInt64(r["id"]);
+		o.originalTotal = toDouble(r["total"]);
+		o.discount = toDouble(r["discount"]);
+		o.finalTotal = toDouble(r["final_total"]);
+		o.status = toInt32(r["status"]);
+		o.shipStatus = toInt32(r["ship_status"]);
+		o.createdAt = toStr(r["created_at"]);
+		o.username = toStr(r["username"]);
+		loadItemsOf(o);
+		result.push_back(std::move(o));
+	}
+	return result;
+}
+
+bool OrderDAO::updateShipStatus(std::int64_t orderId, int newStatus) {
+	if (orderId <= 0 || newStatus < 0 || newStatus > 2) return false;
+	std::ostringstream ss;
+	ss << "UPDATE orders SET ship_status=" << newStatus << " WHERE id=" << orderId << ";";
+	return db_.execute(ss.str()) > 0;
+}
+
+bool OrderDAO::findOrderShipStatus(std::int64_t orderId, int& statusOut, std::int64_t& userIdOut) {
+	if (orderId <= 0) return false;
+	std::ostringstream q;
+	q << "SELECT ship_status, user_id FROM orders WHERE id=" << orderId << ";";
+	auto rows = db_.query(q.str());
+	if (rows.empty()) return false;
+	statusOut = toInt32(rows.front()["ship_status"]);
+	userIdOut = toInt64(rows.front()["user_id"]);
+	return true;
 }
 
 bool OrderDAO::placeReturn(std::int64_t       orderId,

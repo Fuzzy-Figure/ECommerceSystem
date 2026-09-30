@@ -19,7 +19,8 @@ namespace {
 	//   v3 = orders 加 status 列（退货状态）+ order_items 加 returned_qty 列
 	//   v4 = users 表 + orders 加 user_id 列 + 种子用户
 	//   v5 = products 加 on_sale 列（上下架）+ users 加 role 列（0普通/1商家）
-	constexpr int kSchemaVersion = 5;
+	//   v6 = orders 加 ship_status 列（0待发货/1已发货/2已完成）
+	constexpr int kSchemaVersion = 6;
 
 	// 创建 schema 并插入种子数据；旧版本库会先 DROP 再重建
 	void initDatabase(Database& db) {
@@ -61,16 +62,18 @@ namespace {
 		// 订单主表 + 明细表：结算时由 OrderDAO 在同一事务内写入
 		// total=原价合计，discount=促销总折扣，final_total=实付（total-discount）
 		// status: 0=正常, 1=部分退货, 2=全部退货
+		// ship_status: 0=待发货, 1=已发货, 2=已完成
 		// user_id: 关联下单用户（0=未登录用户下单）
 		db.execute(
 			"CREATE TABLE IF NOT EXISTS orders ("
-			"  id         INTEGER PRIMARY KEY AUTOINCREMENT,"
-			"  user_id    INTEGER NOT NULL DEFAULT 0,"
-			"  total      REAL NOT NULL,"
-			"  discount   REAL NOT NULL DEFAULT 0,"
+			"  id          INTEGER PRIMARY KEY AUTOINCREMENT,"
+			"  user_id     INTEGER NOT NULL DEFAULT 0,"
+			"  total       REAL NOT NULL,"
+			"  discount    REAL NOT NULL DEFAULT 0,"
 			"  final_total REAL NOT NULL,"
-			"  status     INTEGER NOT NULL DEFAULT 0,"
-			"  created_at TEXT NOT NULL"
+			"  status      INTEGER NOT NULL DEFAULT 0,"
+			"  ship_status INTEGER NOT NULL DEFAULT 0,"
+			"  created_at  TEXT NOT NULL"
 			");"
 		);
 		db.execute(

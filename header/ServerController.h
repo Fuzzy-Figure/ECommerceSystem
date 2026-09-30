@@ -88,7 +88,13 @@ private:
 	// 商家删除商品：{userId, productId} → MerchantActionResult
 	nlohmann::json handleMerchantDeleteProduct(const nlohmann::json& req);
 	// 商家编辑商品：{userId, productId, name, description, price, stock, imagePath} → MerchantActionResult
-	nlohmann::json handleMerchantUpdateProduct(const nlohmann::json& req);
+    nlohmann::json handleMerchantUpdateProduct(const nlohmann::json& req);
+    // 商家拉取全部订单（含用户名）：{userId} → MerchantOrderList
+    nlohmann::json handleMerchantListOrders(const nlohmann::json& req);
+    // 商家发货：{userId, orderId} → OrderStatusUpdateResult（待发货→已发货）
+    nlohmann::json handleMerchantShipOrder(const nlohmann::json& req);
+    // 用户确认收货：{userId, orderId} → OrderStatusUpdateResult（已发货→已完成）
+    nlohmann::json handleUserConfirmReceive(const nlohmann::json& req);
 	// 校验请求发起者是否为商家（role=1），不是则返回错误应答
 	// 成功返回 nullopt，失败返回已构造好的错误 JSON
 	std::optional<nlohmann::json> requireMerchant(const nlohmann::json& req);

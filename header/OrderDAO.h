@@ -23,9 +23,18 @@ public:
 							double& originalTotalOut,
 							double& finalTotalOut);
 
-	// 拉取历史订单（含明细 + 已退数量），按 id 倒序（最新在前）
+	// 拉取历史订单（含明细 + 已退数量 + 发货状态），按 id 倒序（最新在前）
 	// userId > 0 只返回该用户订单；userId = 0 返回全部（兼容）
 	std::vector<Order> findAllWithItems(std::int64_t userId = 0);
+
+	// 商家拉取全部订单（含明细 + 下单用户名）
+	std::vector<Order> findAllWithItemsForMerchant();
+
+	// 更新订单发货状态（0待发货/1已发货/2已完成）
+	bool updateShipStatus(std::int64_t orderId, int newStatus);
+
+	// 查询订单当前发货状态 + 下单 userId（用于发货/确认收货前的状态校验）
+	bool findOrderShipStatus(std::int64_t orderId, int& statusOut, std::int64_t& userIdOut);
 
 	// 售后退货：把指定订单内某 productId 的 returnQty 件退货
 	// 成功返回 true，refundOut 填退款金额（按 finalTotal/originalTotal 比例分摊）

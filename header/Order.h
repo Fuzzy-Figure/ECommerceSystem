@@ -40,6 +40,8 @@ struct Order {
 	double       finalTotal{};     // 实付
 	std::string  createdAt;
 	int          status{};         // 0=正常, 1=部分退货, 2=全部退货
+	int          shipStatus{};     // 0=待发货, 1=已发货, 2=已完成
+	std::string  username;         // 下单用户名（商家端展示用，用户端为空）
 	std::vector<OrderItem> items;
 
 	nlohmann::json toJson() const {
@@ -52,6 +54,8 @@ struct Order {
 			{"finalTotal",   finalTotal},
 			{"createdAt",    createdAt},
 			{"status",       status},
+			{"shipStatus",   shipStatus},
+			{"username",     username},
 			{"items",        arr},
 		};
 	}
@@ -63,6 +67,8 @@ struct Order {
 		o.finalTotal = j.value("finalTotal", 0.0);
 		o.createdAt = j.value("createdAt", std::string{});
 		o.status = j.value("status", 0);
+		o.shipStatus = j.value("shipStatus", 0);
+		o.username = j.value("username", std::string{});
 		if (j.contains("items") && j["items"].is_array()) {
 			for (const auto& ij : j["items"]) o.items.push_back(OrderItem::fromJson(ij));
 		}

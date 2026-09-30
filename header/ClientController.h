@@ -36,8 +36,17 @@ public:
 	// 提交购物车结算请求：把本地 cart 序列化为 items 上传
 	void requestCheckout();
 
-	// 拉取历史订单列表（用于"我的订单"面板）
+	// 拉取历史订单列表（用户拉自己的订单，用于"我的订单"面板）
 	void requestListOrders();
+
+	// 商家拉取全部订单列表（含下单用户名）
+	void requestMerchantListOrders();
+
+	// 商家发货：{orderId}（待发货→已发货）
+	void requestMerchantShipOrder(std::int64_t orderId);
+
+	// 用户确认收货：{orderId}（已发货→已完成）
+	void requestUserConfirmReceive(std::int64_t orderId);
 
 	// 发起售后退货：把指定订单内某 productId 的 qty 件退货
 	void requestAfterSale(std::int64_t orderId, std::int32_t productId, std::int32_t qty);

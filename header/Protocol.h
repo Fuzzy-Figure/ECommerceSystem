@@ -24,7 +24,10 @@ namespace proto {
 		MerchantCreateProduct,// 商家新增商品：{userId, name, description, price, stock, imagePath}
 		MerchantDeleteProduct,// 商家删除商品：{userId, productId}
 		MerchantUpdateProduct,// 商家编辑商品：{userId, productId, name, description, price, stock, imagePath}
-	};
+        MerchantListOrders,   // 商家拉取全部订单（含用户名）：{userId}
+        MerchantShipOrder,    // 商家发货：{userId, orderId}（待发货→已发货）
+        UserConfirmReceive,   // 用户确认收货：{userId, orderId}（已发货→已完成）
+    };
 
 	// 应答码（服务端响应）
 	enum class ResponseCode : std::int32_t {
@@ -38,6 +41,8 @@ namespace proto {
 		RegisterResult,   // 注册结果：{success, userId, message}
 		MerchantProductList,  // 商家商品列表：{products:[...]}
 		MerchantActionResult, // 商家操作结果：{success, message}
+		MerchantOrderList,    // 商家订单列表（含用户名）：{orders:[...]}
+		OrderStatusUpdateResult, // 订单状态更新结果：{success, message}
 	};
 
 	// 阻塞发送一条 JSON 消息；处理 Partial 直至全部发出。
