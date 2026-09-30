@@ -737,6 +737,7 @@ void ClientController::processMessage(nlohmann::json& msg) {
 				if (model_.isMerchant()) {
 					view_.setPanel(ClientView::Panel::Merchant);
 					requestMerchantListProducts();
+					requestMerchantListOrders();  // 同时加载订单，供商家统计面板使用
 				}
 				else {
 					view_.setPanel(ClientView::Panel::ProductList);
@@ -798,8 +799,9 @@ void ClientController::processMessage(nlohmann::json& msg) {
 					view_.clearInputs();
 					view_.setPanel(ClientView::Panel::Merchant);
 				}
-				// 刷新商家商品列表，看到最新上下架状态/库存/新增/编辑后的商品
+				// 刷新商家商品列表 + 订单列表，统计数据保持最新
 				requestMerchantListProducts();
+				if (model_.isMerchant()) requestMerchantListOrders();
 			}
 			break;
 		}

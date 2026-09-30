@@ -164,6 +164,58 @@ void ClientView::drawMerchantPanel(const ClientModel& model) {
 	}
 
 	const auto& products = model.products();
+	const auto& orders = model.orders();
+
+	// === 商家统计摘要栏 ===
+	{
+		// 统计指标
+		std::int32_t totalOrders = static_cast<std::int32_t>(orders.size());
+		double totalRevenue = 0.0;
+		std::int32_t pendingShip = 0;
+		for (const auto& o : orders) {
+			totalRevenue += o.finalTotal;
+			if (o.shipStatus == 0) ++pendingShip;
+		}
+		std::int32_t lowStockCount = 0;
+		for (const auto& p : products) {
+			if (p.stock < 10) ++lowStockCount;
+		}
+
+		// 4 个统计卡片，横向排列在商品表上方
+		constexpr float statY = 60.f;
+		constexpr float statH = 70.f;
+		constexpr float statGap = 12.f;
+		const float statW = (orderCardW - statGap * 3) / 4.f;
+
+		struct StatItem { const wchar_t* label; double value; const wchar_t* suffix; sf::Color color; bool isMoney; };
+		const StatItem stats[] = {
+			{ L"总订单数",   static_cast<double>(totalOrders),   L" 单", sf::Color(80, 130, 200),  false },
+			{ L"总销售额",   totalRevenue,                        L" 元", sf::Color(50, 150, 80),   true  },
+			{ L"待发货",     static_cast<double>(pendingShip),    L" 单", sf::Color(220, 130, 30),  false },
+			{ L"库存预警",   static_cast<double>(lowStockCount),  L" 件", lowStockCount > 0 ? sf::Color(220, 80, 80) : sf::Color(120, 120, 120), false },
+		};
+		for (int i = 0; i < 4; ++i) {
+			const float x = orderCardX + i * (statW + statGap);
+			sf::RectangleShape card({ statW, statH });
+			card.setPosition({ x, statY });
+			card.setFillColor(sf::Color(250, 250, 250));
+			card.setOutlineColor(sf::Color(220, 220, 220));
+			card.setOutlineThickness(1.f);
+			window_.draw(card);
+			// 标签
+			textMgr_.displayText(stats[i].label, { x + 14, statY + 10 }, { 16, 22 }, sf::Color(120, 120, 120));
+			// 数值：销售额保留 2 位小数，其余按整数显示
+			std::wostringstream vs;
+			if (stats[i].isMoney) {
+				vs.precision(2);
+				vs << std::fixed << stats[i].value << stats[i].suffix;
+			} else {
+				vs << static_cast<std::int64_t>(stats[i].value) << stats[i].suffix;
+			}
+			textMgr_.displayText(vs.str(), { x + 14, statY + 36 }, { 22, 30 }, stats[i].color);
+		}
+	}
+
 	if (products.empty()) {
 		textMgr_.displayTextInCenter(L"暂无商品数据", { 20, 30 }, sf::Color(150, 150, 150));
 		return;
@@ -195,9 +247,10 @@ void ClientView::drawMerchantPanel(const ClientModel& model) {
 		// 价格
 		std::wostringstream pp; pp << L"¥" << p.price;
 		textMgr_.displayText(pp.str(), { rowPos.x + 450, rowPos.y + 12 }, { 18, 24 }, sf::Color(80, 80, 80));
-		// 库存
+		// 库存（<10 标红预警）
 		std::wostringstream ss; ss << p.stock;
-		textMgr_.displayText(ss.str(), { rowPos.x + 600, rowPos.y + 12 }, { 18, 24 }, sf::Color::Black);
+		textMgr_.displayText(ss.str(), { rowPos.x + 600, rowPos.y + 12 }, { 18, 24 },
+							 p.stock < 10 ? sf::Color(220, 80, 80) : sf::Color::Black);
 		// 状态
 		textMgr_.displayText(p.onSale ? L"已上架" : L"已下架",
 							 { rowPos.x + 750, rowPos.y + 12 }, { 18, 24 },
