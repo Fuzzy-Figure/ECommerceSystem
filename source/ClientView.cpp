@@ -550,7 +550,8 @@ void ClientView::drawTabBar(const ClientModel& model) {
 	int current;
 	if (panel_ == Panel::Merchant) {
 		current = 0;
-	} else {
+	}
+	else {
 		current = static_cast<int>(panel_) - static_cast<int>(Panel::ProductList);
 	}
 	for (int i = 0; i < 3; ++i) {
