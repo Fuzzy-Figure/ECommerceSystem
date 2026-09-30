@@ -1,6 +1,7 @@
 #include "../header/ClientView.h"
 #include "../header/utils.h"
 #include <algorithm>
+#include <iomanip>
 #include <sstream>
 #include <string>
 
@@ -581,7 +582,7 @@ static const wchar_t* promoTypeName(const std::string& type) {
 void ClientView::drawPromotionPanel(const ClientModel& model) {
 	drawTabBar(model);
 	if (!model.status().empty()) {
-		textMgr_.displayText(model.status(), { 700, statusY }, { 18, 22 }, sf::Color(150, 150, 150));
+		textMgr_.displayText(model.status(), { 700, statusY }, { 22, 26 }, sf::Color(150, 150, 150));
 	}
 
 	const auto& promotions = model.promotions();
@@ -591,12 +592,12 @@ void ClientView::drawPromotionPanel(const ClientModel& model) {
 	else {
 		// 表头
 		const float tableY = orderCardStartY;
-		textMgr_.displayText(L"类型",   { orderCardX + 12,  tableY }, { 18, 24 }, sf::Color(120, 120, 120));
-		textMgr_.displayText(L"规则",   { orderCardX + 200, tableY }, { 18, 24 }, sf::Color(120, 120, 120));
-		textMgr_.displayText(L"状态",   { orderCardX + 650, tableY }, { 18, 24 }, sf::Color(120, 120, 120));
+		textMgr_.displayText(L"类型",   { orderCardX + 12,  tableY }, { 22, 28 }, sf::Color(120, 120, 120));
+		textMgr_.displayText(L"规则",   { orderCardX + 200, tableY }, { 22, 28 }, sf::Color(120, 120, 120));
+		textMgr_.displayText(L"状态",   { orderCardX + 650, tableY }, { 22, 28 }, sf::Color(120, 120, 120));
 
-		float rowY = tableY + 30.f;
-		constexpr float rowH = 44.f;
+		float rowY = tableY + 34.f;
+		constexpr float rowH = 52.f;
 		for (const auto& p : promotions) {
 			const sf::Vector2f rowPos{ orderCardX, rowY };
 
@@ -609,13 +610,13 @@ void ClientView::drawPromotionPanel(const ClientModel& model) {
 
 			// 类型
 			textMgr_.displayText(promoTypeName(p.type),
-								 { rowPos.x + 12, rowPos.y + 12 }, { 18, 24 }, sf::Color::Black);
+								 { rowPos.x + 12, rowPos.y + 14 }, { 22, 28 }, sf::Color::Black);
 			// 规则描述
 			textMgr_.displayText(describePromotion(p.type, p.params),
-								 { rowPos.x + 200, rowPos.y + 12 }, { 18, 24 }, sf::Color(80, 80, 80));
+								 { rowPos.x + 200, rowPos.y + 14 }, { 22, 28 }, sf::Color(80, 80, 80));
 			// 状态
 			textMgr_.displayText(p.enabled ? L"已启用" : L"已禁用",
-								 { rowPos.x + 650, rowPos.y + 12 }, { 18, 24 },
+								 { rowPos.x + 650, rowPos.y + 14 }, { 22, 28 },
 								 p.enabled ? sf::Color(50, 150, 50) : sf::Color(180, 80, 80));
 
 			// 启用/禁用按钮
@@ -626,7 +627,7 @@ void ClientView::drawPromotionPanel(const ClientModel& model) {
 			tgBtn.setOutlineThickness(1.f);
 			window_.draw(tgBtn);
 			textMgr_.displayText(p.enabled ? L"禁用" : L"启用",
-								 { tg.position.x + 14, tg.position.y + 8 }, { 16, 22 }, sf::Color::White);
+								 { tg.position.x + 16, tg.position.y + 6 }, { 20, 26 }, sf::Color::White);
 
 			// 编辑按钮
 			const auto ed = promoEditBtnRect(rowPos);
@@ -635,7 +636,7 @@ void ClientView::drawPromotionPanel(const ClientModel& model) {
 			edBtn.setFillColor(sf::Color(80, 130, 200));
 			edBtn.setOutlineThickness(1.f);
 			window_.draw(edBtn);
-			textMgr_.displayText(L"编辑", { ed.position.x + 14, ed.position.y + 8 }, { 16, 22 }, sf::Color::White);
+			textMgr_.displayText(L"编辑", { ed.position.x + 16, ed.position.y + 6 }, { 20, 26 }, sf::Color::White);
 
 			// 删除按钮
 			const auto dl = promoDeleteBtnRect(rowPos);
@@ -644,7 +645,7 @@ void ClientView::drawPromotionPanel(const ClientModel& model) {
 			dlBtn.setFillColor(sf::Color(220, 80, 80));
 			dlBtn.setOutlineThickness(1.f);
 			window_.draw(dlBtn);
-			textMgr_.displayText(L"删除", { dl.position.x + 14, dl.position.y + 8 }, { 16, 22 }, sf::Color::White);
+			textMgr_.displayText(L"删除", { dl.position.x + 16, dl.position.y + 6 }, { 20, 26 }, sf::Color::White);
 
 			rowY += rowH + 4.f;
 		}
@@ -659,8 +660,8 @@ void ClientView::drawPromotionPanel(const ClientModel& model) {
 	createBtn.setOutlineThickness(1.f);
 	window_.draw(createBtn);
 	textMgr_.displayText(L"+ 新增促销",
-						 { cb.position.x + 20, cb.position.y + 8 },
-						 { 18, 24 }, sf::Color::White);
+						 { cb.position.x + 24, cb.position.y + 6 },
+						 { 22, 28 }, sf::Color::White);
 }
 
 // ===================== 商家促销表单面板（创建/编辑）=====================
@@ -675,10 +676,10 @@ void ClientView::drawPromotionFormPanel(const ClientModel& model) {
 	constexpr int typeCount = 5;
 	if (isEdit) {
 		textMgr_.displayText(std::wstring(L"类型：") + promoTypeName(promoType_),
-							 { 100, 120 }, { 18, 24 }, sf::Color::Black);
+							 { 100, 120 }, { 22, 28 }, sf::Color::Black);
 	}
 	else {
-		textMgr_.displayText(L"选择类型：", { 100, 120 }, { 18, 24 }, sf::Color(120, 120, 120));
+		textMgr_.displayText(L"选择类型：", { 100, 120 }, { 22, 28 }, sf::Color(120, 120, 120));
 		for (int i = 0; i < typeCount; ++i) {
 			const auto r = promoTypeBtnRect(i);
 			const bool selected = (promoType_ == types[i]);
@@ -689,8 +690,8 @@ void ClientView::drawPromotionFormPanel(const ClientModel& model) {
 			btn.setOutlineThickness(1.f);
 			window_.draw(btn);
 			textMgr_.displayText(promoTypeName(types[i]),
-								 { r.position.x + 14, r.position.y + 8 },
-								 { 16, 22 }, selected ? sf::Color::White : sf::Color::Black);
+								 { r.position.x + 16, r.position.y + 6 },
+								 { 20, 26 }, selected ? sf::Color::White : sf::Color::Black);
 		}
 	}
 
@@ -718,12 +719,12 @@ void ClientView::drawPromotionFormPanel(const ClientModel& model) {
 	}
 
 	// 参数区标题
-	const float paramsY = 160.f;
+	const float paramsY = 170.f;
 	if (promoType_.empty()) {
-		textMgr_.displayText(L"请先在上方选择促销类型", { 100, paramsY }, { 18, 24 }, sf::Color(180, 80, 80));
+		textMgr_.displayText(L"请先在上方选择促销类型", { 100, paramsY }, { 22, 28 }, sf::Color(180, 80, 80));
 	}
 	else {
-		textMgr_.displayText(L"填写参数：", { 100, paramsY }, { 18, 24 }, sf::Color(120, 120, 120));
+		textMgr_.displayText(L"填写参数：", { 100, paramsY }, { 22, 28 }, sf::Color(120, 120, 120));
 		// 2 列 × 2 行布局绘制各槽位
 		const Field slotFields[4] = { Field::PromoSlot0, Field::PromoSlot1, Field::PromoSlot2, Field::PromoSlot3 };
 		for (int i = 0; i < 4; ++i) {
@@ -731,7 +732,7 @@ void ClientView::drawPromotionFormPanel(const ClientModel& model) {
 			const auto r = promoSlotRect(i);
 			// 标签
 			textMgr_.displayText(slotLabels[i],
-								 { r.position.x, r.position.y - 22.f }, { 15, 20 }, sf::Color(80, 80, 80));
+								 { r.position.x, r.position.y - 26.f }, { 19, 25 }, sf::Color(80, 80, 80));
 			// 输入框
 			sf::RectangleShape box({ r.size.x, r.size.y });
 			box.setPosition({ r.position.x, r.position.y });
@@ -741,7 +742,7 @@ void ClientView::drawPromotionFormPanel(const ClientModel& model) {
 			window_.draw(box);
 			if (!promoSlotValue_[i].empty()) {
 				textMgr_.displayText(ec::string::to_utf16(promoSlotValue_[i]),
-									 { r.position.x + 10, r.position.y + 8 }, { 16, 22 }, sf::Color::Black);
+									 { r.position.x + 12, r.position.y + 8 }, { 20, 26 }, sf::Color::Black);
 			}
 		}
 		// 实时预览规则效果
@@ -749,10 +750,10 @@ void ClientView::drawPromotionFormPanel(const ClientModel& model) {
 		if (!preview.is_null()) {
 			std::wostringstream prev;
 			prev << L"规则预览：" << describePromotion(promoType_, preview);
-			textMgr_.displayText(prev.str(), { 100, 330 }, { 16, 22 }, sf::Color(50, 120, 50));
+			textMgr_.displayText(prev.str(), { 100, 360 }, { 20, 26 }, sf::Color(50, 120, 50));
 		}
 		else {
-			textMgr_.displayText(L"规则预览：请填写全部必填参数", { 100, 330 }, { 16, 22 }, sf::Color(150, 150, 150));
+			textMgr_.displayText(L"规则预览：请填写全部必填参数", { 100, 360 }, { 20, 26 }, sf::Color(150, 150, 150));
 		}
 	}
 
@@ -765,7 +766,7 @@ void ClientView::drawPromotionFormPanel(const ClientModel& model) {
 	submitBtn.setOutlineThickness(1.f);
 	window_.draw(submitBtn);
 	textMgr_.displayText(isEdit ? L"保存修改" : L"提交新增",
-						 { sb.position.x + 30, sb.position.y + 10 }, { 18, 24 }, sf::Color::White);
+						 { sb.position.x + 32, sb.position.y + 12 }, { 22, 28 }, sf::Color::White);
 
 	// 返回按钮
 	const auto bb = promoBackBtnRect();
@@ -775,10 +776,10 @@ void ClientView::drawPromotionFormPanel(const ClientModel& model) {
 	backBtn.setOutlineColor(sf::Color(120, 120, 120));
 	backBtn.setOutlineThickness(1.f);
 	window_.draw(backBtn);
-	textMgr_.displayText(L"返回", { bb.position.x + 30, bb.position.y + 10 }, { 18, 24 }, sf::Color::White);
+	textMgr_.displayText(L"返回", { bb.position.x + 34, bb.position.y + 12 }, { 22, 28 }, sf::Color::White);
 
 	if (!model.status().empty()) {
-		textMgr_.displayText(model.status(), { 100, 450 }, { 18, 22 }, sf::Color(200, 50, 50));
+		textMgr_.displayText(model.status(), { 100, 480 }, { 22, 26 }, sf::Color(200, 50, 50));
 	}
 }
 
@@ -803,26 +804,32 @@ void ClientView::setEditPromotion(std::int32_t id, const std::string& type, cons
 	editingPromotionId_ = id;
 	promoType_ = type;
 	for (auto& s : promoSlotValue_) s.clear();
+	// 把 double 格式化为固定小数位的字符串（去掉 std::to_string 的多余零）
+	auto fmtDouble = [](double v, int precision) -> std::string {
+		std::ostringstream ss;
+		ss << std::fixed << std::setprecision(precision) << v;
+		return ss.str();
+	};
 	// 按类型把 params 拆入对应槽位
 	if (type == "reduction") {
-		promoSlotValue_[0] = std::to_string(params.value("threshold", 0.0));
-		promoSlotValue_[1] = std::to_string(params.value("reduce", 0.0));
+		promoSlotValue_[0] = fmtDouble(params.value("threshold", 0.0), 2); // 满减：2 位
+		promoSlotValue_[1] = fmtDouble(params.value("reduce", 0.0), 2);
 	}
 	else if (type == "discount") {
-		// 存储是 0~1 的 rate，展示为"几折"（×10）
+		// 存储是 0~1 的 rate，展示为"几折"（×10），保留 1 位
 		const double rate = params.value("rate", 1.0);
-		promoSlotValue_[0] = std::to_string(rate * 10.0);
+		promoSlotValue_[0] = fmtDouble(rate * 10.0, 1);
 	}
 	else if (type == "tiered") {
 		if (params.contains("tiers") && params["tiers"].is_array()) {
 			const auto& tiers = params["tiers"];
 			if (tiers.size() > 0 && tiers[0].is_array() && tiers[0].size() >= 2) {
-				promoSlotValue_[0] = std::to_string(tiers[0][0].get<int>());
-				promoSlotValue_[1] = std::to_string(tiers[0][1].get<double>() * 10.0);
+				promoSlotValue_[0] = std::to_string(tiers[0][0].get<int>()); // 件数：整数
+				promoSlotValue_[1] = fmtDouble(tiers[0][1].get<double>() * 10.0, 1); // 折扣：1 位
 			}
 			if (tiers.size() > 1 && tiers[1].is_array() && tiers[1].size() >= 2) {
 				promoSlotValue_[2] = std::to_string(tiers[1][0].get<int>());
-				promoSlotValue_[3] = std::to_string(tiers[1][1].get<double>() * 10.0);
+				promoSlotValue_[3] = fmtDouble(tiers[1][1].get<double>() * 10.0, 1);
 			}
 		}
 	}
@@ -831,7 +838,7 @@ void ClientView::setEditPromotion(std::int32_t id, const std::string& type, cons
 		promoSlotValue_[1] = std::to_string(params.value("freeM", 0));
 	}
 	else if (type == "coupon") {
-		promoSlotValue_[0] = std::to_string(params.value("amount", 0.0));
+		promoSlotValue_[0] = fmtDouble(params.value("amount", 0.0), 2); // 抵扣券：2 位
 	}
 	activeField_ = Field::PromoSlot0;
 }
@@ -887,27 +894,27 @@ nlohmann::json ClientView::buildPromotionParams() const {
 // === 促销面板按钮矩形 ===
 
 sf::FloatRect ClientView::promoToggleBtnRect(const sf::Vector2f& rowPos) const {
-	constexpr float w = 60.f, h = 30.f;
+	constexpr float w = 68.f, h = 38.f;
 	const float x = rowPos.x + orderCardW - w - 10.f;
 	return sf::FloatRect(sf::Vector2f{ x, rowPos.y + 7.f }, sf::Vector2f{ w, h });
 }
 
 sf::FloatRect ClientView::promoEditBtnRect(const sf::Vector2f& rowPos) const {
-	constexpr float w = 60.f, h = 30.f;
-	const float toggleX = rowPos.x + orderCardW - 60.f - 10.f;
+	constexpr float w = 68.f, h = 38.f;
+	const float toggleX = rowPos.x + orderCardW - 68.f - 10.f;
 	const float x = toggleX - w - 8.f;
 	return sf::FloatRect(sf::Vector2f{ x, rowPos.y + 7.f }, sf::Vector2f{ w, h });
 }
 
 sf::FloatRect ClientView::promoDeleteBtnRect(const sf::Vector2f& rowPos) const {
-	constexpr float w = 60.f, h = 30.f;
-	const float editX = rowPos.x + orderCardW - 60.f - 10.f - 60.f - 8.f;
+	constexpr float w = 68.f, h = 38.f;
+	const float editX = rowPos.x + orderCardW - 68.f - 10.f - 68.f - 8.f;
 	const float x = editX - w - 8.f;
 	return sf::FloatRect(sf::Vector2f{ x, rowPos.y + 7.f }, sf::Vector2f{ w, h });
 }
 
 sf::FloatRect ClientView::promoCreateBtnRect() const {
-	constexpr float w = 160.f, h = 40.f;
+	constexpr float w = 180.f, h = 48.f;
 	const float x = orderCardX;
 	const float y = static_cast<float>(window_.getSize().y) - h - 20.f;
 	return sf::FloatRect(sf::Vector2f{ x, y }, sf::Vector2f{ w, h });
@@ -916,16 +923,16 @@ sf::FloatRect ClientView::promoCreateBtnRect() const {
 // === 促销表单按钮矩形 ===
 
 sf::FloatRect ClientView::promoTypeBtnRect(int index) const {
-	constexpr float w = 120.f, h = 36.f;
-	constexpr float startX = 220.f, y = 116.f, gap = 12.f;
+	constexpr float w = 130.f, h = 42.f;
+	constexpr float startX = 230.f, y = 114.f, gap = 12.f;
 	const float x = startX + index * (w + gap);
 	return sf::FloatRect(sf::Vector2f{ x, y }, sf::Vector2f{ w, h });
 }
 
 sf::FloatRect ClientView::promoSlotRect(int index) const {
 	// 2 列 × 2 行布局
-	constexpr float colW = 320.f, rowH = 36.f;
-	constexpr float colGap = 60.f, rowGap = 50.f;
+	constexpr float colW = 340.f, rowH = 44.f;
+	constexpr float colGap = 60.f, rowGap = 60.f;
 	constexpr float startX = 100.f, startY = 220.f;
 	const int col = index % 2;
 	const int row = index / 2;
@@ -935,13 +942,13 @@ sf::FloatRect ClientView::promoSlotRect(int index) const {
 }
 
 sf::FloatRect ClientView::promoSubmitBtnRect() const {
-	constexpr float w = 160.f, h = 44.f;
-	return sf::FloatRect(sf::Vector2f{ 100.f, 360.f }, sf::Vector2f{ w, h });
+	constexpr float w = 180.f, h = 52.f;
+	return sf::FloatRect(sf::Vector2f{ 100.f, 400.f }, sf::Vector2f{ w, h });
 }
 
 sf::FloatRect ClientView::promoBackBtnRect() const {
-	constexpr float w = 120.f, h = 44.f;
-	return sf::FloatRect(sf::Vector2f{ 280.f, 360.f }, sf::Vector2f{ w, h });
+	constexpr float w = 130.f, h = 52.f;
+	return sf::FloatRect(sf::Vector2f{ 300.f, 400.f }, sf::Vector2f{ w, h });
 }
 
 void ClientView::appendInputChar(std::uint32_t ch) {
@@ -973,6 +980,42 @@ void ClientView::appendInputChar(std::uint32_t ch) {
 	const auto append = [this, &utf8](std::string& dst, std::size_t maxBytes) {
 		if (dst.size() + utf8.size() <= maxBytes) dst += utf8;
 	};
+
+	// 促销参数槽位：只允许数字 + 单个小数点，并按类型限制小数位数
+	// 返回 -1 表示整数（不允许小数点），0/1/2 表示允许的小数位数
+	auto slotDecimalLimit = [this]() -> int {
+		const int slotIdx = static_cast<int>(activeField_) - static_cast<int>(Field::PromoSlot0);
+		if (promoType_ == "reduction")      return 2;          // 满减：满额/减额 2 位小数
+		if (promoType_ == "discount")       return 1;          // 折扣：1 位小数
+		if (promoType_ == "coupon")         return 2;          // 抵扣券：2 位小数
+		if (promoType_ == "tiered")         return (slotIdx % 2 == 1) ? 1 : -1; // 折扣1位，件数整数
+		if (promoType_ == "freeitem")       return -1;         // 买/送：整数
+		return -1;
+	};
+
+	auto appendNumeric = [this, &utf8, &slotDecimalLimit](std::string& dst) {
+		if (utf8.size() != 1) return; // 非 ASCII（如中文）直接拒绝
+		const char c = utf8[0];
+		const bool isDigit = (c >= '0' && c <= '9');
+		const bool isDot = (c == '.');
+		if (!isDigit && !isDot) return;
+		const int limit = slotDecimalLimit();
+		if (limit < 0) {
+			// 整数：不允许小数点
+			if (isDot) return;
+		}
+		else {
+			// 已存在小数点则不能再输入小数点
+			if (isDot && dst.find('.') != std::string::npos) return;
+			// 小数点后位数已达上限则拒绝输入
+			if (isDigit && dst.find('.') != std::string::npos) {
+				const auto dotPos = dst.find('.');
+				if (dst.size() - dotPos - 1 >= static_cast<std::size_t>(limit)) return;
+			}
+		}
+		if (dst.size() + 1 <= 32) dst += c;
+	};
+
 	switch (activeField_) {
 		case Field::Username:       append(usernameInput_, 64); break;
 		case Field::Password:       append(passwordInput_, 64); break;
@@ -982,10 +1025,10 @@ void ClientView::appendInputChar(std::uint32_t ch) {
 		case Field::ProductDesc:    append(productDescInput_, 256); break;
 		case Field::ProductImage:   append(productImageInput_, 256); break;
 		case Field::ProductSearch:  append(searchInput_, 128); break;
-		case Field::PromoSlot0: append(promoSlotValue_[0], 32); break;
-		case Field::PromoSlot1: append(promoSlotValue_[1], 32); break;
-		case Field::PromoSlot2: append(promoSlotValue_[2], 32); break;
-		case Field::PromoSlot3: append(promoSlotValue_[3], 32); break;
+		case Field::PromoSlot0: appendNumeric(promoSlotValue_[0]); break;
+		case Field::PromoSlot1: appendNumeric(promoSlotValue_[1]); break;
+		case Field::PromoSlot2: appendNumeric(promoSlotValue_[2]); break;
+		case Field::PromoSlot3: appendNumeric(promoSlotValue_[3]); break;
 	}
 }
 
