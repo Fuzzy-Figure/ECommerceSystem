@@ -93,7 +93,7 @@ void ClientView::render(const ClientModel& model) {
 
 void ClientView::drawLoginPanel(const ClientModel& model) {
 	// 标题
-	textMgr_.displayTextInUp(L"电商系统 - 用户登录", { 20, 40 }, sf::Color(40, 80, 160));
+	textMgr_.displayTextInUp(L"微商系统 - 用户登录", { 20, 40 }, sf::Color(40, 80, 160));
 
 	// 用户名输入框
 	const auto userRect = inputFieldRect(0);
@@ -554,7 +554,11 @@ void ClientView::drawTabBar(const ClientModel& model) {
 		current = static_cast<int>(panel_) - static_cast<int>(Panel::ProductList);
 	}
 	for (int i = 0; i < 3; ++i) {
-		const auto r = tabBtnRect(i);
+		// 商家不显示"购物车"Tab（index 1），商品管理/订单管理即可
+		if (model.isMerchant() && i == 1) continue;
+		// 商家时把可见 Tab 紧凑排列：商品列表(0)→位置0，我的订单(2)→位置1
+		const int visIdx = model.isMerchant() ? (i == 2 ? 1 : 0) : i;
+		const auto r = tabBtnRect(visIdx);
 		sf::RectangleShape bg({ r.size.x, r.size.y });
 		bg.setPosition({ r.position.x, r.position.y });
 		if (i == current) {
@@ -918,7 +922,11 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 	// 顶部 Tab 标签优先（ProductList/Cart/MyOrders 三面板共用）
 	// i=0 对应 ProductList；arg 用 Panel 枚举值便于 controller 直接 static_cast
 	for (int i = 0; i < 3; ++i) {
-		if (hit(tabBtnRect(i), mousePos)) {
+		// 商家跳过"购物车"Tab（index 1）
+		if (model.isMerchant() && i == 1) continue;
+		// 商家时 Tab 紧凑排列，命中测试用可见位置
+		const int visIdx = model.isMerchant() ? (i == 2 ? 1 : 0) : i;
+		if (hit(tabBtnRect(visIdx), mousePos)) {
 			const int panelIdx = static_cast<int>(Panel::ProductList) + i;
 			return { ClickAction::SwitchPanel, panelIdx };
 		}
