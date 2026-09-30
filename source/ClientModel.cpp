@@ -1,4 +1,4 @@
-#include "../header/ClientModel.h"
+#include "ClientModel.h"
 #include <cstdint>
 
 void ClientModel::setProducts(std::vector<Product> products) {

@@ -1,5 +1,5 @@
-#include "../header/ClientView.h"
-#include "../header/utils.h"
+#include "ClientView.h"
+#include "utils.h"
 #include <algorithm>
 #include <iomanip>
 #include <sstream>

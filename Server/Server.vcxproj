@@ -111,7 +111,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp23</LanguageStandard>
-      <AdditionalIncludeDirectories>..\header;D:\Admin\Softwares\Compilers\VisualStudio\SFML-3.1.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep;$(SolutionDir)header;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 /Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
@@ -145,6 +145,7 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\dep\sqlite3\sqlite3.c" />
     <ClCompile Include="..\source\Database.cpp" />
     <ClCompile Include="..\source\Order.cpp" />
     <ClCompile Include="..\source\OrderDAO.cpp" />
@@ -157,7 +158,6 @@
     <ClCompile Include="..\source\ServerController.cpp" />
     <ClCompile Include="..\source\ServerMain.cpp" />
     <ClCompile Include="..\source\ServerView.cpp" />
-    <ClCompile Include="..\source\sqlite3.c" />
     <ClCompile Include="..\source\utils.cpp" />
     <ClCompile Include="..\source\UserDAO.cpp" />
   </ItemGroup>
@@ -174,7 +174,6 @@
     <ClInclude Include="..\header\Protocol.h" />
     <ClInclude Include="..\header\ServerController.h" />
     <ClInclude Include="..\header\ServerView.h" />
-    <ClInclude Include="..\header\sqlite3.h" />
     <ClInclude Include="..\header\utils.h" />
     <ClInclude Include="..\header\User.h" />
     <ClInclude Include="..\header\UserDAO.h" />

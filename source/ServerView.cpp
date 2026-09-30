@@ -1,4 +1,4 @@
-#include "../header/ServerView.h"
+#include "ServerView.h"
 #include <iostream>
 #include <chrono>
 #include <iomanip>

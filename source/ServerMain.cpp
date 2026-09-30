@@ -1,11 +1,10 @@
 #include <SFML/Network.hpp>
-#include "../header/utils.h"
-#include "../header/Database.h"
-#include "../header/ServerController.h"
-#include "../header/Protocol.h"
+#include "utils.h"
+#include "Database.h"
+#include "ServerController.h"
+#include "Protocol.h"
 
 #include <atomic>
-#include <functional>
 #include <iostream>
 #include <memory>
 #include <sstream>

@@ -1,5 +1,5 @@
-#include "../header/Database.h"
-#include "../header/sqlite3.h"
+#include "Database.h"
+#include <sqlite3/sqlite3.h>
 #include <stdexcept>
 #include <iostream>
 

@@ -1,4 +1,4 @@
-#include "../header/Product.h"
+#include "Product.h"
 
 nlohmann::json Product::toJson() const {
 	return {

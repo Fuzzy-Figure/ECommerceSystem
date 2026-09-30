@@ -1,7 +1,7 @@
-#include "../header/ClientController.h"
-#include "../header/utils.h"
-#include "../header/Product.h"
-#include "../header/Order.h"
+#include "ClientController.h"
+#include "utils.h"
+#include "Product.h"
+#include "Order.h"
 #include <iostream>
 
 ClientController::ClientController(sf::RenderWindow& window, ClientModel& model, ClientView& view)

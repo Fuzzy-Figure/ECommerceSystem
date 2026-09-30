@@ -13,6 +13,12 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="第三方库">
+      <UniqueIdentifier>{e5c1c819-3234-4a87-913f-478d942b4935}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="第三方库\sqlite3">
+      <UniqueIdentifier>{a8aca4a8-3021-4687-8fef-6a43f47d6bab}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\header\utils.h">
@@ -52,9 +58,6 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="..\header\ServerView.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="..\header\sqlite3.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="..\header\User.h">
@@ -104,11 +107,11 @@
     <ClCompile Include="..\source\ServerView.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="..\source\sqlite3.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="..\source\UserDAO.cpp">
       <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dep\sqlite3\sqlite3.c">
+      <Filter>第三方库\sqlite3</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

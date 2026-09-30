@@ -1,4 +1,4 @@
-#include "../header/PromotionDAO.h"
+#include "PromotionDAO.h"
 
 PromotionDAO::PromotionDAO(Database& db) : db_(db) {}
 

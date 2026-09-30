@@ -1,4 +1,4 @@
-#include "../header/Promotion.h"
+#include "Promotion.h"
 #include <algorithm>
 #include <sstream>
 

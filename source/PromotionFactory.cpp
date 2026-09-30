@@ -1,4 +1,4 @@
-#include "../header/PromotionFactory.h"
+#include "PromotionFactory.h"
 #include <algorithm>
 #include <unordered_map>
 #include <functional>

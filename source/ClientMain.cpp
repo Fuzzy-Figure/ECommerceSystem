@@ -1,12 +1,12 @@
 #include <SFML/Graphics.hpp>
 #include <string>
 #include <iostream>
-#include "../header/utils.h"
-#include "../header/TextManager.h"
-#include "../header/ImageManager.h"
-#include "../header/ClientModel.h"
-#include "../header/ClientView.h"
-#include "../header/ClientController.h"
+#include "utils.h"
+#include "TextManager.h"
+#include "ImageManager.h"
+#include "ClientModel.h"
+#include "ClientView.h"
+#include "ClientController.h"
 #include <Windows.h>
 
 int main() {
