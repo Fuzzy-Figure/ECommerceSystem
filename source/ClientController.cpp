@@ -529,8 +529,13 @@ void ClientController::handleEvent(const sf::Event& event) {
 				case ClientView::ClickAction::SwitchPanel: {
 					const int idx = action.arg;
 					const auto target = static_cast<ClientView::Panel>(idx);
-					// 允许切到 MerchantCreate（新增商品表单）或 [ProductList, MyOrders] 三面板
-					if (target == ClientView::Panel::MerchantCreate) {
+					// 商家"商品列表"Tab → 商家商品管理面板（Panel::Merchant 索引为 1，不在 ProductList..MyOrders 区间内）
+					if (target == ClientView::Panel::Merchant) {
+						view_.setPanel(target);
+						requestMerchantListProducts();
+						model_.setStatus(L"商家商品管理");
+					}
+					else if (target == ClientView::Panel::MerchantCreate) {
 						view_.clearInputs();
 						view_.setActiveField(ClientView::Field::ProductName);
 						view_.setPanel(target);
