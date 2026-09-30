@@ -570,16 +570,23 @@ void ClientController::handleEvent(const sf::Event& event) {
 				view_.setActiveField(static_cast<ClientView::Field>(next));
 			}
 		}
+		else if (view_.panel() == ClientView::Panel::ProductList) {
+			// 商品列表搜索框：Backspace 删字符（清空所有字符即恢复显示全部商品）
+			if (key == sf::Keyboard::Key::Backspace) {
+				view_.backspaceInput();
+			}
+		}
 		return;
 	}
-	// 文本输入事件：Login/MerchantCreate/MerchantEdit 面板接收字符（ASCII 或中文 CJK）到当前聚焦输入框
+	// 文本输入事件：Login/MerchantCreate/MerchantEdit/ProductList 面板接收字符（ASCII 或中文 CJK）到当前聚焦输入框
 	if (event.is<sf::Event::TextEntered>()) {
 		const auto* te = event.getIf<sf::Event::TextEntered>();
 		if (te == nullptr) return;
-		// 仅 Login/MerchantCreate/MerchantEdit 三个面板接收文本输入
+		// 仅以下面板接收文本输入；ProductList 仅当搜索框聚焦时有效（appendInputChar 内按 activeField 分发）
 		if (view_.panel() != ClientView::Panel::Login
 			&& view_.panel() != ClientView::Panel::MerchantCreate
-			&& view_.panel() != ClientView::Panel::MerchantEdit) return;
+			&& view_.panel() != ClientView::Panel::MerchantEdit
+			&& view_.panel() != ClientView::Panel::ProductList) return;
 		// 传 UTF-32 码点；appendInputChar 内部按 ASCII/CJK 过滤并转 UTF-8
 		view_.appendInputChar(te->unicode);
 		return;

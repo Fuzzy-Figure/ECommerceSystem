@@ -11,8 +11,11 @@ namespace {
 	// === 商品列表面板布局 ===
 	constexpr float cardW = 580.f, cardH = 380.f;
 	constexpr float gapX = 10.f, gapY = 10.f;
-	constexpr float startX = 120.f, startY = 80.f;
+	constexpr float startX = 120.f, startY = 100.f;
 	constexpr int   perRow = 3;
+	// 搜索框（商品列表面板顶部左侧）
+	constexpr float searchX = 120.f, searchY = 56.f;
+	constexpr float searchW = 380.f, searchH = 32.f;
 	// 加购按钮：卡片右下角
 	constexpr float addBtnDX = 460.f, addBtnDY = 340.f;
 	constexpr float addBtnW = 100.f, addBtnH = 30.f;
@@ -504,6 +507,7 @@ void ClientView::appendInputChar(std::uint32_t ch) {
 		case Field::ProductStock:   append(productStockInput_, 10); break;
 		case Field::ProductDesc:    append(productDescInput_, 256); break;
 		case Field::ProductImage:   append(productImageInput_, 256); break;
+		case Field::ProductSearch:  append(searchInput_, 128); break;
 	}
 }
 
@@ -527,6 +531,7 @@ void ClientView::backspaceInput() {
 		case Field::ProductStock:   popUtf8Char(productStockInput_); break;
 		case Field::ProductDesc:    popUtf8Char(productDescInput_); break;
 		case Field::ProductImage:   popUtf8Char(productImageInput_); break;
+		case Field::ProductSearch:  popUtf8Char(searchInput_); break;
 	}
 }
 
@@ -603,23 +608,51 @@ void ClientView::drawTabBar(const ClientModel& model) {
 // ===================== 商品列表面板 =====================
 
 void ClientView::drawProductListPanel(const ClientModel& model) {
-	const auto& products = model.products();
+	const auto& allProducts = model.products();
 
 	drawTabBar(model);
+
+	// 搜索框
+	const sf::FloatRect searchRect{ sf::Vector2f{ searchX, searchY }, sf::Vector2f{ searchW, searchH } };
+	sf::RectangleShape searchBg({ searchRect.size.x, searchRect.size.y });
+	searchBg.setPosition({ searchRect.position.x, searchRect.position.y });
+	searchBg.setFillColor(sf::Color::White);
+	searchBg.setOutlineColor(activeField_ == Field::ProductSearch ? sf::Color(80, 130, 200) : sf::Color(200, 200, 200));
+	searchBg.setOutlineThickness(activeField_ == Field::ProductSearch ? 2.f : 1.f);
+	window_.draw(searchBg);
+	if (searchInput_.empty()) {
+		textMgr_.displayText(L"搜索商品名称...", { searchX + 10, searchY + 6 }, { 16, 22 }, sf::Color(180, 180, 180));
+	} else {
+		textMgr_.displayText(ec::string::to_utf16(searchInput_), { searchX + 10, searchY + 6 }, { 16, 22 }, sf::Color::Black);
+	}
+
 	if (!model.status().empty()) {
 		textMgr_.displayText(model.status(), { 700, statusY }, { 18, 22 }, sf::Color(150, 150, 150));
 	}
-	if (products.empty()) {
-		textMgr_.displayTextInCenter(L"暂无商品，点击顶部 商品列表 标签刷新", { 20, 30 }, sf::Color(150, 150, 150));
+
+	// 按搜索词过滤商品（名称包含，UTF-8 子串匹配，忽略大小写对 ASCII 有效）
+	std::vector<Product> filtered;
+	if (searchInput_.empty()) {
+		filtered.assign(allProducts.begin(), allProducts.end());
+	} else {
+		for (const auto& p : allProducts) {
+			if (p.name.find(searchInput_) != std::string::npos) {
+				filtered.push_back(p);
+			}
+		}
+	}
+
+	if (filtered.empty()) {
+		textMgr_.displayTextInCenter(L"没有匹配的商品", { 20, 30 }, sf::Color(150, 150, 150));
 		return;
 	}
 
-	for (std::size_t i = 0; i < products.size(); ++i) {
+	for (std::size_t i = 0; i < filtered.size(); ++i) {
 		const auto col = static_cast<int>(i % perRow);
 		const auto row = static_cast<int>(i / perRow);
 		const sf::Vector2f pos{ startX + col * (cardW + gapX),
 								startY - productListScrollY_ + row * (cardH + gapY) };
-		drawCard(products[i], pos, { cardW, cardH });
+		drawCard(filtered[i], pos, { cardW, cardH });
 	}
 }
 
@@ -938,14 +971,29 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 	}
 
 	if (panel_ == Panel::ProductList) {
-		const auto& products = model.products();
-		for (std::size_t i = 0; i < products.size(); ++i) {
+		// 搜索框命中
+		const sf::FloatRect searchRect{ sf::Vector2f{ searchX, searchY }, sf::Vector2f{ searchW, searchH } };
+		if (hit(searchRect, mousePos)) {
+			activeField_ = Field::ProductSearch;
+			return { ClickAction::None, 0 };
+		}
+		// 按搜索词过滤后做加购按钮命中（与 drawProductListPanel 一致）
+		const auto& allProducts = model.products();
+		std::vector<Product> filtered;
+		if (searchInput_.empty()) {
+			filtered.assign(allProducts.begin(), allProducts.end());
+		} else {
+			for (const auto& p : allProducts) {
+				if (p.name.find(searchInput_) != std::string::npos) filtered.push_back(p);
+			}
+		}
+		for (std::size_t i = 0; i < filtered.size(); ++i) {
 			const auto col = static_cast<int>(i % perRow);
 			const auto row = static_cast<int>(i / perRow);
 			const sf::Vector2f cardPos{ startX + col * (cardW + gapX),
 										startY - productListScrollY_ + row * (cardH + gapY) };
 			if (hit(addToCartBtnRect(cardPos), mousePos)) {
-				return { ClickAction::AddToCart, products[i].id };
+				return { ClickAction::AddToCart, filtered[i].id };
 			}
 		}
 	}
@@ -1224,10 +1272,18 @@ void ClientView::scrollMyOrders(float deltaPx, const ClientModel& model) {
 // ===================== 商品列表面板滚动 =====================
 
 float ClientView::computeProductListContentHeight(const ClientModel& model) const noexcept {
-	const auto& products = model.products();
-	if (products.empty()) return 0.f;
-	// 与 drawProductListPanel 布局同步：每行 perRow 张卡片，每张 cardH + gapY
-	const int rows = static_cast<int>((products.size() + perRow - 1) / perRow);
+	const auto& allProducts = model.products();
+	// 与 drawProductListPanel 的过滤逻辑保持一致：按 searchInput_ 过滤后计算行数
+	std::size_t count = 0;
+	if (searchInput_.empty()) {
+		count = allProducts.size();
+	} else {
+		for (const auto& p : allProducts) {
+			if (p.name.find(searchInput_) != std::string::npos) ++count;
+		}
+	}
+	if (count == 0) return 0.f;
+	const int rows = static_cast<int>((count + perRow - 1) / perRow);
 	return static_cast<float>(rows) * (cardH + gapY);
 }
 

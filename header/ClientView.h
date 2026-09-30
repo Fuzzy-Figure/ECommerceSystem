@@ -19,7 +19,7 @@ public:
 	enum class Panel { Login, Merchant, MerchantCreate, MerchantEdit, ProductList, Cart, MyOrders };
 
 	// 当前聚焦的输入框（Login 面板用 Username/Password；MerchantCreate 面板用 Name/Price/Stock/Desc/Image）
-	enum class Field { Username, Password, ProductName, ProductPrice, ProductStock, ProductDesc, ProductImage };
+	enum class Field { Username, Password, ProductName, ProductPrice, ProductStock, ProductDesc, ProductImage, ProductSearch };
 
 	// 鼠标点击命中后返回的动作；type=None 表示未命中任何按钮
 	struct ClickAction {
@@ -114,6 +114,8 @@ private:
 	std::string productStockInput_;
 	std::string productDescInput_;
 	std::string productImageInput_;
+	// === 商品列表搜索框 ===
+	std::string searchInput_;
 	Field       activeField_{ Field::Username };
 	// === 商家编辑商品的 productId ===
 	std::int32_t editingProductId_{ 0 };
