@@ -140,7 +140,7 @@ void TextManager::displayTextInUp(const std::wstring& text,
 								  const sf::Color& color) {
 	const sf::Vector2f actualSize = measureText(text, static_cast<unsigned int>(size.y));
 	const sf::Vector2u windowSize = window.getSize();
-	const float x = (windowSize.x - actualSize.x) / 2.0;
+	const float x = (windowSize.x - actualSize.x) / 2.f;
 
 	displayText(text, { std::max(0.f, x), 0 }, size, color);
 }
