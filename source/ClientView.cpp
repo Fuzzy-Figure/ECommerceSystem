@@ -92,6 +92,7 @@ void ClientView::render(const ClientModel& model) {
 		case Panel::MyOrders:         drawMyOrdersPanel(model);        break;
 		case Panel::Promotion:        drawPromotionPanel(model);       break;
 		case Panel::PromotionForm:    drawPromotionFormPanel(model);   break;
+		case Panel::UserManagement:   drawUserManagementPanel(model);  break;
 	}
 }
 
@@ -783,6 +784,57 @@ void ClientView::drawPromotionFormPanel(const ClientModel& model) {
 	}
 }
 
+// ===================== 管理员用户列表面板 =====================
+
+void ClientView::drawUserManagementPanel(const ClientModel& model) {
+	drawTabBar(model);
+	if (!model.status().empty()) {
+		textMgr_.displayText(model.status(), { 700, statusY }, { 22, 26 }, sf::Color(150, 150, 150));
+	}
+
+	const auto& users = model.users();
+	const float tableY = orderCardStartY;
+
+	// 表头
+	textMgr_.displayText(L"ID",       { orderCardX + 12,  tableY }, { 22, 28 }, sf::Color(120, 120, 120));
+	textMgr_.displayText(L"用户名",   { orderCardX + 120, tableY }, { 22, 28 }, sf::Color(120, 120, 120));
+	textMgr_.displayText(L"角色",     { orderCardX + 420, tableY }, { 22, 28 }, sf::Color(120, 120, 120));
+
+	if (users.empty()) {
+		textMgr_.displayTextInCenter(L"暂无用户数据", { 20, tableY + 40 }, sf::Color(150, 150, 150));
+		return;
+	}
+
+	float rowY = tableY + 34.f;
+	constexpr float rowH = 52.f;
+	for (const auto& u : users) {
+		const sf::Vector2f rowPos{ orderCardX, rowY };
+
+		sf::RectangleShape rowBg({ orderCardW, rowH });
+		rowBg.setPosition({ rowPos.x, rowPos.y });
+		rowBg.setFillColor(sf::Color(250, 250, 250));
+		rowBg.setOutlineColor(sf::Color(220, 220, 220));
+		rowBg.setOutlineThickness(1.f);
+		window_.draw(rowBg);
+
+		// ID
+		std::wostringstream idSs;
+		idSs << u.id;
+		textMgr_.displayText(idSs.str(),
+							 { rowPos.x + 12, rowPos.y + 14 }, { 22, 28 }, sf::Color::Black);
+		// 用户名
+		textMgr_.displayText(ec::string::to_utf16(u.username),
+							 { rowPos.x + 120, rowPos.y + 14 }, { 22, 28 }, sf::Color(80, 80, 80));
+		// 角色
+		const bool isMerchant = (u.role == 1);
+		textMgr_.displayText(isMerchant ? L"商家" : L"普通用户",
+							 { rowPos.x + 420, rowPos.y + 14 }, { 22, 28 },
+							 isMerchant ? sf::Color(50, 100, 180) : sf::Color(80, 80, 80));
+
+		rowY += rowH + 4.f;
+	}
+}
+
 // === 促销表单状态管理 ===
 
 void ClientView::resetPromotionForm() {
@@ -1074,7 +1126,7 @@ void ClientView::clearInputs() noexcept {
 // ===================== 顶部 Tab 标签栏 =====================
 
 void ClientView::drawTabBar(const ClientModel& model) {
-	// 商家 3 个 Tab：商品列表(Merchant) / 我的订单(MyOrders) / 促销管理(Promotion)
+	// 商家 4 个 Tab：商品列表(Merchant) / 我的订单(MyOrders) / 促销管理(Promotion) / 用户管理(UserManagement)
 	// 普通用户 3 个 Tab：商品列表(ProductList) / 购物车(Cart) / 我的订单(MyOrders)
 	struct TabDef { const wchar_t* label; Panel panel; };
 	const TabDef userTabs[] = {
@@ -1086,9 +1138,10 @@ void ClientView::drawTabBar(const ClientModel& model) {
 		{ L"商品列表", Panel::Merchant },
 		{ L"我的订单", Panel::MyOrders },
 		{ L"促销管理", Panel::Promotion },
+		{ L"用户管理", Panel::UserManagement },
 	};
 	const TabDef* tabs = model.isMerchant() ? merchantTabs : userTabs;
-	const int tabCount = 3;
+	const int tabCount = model.isMerchant() ? 4 : 3;
 
 	for (int i = 0; i < tabCount; ++i) {
 		const bool active = (panel_ == tabs[i].panel);
@@ -1481,12 +1534,13 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 		return { ClickAction::None, 0 };
 	}
 
-	// 顶部 Tab 标签：商家 3 个(商品列表/我的订单/促销管理)，用户 3 个(商品列表/购物车/我的订单)
+	// 顶部 Tab 标签：商家 4 个(商品列表/我的订单/促销管理/用户管理)，用户 3 个(商品列表/购物车/我的订单)
 	struct TabDef { Panel panel; };
 	const TabDef userTabs[] = { Panel::ProductList, Panel::Cart, Panel::MyOrders };
-	const TabDef merchantTabs[] = { Panel::Merchant, Panel::MyOrders, Panel::Promotion };
+	const TabDef merchantTabs[] = { Panel::Merchant, Panel::MyOrders, Panel::Promotion, Panel::UserManagement };
 	const TabDef* tabs = model.isMerchant() ? merchantTabs : userTabs;
-	for (int i = 0; i < 3; ++i) {
+	const int tabCount = model.isMerchant() ? 4 : 3;
+	for (int i = 0; i < tabCount; ++i) {
 		if (hit(tabBtnRect(i), mousePos)) {
 			return { ClickAction::SwitchPanel, static_cast<int>(tabs[i].panel) };
 		}

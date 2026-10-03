@@ -19,6 +19,13 @@ struct Promotion {
 	bool          enabled{ true };
 };
 
+// 用户列表项（管理员查看用）
+struct SimpleUser {
+	std::int64_t  id{ 0 };
+	std::string   username;
+	std::int32_t  role{ 0 };  // 0=普通用户，1=商家
+};
+
 class ClientModel {
 public:
 	// 服务端推送商品列表后调用
@@ -54,6 +61,11 @@ public:
 	const std::vector<Promotion>& promotions() const noexcept { return promotions_; }
 	void clearPromotions() noexcept { promotions_.clear(); }
 
+	// === 管理员用户列表 ===
+	void setUsers(std::vector<SimpleUser> users) { users_ = std::move(users); }
+	const std::vector<SimpleUser>& users() const noexcept { return users_; }
+	void clearUsers() noexcept { users_.clear(); }
+
 	// === 当前登录用户身份（业务状态，非 UI 状态）===
 	std::int64_t         currentUserId() const noexcept { return currentUserId_; }
 	const std::string& currentUsername() const noexcept { return currentUsername_; }
@@ -80,6 +92,7 @@ private:
 	std::vector<CartItem>  cart_;
 	std::vector<Order>     orders_;
 	std::vector<Promotion> promotions_;
+	std::vector<SimpleUser> users_;
 	std::wstring           status_;  // 当前状态/提示信息
 
 	std::int64_t          currentUserId_{ 0 };

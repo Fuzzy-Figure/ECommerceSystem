@@ -36,7 +36,12 @@ namespace {
 		if (!params.contains("tiers") || !params["tiers"].is_array()) return tiers;
 		for (const auto& t : params["tiers"]) {
 			if (!t.is_array() || t.size() < 2) continue;
-			const int n = toInt(t, 0, 0);
+			// 数组元素直接按下标读取（toInt/toDouble 用 contains() 对数组无效）
+			int n = 0;
+			const auto& nv = t[0];
+			if (nv.is_number_integer()) n = nv.get<int>();
+			else if (nv.is_number()) n = static_cast<int>(nv.get<double>());
+			else if (nv.is_string()) { try { n = std::stoi(nv.get<std::string>()); } catch (...) {} }
 			double r = 0.0;
 			const auto& rv = t[1];
 			if (rv.is_number()) r = rv.get<double>();

@@ -21,6 +21,9 @@ public:
     // 创建新用户；用户名已存在返回 false
     bool createUser(const std::string& username, const std::string& password, std::int64_t& newIdOut);
 
+    // 管理员查看全部用户（不含密码），按 id 升序
+    std::vector<User> findAll();
+
     // 单独生成密码哈希（供 createUser 内部用）
     static std::string hashPassword(const std::string& username, const std::string& password);
 

@@ -105,6 +105,8 @@ private:
     nlohmann::json handleMerchantCreatePromotion(const nlohmann::json& req);
     // 商家删除促销：{userId, id} → MerchantPromotionResult
     nlohmann::json handleMerchantDeletePromotion(const nlohmann::json& req);
+    // 管理员拉取全部用户列表：{userId} → AdminUserList{users:[{id,username,role}]}
+    nlohmann::json handleAdminListUsers(const nlohmann::json& req);
 	// 校验请求发起者是否为商家（role=1），不是则返回错误应答
 	// 成功返回 nullopt，失败返回已构造好的错误 JSON
 	std::optional<nlohmann::json> requireMerchant(const nlohmann::json& req);

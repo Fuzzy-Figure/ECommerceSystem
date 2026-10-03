@@ -16,7 +16,7 @@ class ClientView {
 public:
 	// 注意顺序：Login=0；商家面板 Merchant/MerchantCreate/MerchantEdit/Promotion/PromotionForm 独立（不参与 Tab 切换）；
 	// ProductList/Cart/MyOrders 三面板按顶部 Tab 切换，Tab 索引仍按 0/1/2；商家 Tab 为 商品列表/我的订单/促销管理。
-	enum class Panel { Login, Merchant, MerchantCreate, MerchantEdit, ProductList, Cart, MyOrders, Promotion, PromotionForm };
+	enum class Panel { Login, Merchant, MerchantCreate, MerchantEdit, ProductList, Cart, MyOrders, Promotion, PromotionForm, UserManagement };
 
 	// 当前聚焦的输入框
 	enum class Field { Username, Password, ProductName, ProductPrice, ProductStock, ProductDesc, ProductImage, ProductSearch, PromoSlot0, PromoSlot1, PromoSlot2, PromoSlot3 };
@@ -215,6 +215,7 @@ private:
 
 	// === 商家促销表单面板（创建/编辑）===
 	void drawPromotionFormPanel(const ClientModel& model);
+	void drawUserManagementPanel(const ClientModel& model);
 	// 促销类型选择按钮矩形；index 0..4 对应 5 种类型
 	sf::FloatRect promoTypeBtnRect(int index) const;
 	// 促销参数槽位输入框矩形；index 0..3 对应 4 个槽位

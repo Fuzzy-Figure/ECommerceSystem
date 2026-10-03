@@ -119,6 +119,9 @@ void ServerController::handle(std::shared_ptr<sf::TcpSocket> socket, const nlohm
 		case static_cast<int>(proto::RequestCode::MerchantDeletePromotion):
 			response = handleMerchantDeletePromotion(request);
 			break;
+		case static_cast<int>(proto::RequestCode::AdminListUsers):
+			response = handleAdminListUsers(request);
+			break;
 		default:
 			response = {
 				{"code",    static_cast<int>(proto::ResponseCode::Error)},
@@ -649,4 +652,16 @@ nlohmann::json ServerController::handleMerchantDeletePromotion(const nlohmann::j
 	reloadPromotions();
 	std::cout << "[ServerController] 商家删除促销 id=" << id << std::endl;
 	return { {"code", static_cast<int>(proto::ResponseCode::MerchantPromotionResult)}, {"success", true}, {"message", "删除成功"} };
+}
+
+nlohmann::json ServerController::handleAdminListUsers(const nlohmann::json& req) {
+	if (auto err = requireMerchant(req)) return *err;
+	auto users = userDao_.findAll();
+	nlohmann::json arr = nlohmann::json::array();
+	for (const auto& u : users) arr.push_back(u.toJson());
+	std::cout << "[ServerController] 管理员拉取用户列表，共 " << users.size() << " 人" << std::endl;
+	return {
+		{"code",  static_cast<int>(proto::ResponseCode::AdminUserList)},
+		{"users", arr}
+	};
 }

@@ -87,6 +87,10 @@ public:
 	// 删除促销规则
 	void requestMerchantDeletePromotion(std::int32_t promotionId);
 
+	// === 管理员用户管理 ===
+	// 拉取全部用户列表
+	void requestAdminListUsers();
+
 	// 处理 SFML 事件（按键、关闭、文本输入等）
 	void handleEvent(const sf::Event& event);
 

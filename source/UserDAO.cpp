@@ -60,6 +60,20 @@ std::optional<User> UserDAO::authenticate(const std::string& username, const std
     return u;
 }
 
+std::vector<User> UserDAO::findAll() {
+    std::vector<User> users;
+    auto rows = db_.query("SELECT id, username, role FROM users ORDER BY id;");
+    users.reserve(rows.size());
+    for (const auto& r : rows) {
+        User u;
+        u.id       = toInt64(r["id"]);
+        u.username = toStr(r["username"]);
+        u.role     = static_cast<std::int32_t>(toInt64(r["role"]));
+        users.push_back(std::move(u));
+    }
+    return users;
+}
+
 bool UserDAO::createUser(const std::string& username, const std::string& password, std::int64_t& newIdOut) {
     if (findByUsername(username).has_value()) return false;  // 用户名已存在
 

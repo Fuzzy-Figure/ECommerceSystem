@@ -438,6 +438,22 @@ void ClientController::requestMerchantDeletePromotion(std::int32_t promotionId) 
 	model_.setStatus(L"正在删除促销...");
 }
 
+void ClientController::requestAdminListUsers() {
+	if (!socket_) {
+		model_.setStatus(L"未连接服务器，无法获取用户列表");
+		return;
+	}
+	const nlohmann::json req = {
+		{"code",   static_cast<int>(proto::RequestCode::AdminListUsers)},
+		{"userId", model_.currentUserId()}
+	};
+	if (!proto::sendJson(*socket_, req)) {
+		model_.setStatus(L"发送用户列表请求失败，连接可能已断开");
+		return;
+	}
+	model_.setStatus(L"正在加载用户列表...");
+}
+
 void ClientController::requestLogin() {
 	if (!socket_) {
 		model_.setStatus(L"未连接服务器，无法登录");
@@ -537,6 +553,11 @@ void ClientController::handleEvent(const sf::Event& event) {
 						requestMerchantListPromotions();
 						model_.setStatus(L"商家促销管理");
 					}
+					else if (target == ClientView::Panel::UserManagement) {
+						view_.setPanel(target);
+						requestAdminListUsers();
+						model_.setStatus(L"管理员用户管理");
+					}
 					else if (idx >= static_cast<int>(ClientView::Panel::ProductList)
 							 && idx <= static_cast<int>(ClientView::Panel::MyOrders)) {
 						// 商家点"商品列表"Tab → 回商家商品管理面板；其余 Tab 正常切
@@ -574,6 +595,8 @@ void ClientController::handleEvent(const sf::Event& event) {
 					model_.clearUser();
 					model_.clearCart();
 					model_.clearOrders();
+					model_.clearPromotions();
+					model_.clearUsers();
 					view_.clearInputs();
 					view_.setPanel(ClientView::Panel::Login);
 					model_.setStatus(L"已登出，请重新登录");
@@ -1030,6 +1053,24 @@ void ClientController::processMessage(nlohmann::json& msg) {
 				// 刷新促销列表
 				requestMerchantListPromotions();
 			}
+			break;
+		}
+
+		case static_cast<int>(proto::ResponseCode::AdminUserList): {
+			std::vector<SimpleUser> users;
+			if (msg.contains("users") && msg["users"].is_array()) {
+				for (const auto& uj : msg["users"]) {
+					SimpleUser u;
+					u.id       = uj.value("id", std::int64_t{});
+					u.username = uj.value("username", std::string{});
+					u.role     = uj.value("role", std::int32_t{});
+					users.push_back(std::move(u));
+				}
+			}
+			model_.setUsers(std::move(users));
+			std::wostringstream ss;
+			ss << L"用户列表已加载 " << model_.users().size() << L" 人";
+			model_.setStatus(ss.str());
 			break;
 		}
 
