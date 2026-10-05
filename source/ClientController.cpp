@@ -893,6 +893,26 @@ void ClientController::handleEvent(const sf::Event& event) {
 				view_.setActiveField(static_cast<ClientView::Field>(static_cast<int>(ClientView::Field::PromoSlot0) + next));
 			}
 		}
+		else if (view_.panel() == ClientView::Panel::Profile) {
+			// 个人信息表单：Enter 提交、Backspace 删字符、Tab 在 4 个输入框间循环
+			if (key == sf::Keyboard::Key::Enter) {
+				requestUpdateProfile();
+			}
+			else if (key == sf::Keyboard::Key::Backspace) {
+				view_.backspaceInput();
+			}
+			else if (key == sf::Keyboard::Key::Tab) {
+				const auto f = view_.activeField();
+				const int cur = static_cast<int>(f) - static_cast<int>(ClientView::Field::ProfileNewName);
+				if (cur >= 0 && cur < 4) {
+					const int next = (cur + 1) % 4 + static_cast<int>(ClientView::Field::ProfileNewName);
+					view_.setActiveField(static_cast<ClientView::Field>(next));
+				}
+				else {
+					view_.setActiveField(ClientView::Field::ProfileNewName);
+				}
+			}
+		}
 		else if (view_.panel() == ClientView::Panel::ProductList) {
 			// 商品列表搜索框：Backspace 删字符（清空所有字符即恢复显示全部商品）
 			if (key == sf::Keyboard::Key::Backspace) {
@@ -901,7 +921,7 @@ void ClientController::handleEvent(const sf::Event& event) {
 		}
 		return;
 	}
-	// 文本输入事件：Login/MerchantCreate/MerchantEdit/PromotionForm/ProductList 面板接收字符（ASCII 或中文 CJK）到当前聚焦输入框
+	// 文本输入事件：Login/MerchantCreate/MerchantEdit/PromotionForm/ProductList/Profile 面板接收字符（ASCII 或中文 CJK）到当前聚焦输入框
 	if (event.is<sf::Event::TextEntered>()) {
 		const auto* te = event.getIf<sf::Event::TextEntered>();
 		if (te == nullptr) return;
@@ -910,7 +930,8 @@ void ClientController::handleEvent(const sf::Event& event) {
 			&& view_.panel() != ClientView::Panel::MerchantCreate
 			&& view_.panel() != ClientView::Panel::MerchantEdit
 			&& view_.panel() != ClientView::Panel::PromotionForm
-			&& view_.panel() != ClientView::Panel::ProductList) return;
+			&& view_.panel() != ClientView::Panel::ProductList
+			&& view_.panel() != ClientView::Panel::Profile) return;
 		// 传 UTF-32 码点；appendInputChar 内部按 ASCII/CJK 过滤并转 UTF-8
 		view_.appendInputChar(te->unicode);
 		return;
