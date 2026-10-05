@@ -12,11 +12,17 @@ namespace {
 	// === 商品列表面板布局 ===
 	constexpr float cardW = 580.f, cardH = 380.f;
 	constexpr float gapX = 10.f, gapY = 10.f;
-	constexpr float startX = 120.f, startY = 100.f;
+	constexpr float startX = 120.f, startY = 130.f;
 	constexpr int   perRow = 3;
 	// 搜索框（商品列表面板顶部左侧）
-	constexpr float searchX = 120.f, searchY = 56.f;
+	constexpr float searchX = 120.f, searchY = 86.f;
 	constexpr float searchW = 380.f, searchH = 32.f;
+	// 价格区间输入框（搜索框右侧）
+	constexpr float priceMinX = 520.f, priceMaxX = 630.f;
+	constexpr float priceW = 90.f, priceH = 32.f;
+	// 排序按钮组（价格区间右侧）
+	constexpr float sortBtnX = 740.f, sortBtnY = 86.f;
+	constexpr float sortBtnW = 60.f, sortBtnH = 32.f, sortBtnGap = 6.f;
 	// 加购按钮：卡片右下角
 	constexpr float addBtnDX = 460.f, addBtnDY = 340.f;
 	constexpr float addBtnW = 100.f, addBtnH = 30.f;
@@ -1136,6 +1142,21 @@ sf::FloatRect ClientView::topSortBtnRect(int index) const {
 	return sf::FloatRect(sf::Vector2f{ x, y }, sf::Vector2f{ w, h });
 }
 
+// === 商品列表价格区间输入框矩形 ===
+sf::FloatRect ClientView::priceInputRect(int field) {
+	// field 取 Field::PriceMin / Field::PriceMax
+	// 注意：Field 枚举值需与布局常量匹配，PriceMin 在 ProductSearch 之后第 8 位
+	const float x = (field == static_cast<int>(Field::PriceMin)) ? priceMinX : priceMaxX;
+	return sf::FloatRect(sf::Vector2f{ x, searchY }, sf::Vector2f{ priceW, priceH });
+}
+
+// === 商品列表排序按钮矩形 ===
+sf::FloatRect ClientView::productSortBtnRect(int index) {
+	// 3 个按钮：默认/价格↑/价格↓
+	const float x = sortBtnX + static_cast<float>(index) * (sortBtnW + sortBtnGap);
+	return sf::FloatRect(sf::Vector2f{ x, sortBtnY }, sf::Vector2f{ sortBtnW, sortBtnH });
+}
+
 // === 促销表单按钮矩形 ===
 
 sf::FloatRect ClientView::promoTypeBtnRect(int index) const {
@@ -1232,6 +1253,17 @@ void ClientView::appendInputChar(std::uint32_t ch) {
 		if (dst.size() + 1 <= 32) dst += c;
 	};
 
+	// 价格区间输入：只允许数字 + 单个小数点，最长 12 字节
+	auto appendPrice = [&utf8](std::string& dst) {
+		if (utf8.size() != 1) return;
+		const char c = utf8[0];
+		const bool isDigit = (c >= '0' && c <= '9');
+		const bool isDot = (c == '.');
+		if (!isDigit && !isDot) return;
+		if (isDot && dst.find('.') != std::string::npos) return;
+		if (dst.size() + 1 <= 12) dst += c;
+	};
+
 	switch (activeField_) {
 		case Field::Username:       append(usernameInput_, 64); break;
 		case Field::Password:       append(passwordInput_, 64); break;
@@ -1241,6 +1273,8 @@ void ClientView::appendInputChar(std::uint32_t ch) {
 		case Field::ProductDesc:    append(productDescInput_, 256); break;
 		case Field::ProductImage:   append(productImageInput_, 256); break;
 		case Field::ProductSearch:  append(searchInput_, 128); break;
+		case Field::PriceMin:        appendPrice(priceMinInput_); break;
+		case Field::PriceMax:        appendPrice(priceMaxInput_); break;
 		case Field::PromoSlot0: appendNumeric(promoSlotValue_[0]); break;
 		case Field::PromoSlot1: appendNumeric(promoSlotValue_[1]); break;
 		case Field::PromoSlot2: appendNumeric(promoSlotValue_[2]); break;
@@ -1269,6 +1303,8 @@ void ClientView::backspaceInput() {
 		case Field::ProductDesc:    popUtf8Char(productDescInput_); break;
 		case Field::ProductImage:   popUtf8Char(productImageInput_); break;
 		case Field::ProductSearch:  popUtf8Char(searchInput_); break;
+		case Field::PriceMin:        popUtf8Char(priceMinInput_); break;
+		case Field::PriceMax:        popUtf8Char(priceMaxInput_); break;
 		case Field::PromoSlot0: popUtf8Char(promoSlotValue_[0]); break;
 		case Field::PromoSlot1: popUtf8Char(promoSlotValue_[1]); break;
 		case Field::PromoSlot2: popUtf8Char(promoSlotValue_[2]); break;
@@ -1372,20 +1408,87 @@ void ClientView::drawProductListPanel(const ClientModel& model) {
 		textMgr_.displayText(ec::string::to_utf16(searchInput_), { searchX + 10, searchY + 6 }, { 16, 22 }, sf::Color::Black);
 	}
 
+	// 价格区间输入框
+	auto drawPriceInput = [&](const std::string& input, float boxX, Field field, const wchar_t* placeholder) {
+		sf::RectangleShape bg({ priceW, priceH });
+		bg.setPosition({ boxX, searchY });
+		bg.setFillColor(sf::Color::White);
+		bg.setOutlineColor(activeField_ == field ? sf::Color(80, 130, 200) : sf::Color(200, 200, 200));
+		bg.setOutlineThickness(activeField_ == field ? 2.f : 1.f);
+		window_.draw(bg);
+		if (input.empty()) {
+			textMgr_.displayText(placeholder, { boxX + 8, searchY + 6 }, { 14, 22 }, sf::Color(180, 180, 180));
+		} else {
+			textMgr_.displayText(ec::string::to_utf16(input), { boxX + 8, searchY + 6 }, { 14, 22 }, sf::Color::Black);
+		}
+	};
+	drawPriceInput(priceMinInput_, priceMinX, Field::PriceMin, L"最低价");
+	drawPriceInput(priceMaxInput_, priceMaxX, Field::PriceMax, L"最高价");
+	// 价格区间中间的"-"分隔
+	textMgr_.displayText(L"-", { priceMinX + priceW + 4, searchY + 4 }, { 14, 22 }, sf::Color(120, 120, 120));
+
+	// 排序按钮组
+	auto drawSortBtn = [&](int index, const wchar_t* label, int mode) {
+		const auto rect = productSortBtnRect(index);
+		sf::RectangleShape bg({ rect.size.x, rect.size.y });
+		bg.setPosition({ rect.position.x, rect.position.y });
+		const bool active = (productSortMode_ == mode);
+		bg.setFillColor(active ? sf::Color(80, 130, 200) : sf::Color::White);
+		bg.setOutlineColor(active ? sf::Color(80, 130, 200) : sf::Color(200, 200, 200));
+		bg.setOutlineThickness(active ? 2.f : 1.f);
+		window_.draw(bg);
+		textMgr_.displayText(label, { rect.position.x + 6, rect.position.y + 6 }, { 14, 22 },
+			active ? sf::Color::White : sf::Color(80, 80, 80));
+	};
+	drawSortBtn(0, L"默认", 0);
+	drawSortBtn(1, L"价格↑", 1);
+	drawSortBtn(2, L"价格↓", 2);
+
 	if (!model.status().empty()) {
 		textMgr_.displayText(model.status(), { 700, statusY }, { 18, 22 }, sf::Color(150, 150, 150));
 	}
 
-	// 按搜索词过滤商品（名称包含，UTF-8 子串匹配，忽略大小写对 ASCII 有效）
+	// 按搜索词过滤（名称/描述匹配，ASCII 大小写不敏感）+ 价格区间筛选
+	auto toLowerAscii = [](const std::string& s) {
+		std::string r = s;
+		for (auto& c : r) {
+			if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+		}
+		return r;
+	};
+	const std::string keywordLower = toLowerAscii(searchInput_);
+	// 解析价格区间（解析失败则忽略该侧约束）
+	double minPrice = 0.0, maxPrice = 0.0;
+	bool hasMin = false, hasMax = false;
+	if (!priceMinInput_.empty()) {
+		try { minPrice = std::stod(priceMinInput_); hasMin = true; }
+		catch (...) { hasMin = false; }
+	}
+	if (!priceMaxInput_.empty()) {
+		try { maxPrice = std::stod(priceMaxInput_); hasMax = true; }
+		catch (...) { hasMax = false; }
+	}
 	std::vector<Product> filtered;
-	if (searchInput_.empty()) {
-		filtered.assign(allProducts.begin(), allProducts.end());
-	} else {
-		for (const auto& p : allProducts) {
-			if (p.name.find(searchInput_) != std::string::npos) {
-				filtered.push_back(p);
+	for (const auto& p : allProducts) {
+		if (!keywordLower.empty()) {
+			const std::string nameLower = toLowerAscii(p.name);
+			const std::string descLower = toLowerAscii(p.description);
+			if (nameLower.find(keywordLower) == std::string::npos &&
+				descLower.find(keywordLower) == std::string::npos) {
+				continue;
 			}
 		}
+		if (hasMin && p.price < minPrice) continue;
+		if (hasMax && p.price > maxPrice) continue;
+		filtered.push_back(p);
+	}
+	// 排序：1=价格升序/2=价格降序/0=默认（原顺序）
+	if (productSortMode_ == 1) {
+		std::sort(filtered.begin(), filtered.end(),
+			[](const Product& a, const Product& b) { return a.price < b.price; });
+	} else if (productSortMode_ == 2) {
+		std::sort(filtered.begin(), filtered.end(),
+			[](const Product& a, const Product& b) { return a.price > b.price; });
 	}
 
 	if (filtered.empty()) {
@@ -1722,15 +1825,61 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 			activeField_ = Field::ProductSearch;
 			return { ClickAction::None, 0 };
 		}
+		// 价格区间输入框命中
+		if (hit(priceInputRect(static_cast<int>(Field::PriceMin)), mousePos)) {
+			activeField_ = Field::PriceMin;
+			return { ClickAction::None, 0 };
+		}
+		if (hit(priceInputRect(static_cast<int>(Field::PriceMax)), mousePos)) {
+			activeField_ = Field::PriceMax;
+			return { ClickAction::None, 0 };
+		}
+		// 排序按钮命中
+		for (int i = 0; i < 3; ++i) {
+			if (hit(productSortBtnRect(i), mousePos)) {
+				return { ClickAction::SwitchProductSort, i };
+			}
+		}
 		// 按搜索词过滤后做加购按钮命中（与 drawProductListPanel 一致）
 		const auto& allProducts = model.products();
-		std::vector<Product> filtered;
-		if (searchInput_.empty()) {
-			filtered.assign(allProducts.begin(), allProducts.end());
-		} else {
-			for (const auto& p : allProducts) {
-				if (p.name.find(searchInput_) != std::string::npos) filtered.push_back(p);
+		auto toLowerAscii = [](const std::string& s) {
+			std::string r = s;
+			for (auto& c : r) {
+				if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
 			}
+			return r;
+		};
+		const std::string keywordLower = toLowerAscii(searchInput_);
+		double minPrice = 0.0, maxPrice = 0.0;
+		bool hasMin = false, hasMax = false;
+		if (!priceMinInput_.empty()) {
+			try { minPrice = std::stod(priceMinInput_); hasMin = true; }
+			catch (...) { hasMin = false; }
+		}
+		if (!priceMaxInput_.empty()) {
+			try { maxPrice = std::stod(priceMaxInput_); hasMax = true; }
+			catch (...) { hasMax = false; }
+		}
+		std::vector<Product> filtered;
+		for (const auto& p : allProducts) {
+			if (!keywordLower.empty()) {
+				const std::string nameLower = toLowerAscii(p.name);
+				const std::string descLower = toLowerAscii(p.description);
+				if (nameLower.find(keywordLower) == std::string::npos &&
+					descLower.find(keywordLower) == std::string::npos) {
+					continue;
+				}
+			}
+			if (hasMin && p.price < minPrice) continue;
+			if (hasMax && p.price > maxPrice) continue;
+			filtered.push_back(p);
+		}
+		if (productSortMode_ == 1) {
+			std::sort(filtered.begin(), filtered.end(),
+				[](const Product& a, const Product& b) { return a.price < b.price; });
+		} else if (productSortMode_ == 2) {
+			std::sort(filtered.begin(), filtered.end(),
+				[](const Product& a, const Product& b) { return a.price > b.price; });
 		}
 		for (std::size_t i = 0; i < filtered.size(); ++i) {
 			const auto col = static_cast<int>(i % perRow);
@@ -2084,14 +2233,38 @@ void ClientView::scrollMyOrders(float deltaPx, const ClientModel& model) {
 
 float ClientView::computeProductListContentHeight(const ClientModel& model) const noexcept {
 	const auto& allProducts = model.products();
-	// 与 drawProductListPanel 的过滤逻辑保持一致：按 searchInput_ 过滤后计算行数
-	std::size_t count = 0;
-	if (searchInput_.empty()) {
-		count = allProducts.size();
-	} else {
-		for (const auto& p : allProducts) {
-			if (p.name.find(searchInput_) != std::string::npos) ++count;
+	// 与 drawProductListPanel 的过滤逻辑保持一致：搜索词 + 价格区间过滤后计算行数
+	auto toLowerAscii = [](const std::string& s) {
+		std::string r = s;
+		for (auto& c : r) {
+			if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
 		}
+		return r;
+	};
+	const std::string keywordLower = toLowerAscii(searchInput_);
+	double minPrice = 0.0, maxPrice = 0.0;
+	bool hasMin = false, hasMax = false;
+	if (!priceMinInput_.empty()) {
+		try { minPrice = std::stod(priceMinInput_); hasMin = true; }
+		catch (...) { hasMin = false; }
+	}
+	if (!priceMaxInput_.empty()) {
+		try { maxPrice = std::stod(priceMaxInput_); hasMax = true; }
+		catch (...) { hasMax = false; }
+	}
+	std::size_t count = 0;
+	for (const auto& p : allProducts) {
+		if (!keywordLower.empty()) {
+			const std::string nameLower = toLowerAscii(p.name);
+			const std::string descLower = toLowerAscii(p.description);
+			if (nameLower.find(keywordLower) == std::string::npos &&
+				descLower.find(keywordLower) == std::string::npos) {
+				continue;
+			}
+		}
+		if (hasMin && p.price < minPrice) continue;
+		if (hasMax && p.price > maxPrice) continue;
+		++count;
 	}
 	if (count == 0) return 0.f;
 	const int rows = static_cast<int>((count + perRow - 1) / perRow);

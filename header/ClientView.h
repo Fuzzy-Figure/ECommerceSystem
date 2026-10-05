@@ -19,7 +19,7 @@ public:
 	enum class Panel { Login, Merchant, MerchantCreate, MerchantEdit, ProductList, Cart, MyOrders, Promotion, PromotionForm, UserManagement, Dashboard };
 
 	// 当前聚焦的输入框
-	enum class Field { Username, Password, ProductName, ProductPrice, ProductStock, ProductDesc, ProductImage, ProductSearch, PromoSlot0, PromoSlot1, PromoSlot2, PromoSlot3 };
+	enum class Field { Username, Password, ProductName, ProductPrice, ProductStock, ProductDesc, ProductImage, ProductSearch, PriceMin, PriceMax, PromoSlot0, PromoSlot1, PromoSlot2, PromoSlot3 };
 
 	// 鼠标点击命中后返回的动作；type=None 表示未命中任何按钮
 	struct ClickAction {
@@ -50,7 +50,8 @@ public:
 			MerchantPromoFormBack,  // 促销表单返回：切回 Promotion 面板
 			MerchantPromoSelectType, // 促销表单选择类型：arg 是类型索引 0..4
 			SwitchStatsRange,        // Dashboard 切换时间范围：arg 是 rangeType 0=今日/1=本周/2=本月/3=全部
-			SwitchTopSort            // Dashboard 切换排行榜排序：arg 0=按销售额/1=按销量
+			SwitchTopSort,           // Dashboard 切换排行榜排序：arg 0=按销售额/1=按销量
+			SwitchProductSort        // 商品列表切换排序：arg 0=默认/1=价格升/2=价格降
 		} type{ None };
 		std::int32_t arg{ 0 };     // 通用参数
 		std::int64_t orderId{};  // ReturnItem 用 orderId
@@ -86,6 +87,12 @@ public:
 	const std::string& productStockInput() const noexcept { return productStockInput_; }
 	const std::string& productDescInput()  const noexcept { return productDescInput_; }
 	const std::string& productImageInput() const noexcept { return productImageInput_; }
+
+	// === 商品列表搜索/筛选/排序 UI 状态 ===
+	const std::string& priceMinInput() const noexcept { return priceMinInput_; }
+	const std::string& priceMaxInput() const noexcept { return priceMaxInput_; }
+	int productSortMode() const noexcept { return productSortMode_; }
+	void setProductSortMode(int mode) noexcept { productSortMode_ = mode; }
 
 	// === "我的订单"面板滚动 ===
 	// 滚动 deltaPx 像素（正值内容向上=向下滚动；负值相反），自动按内容/可见区夹取边界
@@ -140,6 +147,11 @@ private:
 	std::string productImageInput_;
 	// === 商品列表搜索框 ===
 	std::string searchInput_;
+	// === 商品列表价格区间筛选输入框（留空 = 不限）===
+	std::string priceMinInput_;
+	std::string priceMaxInput_;
+	// === 商品列表排序模式：0=默认/1=价格升/2=价格降 ===
+	int productSortMode_{ 0 };
 	Field       activeField_{ Field::Username };
 	// === 商家编辑商品的 productId ===
 	std::int32_t editingProductId_{ 0 };
@@ -223,6 +235,10 @@ private:
 	sf::FloatRect statsRangeBtnRect(int index) const;
 	// Dashboard 排行榜排序切换按钮矩形；index 0=销售额/1=销量
 	sf::FloatRect topSortBtnRect(int index) const;
+	// 商品列表价格区间输入框矩形；field 取 Field::PriceMin/PriceMax
+	static sf::FloatRect priceInputRect(int field);
+	// 商品列表排序按钮矩形；index 0=默认/1=价格升/2=价格降
+	static sf::FloatRect productSortBtnRect(int index);
 	// 促销类型选择按钮矩形；index 0..4 对应 5 种类型
 	sf::FloatRect promoTypeBtnRect(int index) const;
 	// 促销参数槽位输入框矩形；index 0..3 对应 4 个槽位
