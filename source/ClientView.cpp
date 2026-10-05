@@ -100,6 +100,7 @@ void ClientView::render(const ClientModel& model) {
 		case Panel::PromotionForm:    drawPromotionFormPanel(model);   break;
 		case Panel::UserManagement:   drawUserManagementPanel(model);  break;
 		case Panel::Dashboard:        drawDashboardPanel(model);       break;
+		case Panel::Profile:          drawProfilePanel(model);         break;
 	}
 }
 
@@ -1279,6 +1280,10 @@ void ClientView::appendInputChar(std::uint32_t ch) {
 		case Field::PromoSlot1: appendNumeric(promoSlotValue_[1]); break;
 		case Field::PromoSlot2: appendNumeric(promoSlotValue_[2]); break;
 		case Field::PromoSlot3: appendNumeric(promoSlotValue_[3]); break;
+		case Field::ProfileNewName:    append(profileNewNameInput_, 64); break;
+		case Field::ProfileOldPwd:     append(profileOldPwdInput_, 64); break;
+		case Field::ProfileNewPwd:     append(profileNewPwdInput_, 64); break;
+		case Field::ProfileConfirmPwd: append(profileConfirmPwdInput_, 64); break;
 	}
 }
 
@@ -1309,6 +1314,10 @@ void ClientView::backspaceInput() {
 		case Field::PromoSlot1: popUtf8Char(promoSlotValue_[1]); break;
 		case Field::PromoSlot2: popUtf8Char(promoSlotValue_[2]); break;
 		case Field::PromoSlot3: popUtf8Char(promoSlotValue_[3]); break;
+		case Field::ProfileNewName:    popUtf8Char(profileNewNameInput_); break;
+		case Field::ProfileOldPwd:     popUtf8Char(profileOldPwdInput_); break;
+		case Field::ProfileNewPwd:     popUtf8Char(profileNewPwdInput_); break;
+		case Field::ProfileConfirmPwd: popUtf8Char(profileConfirmPwdInput_); break;
 	}
 }
 
@@ -1320,19 +1329,24 @@ void ClientView::clearInputs() noexcept {
 	productStockInput_.clear();
 	productDescInput_.clear();
 	productImageInput_.clear();
+	profileNewNameInput_.clear();
+	profileOldPwdInput_.clear();
+	profileNewPwdInput_.clear();
+	profileConfirmPwdInput_.clear();
 	activeField_ = Field::Username;
 }
 
 // ===================== 顶部 Tab 标签栏 =====================
 
 void ClientView::drawTabBar(const ClientModel& model) {
-	// 商家 4 个 Tab：商品列表(Merchant) / 我的订单(MyOrders) / 促销管理(Promotion) / 用户管理(UserManagement)
-	// 普通用户 3 个 Tab：商品列表(ProductList) / 购物车(Cart) / 我的订单(MyOrders)
+	// 商家 5 个 Tab：商品列表(Merchant) / 我的订单(MyOrders) / 促销管理(Promotion) / 用户管理(UserManagement) / 销售统计(Dashboard)
+	// 普通用户 4 个 Tab：商品列表(ProductList) / 购物车(Cart) / 我的订单(MyOrders) / 个人信息(Profile)
 	struct TabDef { const wchar_t* label; Panel panel; };
 	const TabDef userTabs[] = {
 		{ L"商品列表", Panel::ProductList },
 		{ L"购物车",   Panel::Cart },
 		{ L"我的订单", Panel::MyOrders },
+		{ L"个人信息", Panel::Profile },
 	};
 	const TabDef merchantTabs[] = {
 		{ L"商品列表", Panel::Merchant },
@@ -1342,7 +1356,7 @@ void ClientView::drawTabBar(const ClientModel& model) {
 		{ L"销售统计", Panel::Dashboard },
 	};
 	const TabDef* tabs = model.isMerchant() ? merchantTabs : userTabs;
-	const int tabCount = model.isMerchant() ? 5 : 3;
+	const int tabCount = model.isMerchant() ? 5 : 4;
 
 	for (int i = 0; i < tabCount; ++i) {
 		const bool active = (panel_ == tabs[i].panel);
@@ -1802,12 +1816,12 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 		return { ClickAction::None, 0 };
 	}
 
-	// 顶部 Tab 标签：商家 4 个(商品列表/我的订单/促销管理/用户管理)，用户 3 个(商品列表/购物车/我的订单)
+	// 顶部 Tab 标签：商家 5 个(商品列表/我的订单/促销管理/用户管理/销售统计)，用户 4 个(商品列表/购物车/我的订单/个人信息)
 	struct TabDef { Panel panel; };
-	const TabDef userTabs[] = { Panel::ProductList, Panel::Cart, Panel::MyOrders };
+	const TabDef userTabs[] = { Panel::ProductList, Panel::Cart, Panel::MyOrders, Panel::Profile };
 	const TabDef merchantTabs[] = { Panel::Merchant, Panel::MyOrders, Panel::Promotion, Panel::UserManagement, Panel::Dashboard };
 	const TabDef* tabs = model.isMerchant() ? merchantTabs : userTabs;
-	const int tabCount = model.isMerchant() ? 5 : 3;
+	const int tabCount = model.isMerchant() ? 5 : 4;
 	for (int i = 0; i < tabCount; ++i) {
 		if (hit(tabBtnRect(i), mousePos)) {
 			return { ClickAction::SwitchPanel, static_cast<int>(tabs[i].panel) };
@@ -2078,6 +2092,24 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 			return { ClickAction::MerchantPromoFormBack, 0 };
 		}
 	}
+	else if (panel_ == Panel::Profile) {
+		// 4 个输入框命中 → 聚焦切换
+		const Field fields[4] = {
+			Field::ProfileNewName, Field::ProfileOldPwd,
+			Field::ProfileNewPwd,  Field::ProfileConfirmPwd
+		};
+		for (int i = 0; i < 4; ++i) {
+			if (hit(profileFieldRect(i), mousePos)) {
+				return { ClickAction::FocusField, static_cast<std::int32_t>(fields[i]) };
+			}
+		}
+		if (hit(profileSubmitBtnRect(), mousePos)) {
+			return { ClickAction::ProfileSubmit, 0 };
+		}
+		if (hit(profileBackBtnRect(), mousePos)) {
+			return { ClickAction::ProfileBack, 0 };
+		}
+	}
 	return { ClickAction::None, 0 };
 }
 
@@ -2196,6 +2228,116 @@ sf::FloatRect ClientView::merchantCreateSubmitBtnRect() {
 sf::FloatRect ClientView::merchantCreateBackBtnRect() {
 	constexpr float w = 120.f, h = 44.f;
 	return sf::FloatRect(sf::Vector2f{ 430, 440 }, sf::Vector2f{ w, h });
+}
+
+// ===================== 个人信息面板 =====================
+
+// 个人信息表单输入框矩形；field 取 0..3 对应 新用户名/旧密码/新密码/确认密码
+sf::FloatRect ClientView::profileFieldRect(int field) {
+	constexpr float x = 400.f, w = 360.f, h = 32.f;
+	constexpr float startY = 200.f, gap = 50.f;
+	const float y = startY + field * gap;
+	return sf::FloatRect(sf::Vector2f{ x, y }, sf::Vector2f{ w, h });
+}
+
+// "保存"按钮矩形（表单底部左侧）
+sf::FloatRect ClientView::profileSubmitBtnRect() {
+	constexpr float w = 100.f, h = 36.f;
+	return sf::FloatRect(sf::Vector2f{ 400, 410 }, sf::Vector2f{ w, h });
+}
+
+// "返回"按钮矩形（保存按钮右侧）
+sf::FloatRect ClientView::profileBackBtnRect() {
+	constexpr float w = 100.f, h = 36.f;
+	return sf::FloatRect(sf::Vector2f{ 520, 410 }, sf::Vector2f{ w, h });
+}
+
+void ClientView::drawProfilePanel(const ClientModel& model) {
+	// 顶部 Tab 栏（普通用户 4 Tab，第 4 个高亮 = 个人信息）
+	drawTabBar(model);
+
+	// 表单标题
+	textMgr_.displayText(L"个人信息（带 * 为必填）", { 100, 100 }, { 20, 26 }, sf::Color(60, 60, 60));
+
+	// 当前用户名只读显示
+	std::wostringstream cur;
+	cur << L"当前用户名：" << ec::string::to_utf16(model.currentUsername());
+	textMgr_.displayText(cur.str(), { 400, 145 }, { 18, 24 }, sf::Color(80, 80, 80));
+
+	// 4 个输入框：新用户名/旧密码/新密码/确认密码
+	const wchar_t* labels[] = { L"新用户名", L"旧密码 *", L"新密码", L"确认新密码" };
+	const std::string* values[] = {
+		&profileNewNameInput_, &profileOldPwdInput_,
+		&profileNewPwdInput_,  &profileConfirmPwdInput_
+	};
+	const Field fields[] = {
+		Field::ProfileNewName, Field::ProfileOldPwd,
+		Field::ProfileNewPwd,  Field::ProfileConfirmPwd
+	};
+	const bool isPassword[] = { false, true, true, true };
+
+	for (int i = 0; i < 4; ++i) {
+		const auto r = profileFieldRect(i);
+		// 标签
+		textMgr_.displayText(labels[i],
+							 { r.position.x - 130, r.position.y + 4 },
+							 { 18, 24 }, sf::Color(80, 80, 80));
+		// 输入框背景
+		sf::RectangleShape bg({ r.size.x, r.size.y });
+		bg.setPosition({ r.position.x, r.position.y });
+		bg.setFillColor(sf::Color::White);
+		bg.setOutlineColor(activeField_ == fields[i] ? sf::Color(80, 130, 200) : sf::Color(200, 200, 200));
+		bg.setOutlineThickness(activeField_ == fields[i] ? 2.f : 1.f);
+		window_.draw(bg);
+		// 输入框文本（密码框显示 '*'）
+		std::wstring shown = isPassword[i]
+			? std::wstring(values[i]->size(), L'*')
+			: ec::string::to_utf16(*values[i]);
+		if (activeField_ == fields[i]) shown += L"_";  // 光标占位
+		textMgr_.displayText(shown,
+							 { r.position.x + 8, r.position.y + 4 },
+							 { 18, 24 }, sf::Color::Black);
+	}
+
+	// 保存按钮（蓝色）
+	const auto sb = profileSubmitBtnRect();
+	sf::RectangleShape submitBtn({ sb.size.x, sb.size.y });
+	submitBtn.setPosition({ sb.position.x, sb.position.y });
+	submitBtn.setFillColor(sf::Color(80, 130, 200));
+	submitBtn.setOutlineColor(sf::Color(60, 100, 170));
+	submitBtn.setOutlineThickness(1.f);
+	window_.draw(submitBtn);
+	textMgr_.displayText(L"保存",
+						 { sb.position.x + 30, sb.position.y + 6 },
+						 { 18, 24 }, sf::Color::White);
+
+	// 返回按钮（灰色）
+	const auto bb = profileBackBtnRect();
+	sf::RectangleShape backBtn({ bb.size.x, bb.size.y });
+	backBtn.setPosition({ bb.position.x, bb.position.y });
+	backBtn.setFillColor(sf::Color(150, 150, 150));
+	backBtn.setOutlineColor(sf::Color(120, 120, 120));
+	backBtn.setOutlineThickness(1.f);
+	window_.draw(backBtn);
+	textMgr_.displayText(L"返回",
+						 { bb.position.x + 30, bb.position.y + 6 },
+						 { 18, 24 }, sf::Color::White);
+
+	// 状态信息
+	if (!model.status().empty()) {
+		textMgr_.displayText(model.status(), { 100, 480 }, { 18, 22 }, sf::Color(200, 50, 50));
+	}
+
+	// 提示
+	textMgr_.displayText(L"（旧密码必填用于身份验证；新用户名与新密码至少填一项；新密码 ≥ 4 位）",
+						 { 100, 520 }, { 16, 22 }, sf::Color(150, 150, 150));
+}
+
+void ClientView::clearProfileInputs() noexcept {
+	profileNewNameInput_.clear();
+	profileOldPwdInput_.clear();
+	profileNewPwdInput_.clear();
+	profileConfirmPwdInput_.clear();
 }
 
 // ===================== "我的订单"面板滚动 =====================

@@ -517,6 +517,55 @@ void ClientController::requestRegister() {
 	model_.setStatus(L"正在注册，请稍候...");
 }
 
+void ClientController::requestUpdateProfile() {
+	if (!socket_) {
+		model_.setStatus(L"未连接服务器，无法修改");
+		return;
+	}
+	if (model_.currentUserId() <= 0) {
+		model_.setStatus(L"未登录，无法修改");
+		return;
+	}
+	const auto& newName     = view_.profileNewNameInput();
+	const auto& oldPwd      = view_.profileOldPwdInput();
+	const auto& newPwd      = view_.profileNewPwdInput();
+	const auto& confirmPwd = view_.profileConfirmPwdInput();
+
+	// 旧密码必填（身份验证）
+	if (oldPwd.empty()) {
+		model_.setStatus(L"请输入旧密码以验证身份");
+		return;
+	}
+	// 新用户名/新密码至少填一项
+	if (newName.empty() && newPwd.empty()) {
+		model_.setStatus(L"新用户名与新密码至少填一项");
+		return;
+	}
+	// 新密码长度校验
+	if (!newPwd.empty() && newPwd.size() < 4) {
+		model_.setStatus(L"新密码长度至少 4 位");
+		return;
+	}
+	// 两次新密码必须一致
+	if (newPwd != confirmPwd) {
+		model_.setStatus(L"两次输入的新密码不一致");
+		return;
+	}
+
+	const nlohmann::json req = {
+		{"code",        static_cast<int>(proto::RequestCode::UpdateProfile)},
+		{"userId",      model_.currentUserId()},
+		{"newUsername", newName},
+		{"oldPassword", oldPwd},
+		{"newPassword", newPwd}
+	};
+	if (!proto::sendJson(*socket_, req)) {
+		model_.setStatus(L"发送修改请求失败，连接可能已断开");
+		return;
+	}
+	model_.setStatus(L"正在提交修改，请稍候...");
+}
+
 void ClientController::handleEvent(const sf::Event& event) {
 	if (event.is<sf::Event::Closed>()) {
 		window_.close();
@@ -580,6 +629,13 @@ void ClientController::handleEvent(const sf::Event& event) {
 						requestMerchantGetStats(model_.statsRange());
 						model_.setStatus(L"销售统计 Dashboard");
 					}
+					else if (target == ClientView::Panel::Profile) {
+						// 进入个人信息面板：清空表单 + 默认聚焦新用户名输入框
+						view_.clearProfileInputs();
+						view_.setActiveField(ClientView::Field::ProfileNewName);
+						view_.setPanel(target);
+						model_.setStatus(L"个人信息：修改用户名或密码");
+					}
 					else if (idx >= static_cast<int>(ClientView::Panel::ProductList)
 							 && idx <= static_cast<int>(ClientView::Panel::MyOrders)) {
 						// 商家点"商品列表"Tab → 回商家商品管理面板；其余 Tab 正常切
@@ -627,6 +683,18 @@ void ClientController::handleEvent(const sf::Event& event) {
 				case ClientView::ClickAction::SwitchProductSort: {
 					// 商品列表排序切换（本地排序，不重新请求）
 					view_.setProductSortMode(action.arg);
+					break;
+				}
+				case ClientView::ClickAction::ProfileSubmit: {
+					// 个人信息表单提交：发请求修改用户名/密码
+					requestUpdateProfile();
+					break;
+				}
+				case ClientView::ClickAction::ProfileBack: {
+					// 个人信息表单返回：清空表单切回商品列表
+					view_.clearProfileInputs();
+					view_.setActiveField(ClientView::Field::ProductSearch);
+					view_.setPanel(ClientView::Panel::ProductList);
 					break;
 				}
 				case ClientView::ClickAction::Logout:
@@ -1138,6 +1206,23 @@ void ClientController::processMessage(nlohmann::json& msg) {
 			model_.setStats(s);
 			model_.setTopProducts(std::move(top));
 			model_.setStatus(L"销售统计已加载");
+			break;
+		}
+		case static_cast<int>(proto::ResponseCode::ProfileResult): {
+			const auto success = msg.value("success", false);
+			const auto m = msg.value("message", std::string{});
+			if (success) {
+				// 用新用户名更新本地身份（id/role 不变）；清空表单切回商品列表
+				const auto newUsername = msg.value("newUsername", std::string{});
+				if (!newUsername.empty()) {
+					model_.setUser(model_.currentUserId(), newUsername, model_.currentRole());
+				}
+				view_.clearProfileInputs();
+				// 切回 ProductList 前重置聚焦字段，避免输入仍写入 Profile 不可见字段
+				view_.setActiveField(ClientView::Field::ProductSearch);
+				view_.setPanel(ClientView::Panel::ProductList);
+			}
+			model_.setStatus(ec::string::to_utf16(m));
 			break;
 		}
 

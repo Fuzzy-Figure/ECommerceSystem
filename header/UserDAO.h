@@ -27,6 +27,15 @@ public:
     // 单独生成密码哈希（供 createUser 内部用）
     static std::string hashPassword(const std::string& username, const std::string& password);
 
+    // 修改用户名：currentPassword 用旧名做 salt 校验，通过后更新 username + password_hash
+    // （salt 是 username，必须同改 hash），新名重复或旧密码错误返回 false
+    bool updateUsername(std::int64_t userId, const std::string& newName,
+                        const std::string& currentPassword);
+
+    // 修改密码：旧密码校验通过后，用旧名做 salt 写入 newPwd 的新哈希
+    bool updatePassword(std::int64_t userId, const std::string& oldPwd,
+                        const std::string& newPwd);
+
 private:
     Database& db_;
 };

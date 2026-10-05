@@ -34,6 +34,7 @@ namespace proto {
         MerchantDeletePromotion,    // 商家删除促销：{userId, id}
         AdminListUsers,             // 管理员拉取全部用户列表：{userId}
         MerchantGetStats,           // 商家拉取销售统计：{userId}
+        UpdateProfile,              // 用户修改个人信息：{userId, newUsername, oldPassword, newPassword}
     };
 
 	// 应答码（服务端响应）
@@ -54,6 +55,7 @@ namespace proto {
 		MerchantPromotionResult, // 商家促销操作结果：{success, message}
 		AdminUserList,           // 管理员用户列表：{users:[{id,username,role}]}
 		MerchantStats,           // 商家销售统计：{todayOrders,todayRevenue,totalOrders,totalRevenue,topProducts:[...]}
+		ProfileResult,           // 个人信息修改结果：{success, newUsername, message}
 	};
 
 	// 阻塞发送一条 JSON 消息；处理 Partial 直至全部发出。

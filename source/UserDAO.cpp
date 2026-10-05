@@ -91,9 +91,78 @@ bool UserDAO::createUser(const std::string& username, const std::string& passwor
     db_.execute(ins.str());
 
     auto idRows = db_.query("SELECT last_insert_rowid() AS id;");
-    if (!idRows.empty()) {
-        newIdOut = toInt64(idRows.front()["id"]);
-        return newIdOut > 0;
+	if (!idRows.empty()) {
+		newIdOut = toInt64(idRows.front()["id"]);
+		return newIdOut > 0;
+	}
+	return false;
+}
+
+// 按 id 查 username（UserDAO 内部用，不暴露到 .h）
+namespace {
+    std::string usernameById(Database& db, std::int64_t userId) {
+        std::ostringstream q;
+        q << "SELECT username FROM users WHERE id=" << userId << ";";
+        auto rows = db.query(q.str());
+        if (rows.empty()) return {};
+        return toStr(rows.front()["username"]);
     }
-    return false;
+}
+
+bool UserDAO::updateUsername(std::int64_t userId, const std::string& newName,
+                             const std::string& currentPassword) {
+    // 1. 取当前用户名
+    const std::string oldName = usernameById(db_, userId);
+    if (oldName.empty()) return false;  // 用户不存在
+    if (newName == oldName) return false; // 新旧同名无意义
+
+    // 2. 校验旧密码（旧名做 salt）
+    if (!authenticate(oldName, currentPassword).has_value()) return false;
+
+    // 3. 新名查重
+    if (findByUsername(newName).has_value()) return false;
+
+    // 4. 新哈希（salt = newName，密码沿用 currentPassword）
+    const std::string newHash = hashPassword(newName, currentPassword);
+
+    // 转义单引号
+    auto escape = [](const std::string& s) {
+        std::string out; out.reserve(s.size());
+        for (char c : s) out += (c == '\'' ? "''" : std::string(1, c));
+        return out;
+    };
+    const std::string escapedName = escape(newName);
+    const std::string escapedHash = escape(newHash);
+
+    std::ostringstream upd;
+    upd << "UPDATE users SET username='" << escapedName
+        << "', password_hash='" << escapedHash
+        << "' WHERE id=" << userId << ";";
+    db_.execute(upd.str());
+    return true;
+}
+
+bool UserDAO::updatePassword(std::int64_t userId, const std::string& oldPwd,
+                             const std::string& newPwd) {
+    // 1. 取当前用户名（保持 salt 不变）
+    const std::string name = usernameById(db_, userId);
+    if (name.empty()) return false;
+
+    // 2. 校验旧密码
+    if (!authenticate(name, oldPwd).has_value()) return false;
+
+    // 3. 新哈希（salt = 旧名）
+    const std::string newHash = hashPassword(name, newPwd);
+    auto escape = [](const std::string& s) {
+        std::string out; out.reserve(s.size());
+        for (char c : s) out += (c == '\'' ? "''" : std::string(1, c));
+        return out;
+    };
+    const std::string escapedHash = escape(newHash);
+
+    std::ostringstream upd;
+    upd << "UPDATE users SET password_hash='" << escapedHash
+        << "' WHERE id=" << userId << ";";
+    db_.execute(upd.str());
+    return true;
 }

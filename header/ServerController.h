@@ -77,6 +77,8 @@ private:
 	nlohmann::json handleLogin(const nlohmann::json& req);
 	// 注册：{username, password} → RegisterResult
 	nlohmann::json handleRegister(const nlohmann::json& req);
+	// 修改个人信息：{userId, newUsername, oldPassword, newPassword} → ProfileResult
+	nlohmann::json handleUpdateProfile(const nlohmann::json& req);
 	// 商家拉取全部商品（含下架）：{userId} → MerchantProductList
 	nlohmann::json handleMerchantListProducts(const nlohmann::json& req);
 	// 商家上架/下架：{userId, productId, onSale} → MerchantActionResult

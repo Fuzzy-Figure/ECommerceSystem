@@ -95,6 +95,9 @@ public:
 	// 拉取 Dashboard 数据（按 rangeType 过滤：0=今日/1=本周/2=本月/3=全部）
 	void requestMerchantGetStats(int rangeType = 0);
 
+	// 用户：用个人信息表单输入提交修改（用户名/密码至少改一项；旧密码用于身份验证）
+	void requestUpdateProfile();
+
 	// 处理 SFML 事件（按键、关闭、文本输入等）
 	void handleEvent(const sf::Event& event);
 

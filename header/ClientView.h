@@ -16,10 +16,10 @@ class ClientView {
 public:
 	// 注意顺序：Login=0；商家面板 Merchant/MerchantCreate/MerchantEdit/Promotion/PromotionForm 独立（不参与 Tab 切换）；
 	// ProductList/Cart/MyOrders 三面板按顶部 Tab 切换，Tab 索引仍按 0/1/2；商家 Tab 为 商品列表/我的订单/促销管理。
-	enum class Panel { Login, Merchant, MerchantCreate, MerchantEdit, ProductList, Cart, MyOrders, Promotion, PromotionForm, UserManagement, Dashboard };
+	enum class Panel { Login, Merchant, MerchantCreate, MerchantEdit, ProductList, Cart, MyOrders, Promotion, PromotionForm, UserManagement, Dashboard, Profile };
 
 	// 当前聚焦的输入框
-	enum class Field { Username, Password, ProductName, ProductPrice, ProductStock, ProductDesc, ProductImage, ProductSearch, PriceMin, PriceMax, PromoSlot0, PromoSlot1, PromoSlot2, PromoSlot3 };
+	enum class Field { Username, Password, ProductName, ProductPrice, ProductStock, ProductDesc, ProductImage, ProductSearch, PriceMin, PriceMax, PromoSlot0, PromoSlot1, PromoSlot2, PromoSlot3, ProfileNewName, ProfileOldPwd, ProfileNewPwd, ProfileConfirmPwd };
 
 	// 鼠标点击命中后返回的动作；type=None 表示未命中任何按钮
 	struct ClickAction {
@@ -51,7 +51,9 @@ public:
 			MerchantPromoSelectType, // 促销表单选择类型：arg 是类型索引 0..4
 			SwitchStatsRange,        // Dashboard 切换时间范围：arg 是 rangeType 0=今日/1=本周/2=本月/3=全部
 			SwitchTopSort,           // Dashboard 切换排行榜排序：arg 0=按销售额/1=按销量
-			SwitchProductSort        // 商品列表切换排序：arg 0=默认/1=价格升/2=价格降
+			SwitchProductSort,       // 商品列表切换排序：arg 0=默认/1=价格升/2=价格降
+			ProfileSubmit,           // 个人信息表单提交
+			ProfileBack              // 个人信息表单返回
 		} type{ None };
 		std::int32_t arg{ 0 };     // 通用参数
 		std::int64_t orderId{};  // ReturnItem 用 orderId
@@ -93,6 +95,14 @@ public:
 	const std::string& priceMaxInput() const noexcept { return priceMaxInput_; }
 	int productSortMode() const noexcept { return productSortMode_; }
 	void setProductSortMode(int mode) noexcept { productSortMode_ = mode; }
+
+	// === 个人信息表单输入框状态 ===
+	const std::string& profileNewNameInput()     const noexcept { return profileNewNameInput_; }
+	const std::string& profileOldPwdInput()      const noexcept { return profileOldPwdInput_; }
+	const std::string& profileNewPwdInput()      const noexcept { return profileNewPwdInput_; }
+	const std::string& profileConfirmPwdInput()  const noexcept { return profileConfirmPwdInput_; }
+	// 清空个人信息表单（提交成功/切面板时调用）
+	void clearProfileInputs() noexcept;
 
 	// === "我的订单"面板滚动 ===
 	// 滚动 deltaPx 像素（正值内容向上=向下滚动；负值相反），自动按内容/可见区夹取边界
@@ -152,6 +162,11 @@ private:
 	std::string priceMaxInput_;
 	// === 商品列表排序模式：0=默认/1=价格升/2=价格降 ===
 	int productSortMode_{ 0 };
+	// === 个人信息表单输入框 ===
+	std::string profileNewNameInput_;
+	std::string profileOldPwdInput_;
+	std::string profileNewPwdInput_;
+	std::string profileConfirmPwdInput_;
 	Field       activeField_{ Field::Username };
 	// === 商家编辑商品的 productId ===
 	std::int32_t editingProductId_{ 0 };
@@ -269,4 +284,13 @@ private:
 	sf::FloatRect logoutBtnRect() const;
 	// 绘制顶部 Tab 标签栏 + 右上角用户名/登出按钮（仅 ProductList/Cart/MyOrders 三面板用）
 	void drawTabBar(const ClientModel& model);
+
+	// === 个人信息面板 ===
+	void drawProfilePanel(const ClientModel& model);
+	// 表单输入框矩形；field 取 Field::ProfileNewName..ProfileConfirmPwd（按枚举顺序 0..3）
+	static sf::FloatRect profileFieldRect(int field);
+	// 表单"保存"按钮矩形
+	static sf::FloatRect profileSubmitBtnRect();
+	// 表单"返回"按钮矩形
+	static sf::FloatRect profileBackBtnRect();
 };

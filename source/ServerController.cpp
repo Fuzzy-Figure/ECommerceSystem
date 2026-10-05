@@ -125,6 +125,9 @@ void ServerController::handle(std::shared_ptr<sf::TcpSocket> socket, const nlohm
 		case static_cast<int>(proto::RequestCode::MerchantGetStats):
 			response = handleMerchantGetStats(request);
 			break;
+		case static_cast<int>(proto::RequestCode::UpdateProfile):
+			response = handleUpdateProfile(request);
+			break;
 		default:
 			response = {
 				{"code",    static_cast<int>(proto::ResponseCode::Error)},
@@ -332,6 +335,81 @@ nlohmann::json ServerController::handleRegister(const nlohmann::json& req) {
 		{"success", true},
 		{"user",    { {"id", newId}, {"username", username}, {"role", 0} }},
 		{"message", "注册成功"}
+	};
+}
+
+nlohmann::json ServerController::handleUpdateProfile(const nlohmann::json& req) {
+	const auto userId      = req.value("userId",      std::int64_t{});
+	const auto newUsername = req.value("newUsername", std::string{});
+	const auto oldPassword = req.value("oldPassword", std::string{});
+	const auto newPassword = req.value("newPassword", std::string{});
+
+	if (userId <= 0) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::ProfileResult)},
+			{"success", false},
+			{"message", "修改失败：未登录"}
+		};
+	}
+	if (oldPassword.empty()) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::ProfileResult)},
+			{"success", false},
+			{"message", "修改失败：请输入旧密码"}
+		};
+	}
+	if (newUsername.empty() && newPassword.empty()) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::ProfileResult)},
+			{"success", false},
+			{"message", "修改失败：新用户名和新密码至少填一项"}
+		};
+	}
+
+	// 取当前用户名（用于回显和校验）
+	std::ostringstream q;
+	q << "SELECT username FROM users WHERE id=" << userId << ";";
+	auto rows = db_.query(q.str());
+	if (rows.empty()) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::ProfileResult)},
+			{"success", false},
+			{"message", "修改失败：用户不存在"}
+		};
+	}
+	std::string currentName = rows.front()["username"].is_string()
+		? rows.front()["username"].get<std::string>() : std::string{};
+
+	// 1. 改用户名（同时重算 password_hash，因为 salt 变了）
+	if (!newUsername.empty() && newUsername != currentName) {
+		if (!userDao_.updateUsername(userId, newUsername, oldPassword)) {
+			return {
+				{"code",    static_cast<int>(proto::ResponseCode::ProfileResult)},
+				{"success", false},
+				{"message", "修改失败：旧密码错误或新用户名已存在"}
+			};
+		}
+		currentName = newUsername;
+	}
+
+	// 2. 改密码（若用户名刚改过，此处用新名做 salt；旧密码校验仍通过，因为 updateUsername 已用新名+oldPwd 重算）
+	if (!newPassword.empty()) {
+		if (!userDao_.updatePassword(userId, oldPassword, newPassword)) {
+			return {
+				{"code",    static_cast<int>(proto::ResponseCode::ProfileResult)},
+				{"success", false},
+				{"message", "修改失败：旧密码错误"}
+			};
+		}
+	}
+
+	std::cout << "[ServerController] 用户 id=" << userId
+		<< " 修改个人信息成功，新用户名=" << currentName << std::endl;
+	return {
+		{"code",        static_cast<int>(proto::ResponseCode::ProfileResult)},
+		{"success",     true},
+		{"newUsername", currentName},
+		{"message",     "修改成功"}
 	};
 }
 
