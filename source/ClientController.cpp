@@ -619,6 +619,11 @@ void ClientController::handleEvent(const sf::Event& event) {
 					requestMerchantGetStats(newRange);
 					break;
 				}
+				case ClientView::ClickAction::SwitchTopSort: {
+					// 切换排行榜排序方式（本地排序，不重新请求）
+					model_.setTopSortBy(action.arg);
+					break;
+				}
 				case ClientView::ClickAction::Logout:
 					// 清用户身份 + 购物车 + 订单缓存，切回登录面板
 					model_.clearUser();
@@ -628,6 +633,7 @@ void ClientController::handleEvent(const sf::Event& event) {
 					model_.clearUsers();
 					model_.clearStats();
 					model_.setStatsRange(0);
+					model_.setTopSortBy(0);
 					view_.clearInputs();
 					view_.setPanel(ClientView::Panel::Login);
 					model_.setStatus(L"已登出，请重新登录");

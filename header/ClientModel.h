@@ -91,6 +91,8 @@ public:
 	void clearStats() noexcept { stats_ = {}; topProducts_.clear(); }
 	int  statsRange() const noexcept { return statsRange_; }
 	void setStatsRange(int r) { statsRange_ = r; }
+	int  topSortBy() const noexcept { return topSortBy_; }
+	void setTopSortBy(int s) { topSortBy_ = s; }
 
 	// === 当前登录用户身份（业务状态，非 UI 状态）===
 	std::int64_t         currentUserId() const noexcept { return currentUserId_; }
@@ -122,6 +124,7 @@ private:
 	MerchantStats           stats_;
 	std::vector<TopProduct> topProducts_;
 	int                     statsRange_{0};  // 0=今日/1=本周/2=本月/3=全部
+	int                     topSortBy_{0};   // 0=按销售额/1=按销量
 	std::wstring           status_;  // 当前状态/提示信息
 
 	std::int64_t          currentUserId_{ 0 };

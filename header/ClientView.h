@@ -49,7 +49,8 @@ public:
 			MerchantPromoFormSubmit,// 促销表单提交（创建或编辑）
 			MerchantPromoFormBack,  // 促销表单返回：切回 Promotion 面板
 			MerchantPromoSelectType, // 促销表单选择类型：arg 是类型索引 0..4
-			SwitchStatsRange         // Dashboard 切换时间范围：arg 是 rangeType 0=今日/1=本周/2=本月/3=全部
+			SwitchStatsRange,        // Dashboard 切换时间范围：arg 是 rangeType 0=今日/1=本周/2=本月/3=全部
+			SwitchTopSort            // Dashboard 切换排行榜排序：arg 0=按销售额/1=按销量
 		} type{ None };
 		std::int32_t arg{ 0 };     // 通用参数
 		std::int64_t orderId{};  // ReturnItem 用 orderId
@@ -220,6 +221,8 @@ private:
 	void drawDashboardPanel(const ClientModel& model);
 	// Dashboard 时间范围按钮矩形；index 0..3 对应 今日/本周/本月/全部
 	sf::FloatRect statsRangeBtnRect(int index) const;
+	// Dashboard 排行榜排序切换按钮矩形；index 0=销售额/1=销量
+	sf::FloatRect topSortBtnRect(int index) const;
 	// 促销类型选择按钮矩形；index 0..4 对应 5 种类型
 	sf::FloatRect promoTypeBtnRect(int index) const;
 	// 促销参数槽位输入框矩形；index 0..3 对应 4 个槽位

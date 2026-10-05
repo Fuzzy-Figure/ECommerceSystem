@@ -888,30 +888,62 @@ void ClientView::drawDashboardPanel(const ClientModel& model) {
 		};
 	auto fmtInt = [](int v) -> std::wstring { return std::to_wstring(v); };
 
-	drawCard(100,  90, rangeLabel + L"订单数",  fmtInt(s.rangeOrders),    sf::Color(50, 120, 200));
-	drawCard(500,  90, rangeLabel + L"销售额",  fmtMoney(s.rangeRevenue) + L" 元", sf::Color(50, 160, 90));
-	drawCard(100, 230, L"总订单数",              fmtInt(s.totalOrders),     sf::Color(120, 80, 200));
-	drawCard(500, 230, L"总销售额",              fmtMoney(s.totalRevenue) + L" 元", sf::Color(220, 140, 40));
+	drawCard(100, 130, rangeLabel + L"订单数",  fmtInt(s.rangeOrders),    sf::Color(50, 120, 200));
+	drawCard(500, 130, rangeLabel + L"销售额",  fmtMoney(s.rangeRevenue) + L" 元", sf::Color(50, 160, 90));
+	drawCard(100, 270, L"总订单数",              fmtInt(s.totalOrders),     sf::Color(120, 80, 200));
+	drawCard(500, 270, L"总销售额",              fmtMoney(s.totalRevenue) + L" 元", sf::Color(220, 140, 40));
 
-	// === 下方 销售额排行榜 ===
-	const float listY = 380;
-	textMgr_.displayText(rangeLabel + L"销售额排行榜", { 100, listY }, { 26, 32 }, sf::Color(60, 60, 60));
+	// === 下方 排行榜 ===
+	const float listY = 420;
+	const int sortBy = model.topSortBy();
+	const std::wstring sortLabel = (sortBy == 0) ? L"销售额" : L"销量";
+	textMgr_.displayText(rangeLabel + sortLabel + L"排行榜", { 100, listY }, { 26, 32 }, sf::Color(60, 60, 60));
+
+	// 排行榜排序切换按钮
+	const wchar_t* sortNames[] = { L"销售额", L"销量" };
+	for (int i = 0; i < 2; ++i) {
+		const auto r = topSortBtnRect(i);
+		const bool active = (i == sortBy);
+		sf::RectangleShape btn({ r.size.x, r.size.y });
+		btn.setPosition({ r.position.x, r.position.y });
+		btn.setFillColor(active ? sf::Color(50, 120, 200) : sf::Color(240, 240, 240));
+		btn.setOutlineColor(active ? sf::Color(30, 90, 180) : sf::Color(200, 200, 200));
+		btn.setOutlineThickness(1.5f);
+		window_.draw(btn);
+		textMgr_.displayText(sortNames[i],
+			{ r.position.x + 16, r.position.y + 5 }, { 18, 24 },
+			active ? sf::Color::White : sf::Color(80, 80, 80));
+	}
 
 	if (top.empty()) {
 		textMgr_.displayTextInCenter(L"该时间范围暂无销售数据", { 20, listY + 50 }, sf::Color(150, 150, 150));
 		return;
 	}
 
+	// 本地拷贝并按选定方式排序
+	std::vector<TopProduct> sorted = top;
+	if (sortBy == 1) {
+		std::sort(sorted.begin(), sorted.end(),
+			[](const TopProduct& a, const TopProduct& b) { return a.qtySold > b.qtySold; });
+	} else {
+		std::sort(sorted.begin(), sorted.end(),
+			[](const TopProduct& a, const TopProduct& b) { return a.revenue > b.revenue; });
+	}
+
 	double maxRev = 0.01;
-	for (const auto& t : top) if (t.revenue > maxRev) maxRev = t.revenue;
+	std::int32_t maxQty = 1;
+	for (const auto& t : sorted) {
+		if (t.revenue > maxRev) maxRev = t.revenue;
+		if (t.qtySold > maxQty) maxQty = t.qtySold;
+	}
 
 	const float rowStartY = listY + 50;
 	constexpr float rowH = 56.f;
 	constexpr float barMaxW = 500.f;
 	constexpr float nameX = 100;
 	constexpr float barX = 320;
-	for (size_t i = 0; i < top.size(); ++i) {
-		const auto& t = top[i];
+	for (size_t i = 0; i < sorted.size(); ++i) {
+		const auto& t = sorted[i];
 		const float y = rowStartY + static_cast<float>(i) * rowH;
 
 		sf::RectangleShape rowBg({ 1800, rowH - 6 });
@@ -923,7 +955,13 @@ void ClientView::drawDashboardPanel(const ClientModel& model) {
 							 { nameX, y + 14 }, { 22, 28 }, sf::Color(200, 160, 40));
 		textMgr_.displayText(ec::string::to_utf16(t.name),
 							 { nameX + 36, y + 14 }, { 22, 28 }, sf::Color(80, 80, 80));
-		const float barW = barMaxW * static_cast<float>(t.revenue) / static_cast<float>(maxRev);
+		// 条形图：按选定方式的比例
+		float barW;
+		if (sortBy == 1) {
+			barW = barMaxW * static_cast<float>(t.qtySold) / static_cast<float>(maxQty);
+		} else {
+			barW = barMaxW * static_cast<float>(t.revenue) / static_cast<float>(maxRev);
+		}
 		sf::RectangleShape bar({ barW, 28 });
 		bar.setPosition({ barX, y + 10 });
 		const sf::Color colors[] = {
@@ -931,8 +969,13 @@ void ClientView::drawDashboardPanel(const ClientModel& model) {
 		};
 		bar.setFillColor(colors[i % 5]);
 		window_.draw(bar);
+		// 标签：按选定方式决定主次
 		std::wostringstream ss;
-		ss << std::fixed << std::setprecision(2) << t.revenue << L" 元（售 " << t.qtySold << L" 件）";
+		if (sortBy == 1) {
+			ss << t.qtySold << L" 件（" << std::fixed << std::setprecision(2) << t.revenue << L" 元）";
+		} else {
+			ss << std::fixed << std::setprecision(2) << t.revenue << L" 元（售 " << t.qtySold << L" 件）";
+		}
 		textMgr_.displayText(ss.str(), { barX + barW + 12, y + 14 }, { 22, 28 }, sf::Color(60, 60, 60));
 	}
 }
@@ -1080,7 +1123,16 @@ sf::FloatRect ClientView::statsRangeBtnRect(int index) const {
 	constexpr float w = 100.f, h = 38.f;
 	constexpr float gap = 12.f;
 	const float x = orderCardX + static_cast<float>(index) * (w + gap);
-	const float y = 44.f;  // Tab 栏下方
+	const float y = 80.f;  // Tab 栏下方
+	return sf::FloatRect(sf::Vector2f{ x, y }, sf::Vector2f{ w, h });
+}
+
+// === Dashboard 排行榜排序切换按钮矩形 ===
+sf::FloatRect ClientView::topSortBtnRect(int index) const {
+	// 2 个按钮：销售额/销量
+	constexpr float w = 110.f, h = 36.f, gap = 10.f;
+	const float x = orderCardX + 360.f + static_cast<float>(index) * (w + gap);
+	const float y = 426.f;  // 排行榜标题同一行右侧
 	return sf::FloatRect(sf::Vector2f{ x, y }, sf::Vector2f{ w, h });
 }
 
@@ -1837,6 +1889,12 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 		for (int i = 0; i < 4; ++i) {
 			if (hit(statsRangeBtnRect(i), mousePos)) {
 				return { ClickAction::SwitchStatsRange, i };
+			}
+		}
+		// 排行榜排序切换按钮
+		for (int i = 0; i < 2; ++i) {
+			if (hit(topSortBtnRect(i), mousePos)) {
+				return { ClickAction::SwitchTopSort, i };
 			}
 		}
 	}
