@@ -1,8 +1,6 @@
 #include "utils.h"
 #include <Windows.h>
-#include <cmath>
 #include <fstream>
-#include <iostream>
 
 namespace ec {
 	nlohmann::json& getServerConfig() {
@@ -64,69 +62,8 @@ namespace ec {
 		}
 	}
 
-	namespace random {
-		std::mt19937 rng(std::random_device{}());
-		int randomInt(const int begin, const int end) {
-			std::uniform_int_distribution<int> dist(begin, end);
-			return dist(rng);
-		}
-		std::size_t randomSize_t(const std::size_t begin, const std::size_t end) {
-			std::uniform_int_distribution<std::size_t> dist(begin, end);
-			return dist(rng);
-		}
-		bool probability(const double p) {
-			if (p < 0 || p > 1) throw std::invalid_argument("参数p必须介于0和1之间");
-			std::bernoulli_distribution dist(p);
-			return dist(rng);
-		}
-	}
 
-	namespace math {
-		std::size_t ceil(const double num) {
-			return static_cast<std::size_t>(std::ceil(num));
-		}
-		std::size_t floor(const double num) {
-			return static_cast<std::size_t>(std::floor(num));
-		}
-		std::size_t pow(const std::size_t a, const std::size_t b) {
-			return static_cast<std::size_t>(std::pow(a, b));
-		}
-	}
 
-	namespace input {
-		std::optional<int> safeReadInt(int minVal, int maxVal) {
-			std::string line;
-			std::getline(std::cin, line);
-			try {
-				int val = std::stoi(line);
-				if (val >= minVal && val <= maxVal) return val;
-			} catch (...) {}
-			return std::nullopt;
-		}
-
-		std::string safeReadLine() {
-			std::string line;
-			std::getline(std::cin, line);
-			// 去除首尾空白
-			auto start = line.find_first_not_of(" \t\r\n");
-			if (start == std::string::npos) return "";
-			auto end = line.find_last_not_of(" \t\r\n");
-			return line.substr(start, end - start + 1);
-		}
-
-		std::string safeReadNoSpace() {
-			std::string line;
-			std::getline(std::cin, line);
-			// 去除首尾空白
-			auto start = line.find_first_not_of(" \t\r\n");
-			if (start == std::string::npos) return "";
-			auto end = line.find_last_not_of(" \t\r\n");
-			std::string trimmed = line.substr(start, end - start + 1);
-			// 内部含空格或制表符则视为无效
-			if (trimmed.find_first_of(" \t") != std::string::npos) return "";
-			return trimmed;
-		}
-	}
 }
 
 
