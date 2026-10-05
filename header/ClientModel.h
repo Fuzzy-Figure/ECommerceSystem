@@ -26,6 +26,23 @@ struct SimpleUser {
 	std::int32_t  role{ 0 };  // 0=普通用户，1=商家
 };
 
+// 商家销售统计
+struct MerchantStats {
+	int    rangeOrders{0};   // 当前范围订单数
+	double rangeRevenue{0.0};// 当前范围销售额
+	int    totalOrders{0};
+	double totalRevenue{0.0};
+	std::string rangeLabel;  // "今日"/"本周"/"本月"/"全部"
+};
+
+// 热销商品
+struct TopProduct {
+	std::int32_t productId{};
+	std::string  name;
+	std::int32_t qtySold{};
+	double       revenue{};
+};
+
 class ClientModel {
 public:
 	// 服务端推送商品列表后调用
@@ -66,6 +83,15 @@ public:
 	const std::vector<SimpleUser>& users() const noexcept { return users_; }
 	void clearUsers() noexcept { users_.clear(); }
 
+	// === 商家销售统计 ===
+	void setStats(MerchantStats s) { stats_ = s; }
+	const MerchantStats& stats() const noexcept { return stats_; }
+	void setTopProducts(std::vector<TopProduct> v) { topProducts_ = std::move(v); }
+	const std::vector<TopProduct>& topProducts() const noexcept { return topProducts_; }
+	void clearStats() noexcept { stats_ = {}; topProducts_.clear(); }
+	int  statsRange() const noexcept { return statsRange_; }
+	void setStatsRange(int r) { statsRange_ = r; }
+
 	// === 当前登录用户身份（业务状态，非 UI 状态）===
 	std::int64_t         currentUserId() const noexcept { return currentUserId_; }
 	const std::string& currentUsername() const noexcept { return currentUsername_; }
@@ -93,6 +119,9 @@ private:
 	std::vector<Order>     orders_;
 	std::vector<Promotion> promotions_;
 	std::vector<SimpleUser> users_;
+	MerchantStats           stats_;
+	std::vector<TopProduct> topProducts_;
+	int                     statsRange_{0};  // 0=今日/1=本周/2=本月/3=全部
 	std::wstring           status_;  // 当前状态/提示信息
 
 	std::int64_t          currentUserId_{ 0 };

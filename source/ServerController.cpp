@@ -122,6 +122,9 @@ void ServerController::handle(std::shared_ptr<sf::TcpSocket> socket, const nlohm
 		case static_cast<int>(proto::RequestCode::AdminListUsers):
 			response = handleAdminListUsers(request);
 			break;
+		case static_cast<int>(proto::RequestCode::MerchantGetStats):
+			response = handleMerchantGetStats(request);
+			break;
 		default:
 			response = {
 				{"code",    static_cast<int>(proto::ResponseCode::Error)},
@@ -663,5 +666,37 @@ nlohmann::json ServerController::handleAdminListUsers(const nlohmann::json& req)
 	return {
 		{"code",  static_cast<int>(proto::ResponseCode::AdminUserList)},
 		{"users", arr}
+	};
+}
+
+nlohmann::json ServerController::handleMerchantGetStats(const nlohmann::json& req) {
+	if (auto err = requireMerchant(req)) return *err;
+	int rangeType = req.value("range", 0);
+	if (rangeType < 0 || rangeType > 3) rangeType = 0;
+	static const char* labels[] = { "今日", "本周", "本月", "全部" };
+	auto s = orderDao_.getMerchantStats(rangeType);
+	auto top = orderDao_.getTopProducts(0, rangeType);
+	nlohmann::json topArr = nlohmann::json::array();
+	for (const auto& t : top) {
+		topArr.push_back({
+			{"id",       t.productId},
+			{"name",     t.name},
+			{"qtySold",  t.qtySold},
+			{"revenue",  t.revenue}
+		});
+	}
+	std::cout << "[ServerController] 商家拉取销售统计（" << labels[rangeType]
+		<< "）：" << s.todayOrders << " 单/" << s.todayRevenue
+		<< " 元，总计 " << s.totalOrders << " 单/" << s.totalRevenue
+		<< " 元，商品排行 " << top.size() << " 项" << std::endl;
+	return {
+		{"code",          static_cast<int>(proto::ResponseCode::MerchantStats)},
+		{"rangeType",     rangeType},
+		{"rangeLabel",    labels[rangeType]},
+		{"rangeOrders",   s.todayOrders},
+		{"rangeRevenue",  s.todayRevenue},
+		{"totalOrders",   s.totalOrders},
+		{"totalRevenue",  s.totalRevenue},
+		{"topProducts",   topArr}
 	};
 }

@@ -454,6 +454,23 @@ void ClientController::requestAdminListUsers() {
 	model_.setStatus(L"正在加载用户列表...");
 }
 
+void ClientController::requestMerchantGetStats(int rangeType) {
+	if (!socket_) {
+		model_.setStatus(L"未连接服务器，无法获取销售统计");
+		return;
+	}
+	const nlohmann::json req = {
+		{"code",   static_cast<int>(proto::RequestCode::MerchantGetStats)},
+		{"userId", model_.currentUserId()},
+		{"range",  rangeType}
+	};
+	if (!proto::sendJson(*socket_, req)) {
+		model_.setStatus(L"发送统计请求失败，连接可能已断开");
+		return;
+	}
+	model_.setStatus(L"正在加载销售统计...");
+}
+
 void ClientController::requestLogin() {
 	if (!socket_) {
 		model_.setStatus(L"未连接服务器，无法登录");
@@ -558,6 +575,11 @@ void ClientController::handleEvent(const sf::Event& event) {
 						requestAdminListUsers();
 						model_.setStatus(L"管理员用户管理");
 					}
+					else if (target == ClientView::Panel::Dashboard) {
+						view_.setPanel(target);
+						requestMerchantGetStats(model_.statsRange());
+						model_.setStatus(L"销售统计 Dashboard");
+					}
 					else if (idx >= static_cast<int>(ClientView::Panel::ProductList)
 							 && idx <= static_cast<int>(ClientView::Panel::MyOrders)) {
 						// 商家点"商品列表"Tab → 回商家商品管理面板；其余 Tab 正常切
@@ -590,6 +612,13 @@ void ClientController::handleEvent(const sf::Event& event) {
 				case ClientView::ClickAction::Register:
 					requestRegister();
 					break;
+				case ClientView::ClickAction::SwitchStatsRange: {
+					// 切换时间范围后重新拉取统计
+					const int newRange = action.arg;
+					model_.setStatsRange(newRange);
+					requestMerchantGetStats(newRange);
+					break;
+				}
 				case ClientView::ClickAction::Logout:
 					// 清用户身份 + 购物车 + 订单缓存，切回登录面板
 					model_.clearUser();
@@ -597,6 +626,8 @@ void ClientController::handleEvent(const sf::Event& event) {
 					model_.clearOrders();
 					model_.clearPromotions();
 					model_.clearUsers();
+					model_.clearStats();
+					model_.setStatsRange(0);
 					view_.clearInputs();
 					view_.setPanel(ClientView::Panel::Login);
 					model_.setStatus(L"已登出，请重新登录");
@@ -1071,6 +1102,30 @@ void ClientController::processMessage(nlohmann::json& msg) {
 			std::wostringstream ss;
 			ss << L"用户列表已加载 " << model_.users().size() << L" 人";
 			model_.setStatus(ss.str());
+			break;
+		}
+
+		case static_cast<int>(proto::ResponseCode::MerchantStats): {
+			MerchantStats s;
+			s.rangeOrders  = msg.value("rangeOrders", 0);
+			s.rangeRevenue = msg.value("rangeRevenue", 0.0);
+			s.totalOrders  = msg.value("totalOrders", 0);
+			s.totalRevenue = msg.value("totalRevenue", 0.0);
+			s.rangeLabel   = msg.value("rangeLabel", std::string{ "今日" });
+			std::vector<TopProduct> top;
+			if (msg.contains("topProducts") && msg["topProducts"].is_array()) {
+				for (const auto& tj : msg["topProducts"]) {
+					TopProduct t;
+					t.productId = tj.value("id", std::int32_t{});
+					t.name      = tj.value("name", std::string{});
+					t.qtySold   = tj.value("qtySold", std::int32_t{});
+					t.revenue   = tj.value("revenue", 0.0);
+					top.push_back(std::move(t));
+				}
+			}
+			model_.setStats(s);
+			model_.setTopProducts(std::move(top));
+			model_.setStatus(L"销售统计已加载");
 			break;
 		}
 

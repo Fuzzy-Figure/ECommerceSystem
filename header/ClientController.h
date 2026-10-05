@@ -91,6 +91,10 @@ public:
 	// 拉取全部用户列表
 	void requestAdminListUsers();
 
+	// === 商家销售统计 ===
+	// 拉取 Dashboard 数据（按 rangeType 过滤：0=今日/1=本周/2=本月/3=全部）
+	void requestMerchantGetStats(int rangeType = 0);
+
 	// 处理 SFML 事件（按键、关闭、文本输入等）
 	void handleEvent(const sf::Event& event);
 

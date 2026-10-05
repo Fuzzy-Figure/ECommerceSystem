@@ -93,6 +93,7 @@ void ClientView::render(const ClientModel& model) {
 		case Panel::Promotion:        drawPromotionPanel(model);       break;
 		case Panel::PromotionForm:    drawPromotionFormPanel(model);   break;
 		case Panel::UserManagement:   drawUserManagementPanel(model);  break;
+		case Panel::Dashboard:        drawDashboardPanel(model);       break;
 	}
 }
 
@@ -835,6 +836,107 @@ void ClientView::drawUserManagementPanel(const ClientModel& model) {
 	}
 }
 
+// ===================== 商家销售统计 Dashboard =====================
+
+void ClientView::drawDashboardPanel(const ClientModel& model) {
+	drawTabBar(model);
+	if (!model.status().empty()) {
+		textMgr_.displayText(model.status(), { 700, statusY }, { 22, 26 }, sf::Color(150, 150, 150));
+	}
+
+	const auto& s = model.stats();
+	const auto& top = model.topProducts();
+	const std::wstring rangeLabel = ec::string::to_utf16(s.rangeLabel);
+	const int curRange = model.statsRange();
+
+	// === 时间范围选择器（4 个按钮） ===
+	const wchar_t* rangeNames[] = { L"今日", L"本周", L"本月", L"全部" };
+	for (int i = 0; i < 4; ++i) {
+		const auto r = statsRangeBtnRect(i);
+		const bool active = (i == curRange);
+		sf::RectangleShape btn({ r.size.x, r.size.y });
+		btn.setPosition({ r.position.x, r.position.y });
+		btn.setFillColor(active ? sf::Color(50, 120, 200) : sf::Color(240, 240, 240));
+		btn.setOutlineColor(active ? sf::Color(30, 90, 180) : sf::Color(200, 200, 200));
+		btn.setOutlineThickness(1.5f);
+		window_.draw(btn);
+		textMgr_.displayText(rangeNames[i],
+			{ r.position.x + 14, r.position.y + 6 }, { 20, 26 },
+			active ? sf::Color::White : sf::Color(80, 80, 80));
+	}
+
+	// === 上方 4 个数字卡片（2×2 网格） ===
+	auto drawCard = [&](float x, float y, const std::wstring& label, const std::wstring& value, const sf::Color& accent) {
+		sf::RectangleShape card({ 380, 120 });
+		card.setPosition({ x, y });
+		card.setFillColor(sf::Color(252, 252, 252));
+		card.setOutlineColor(accent);
+		card.setOutlineThickness(2.f);
+		window_.draw(card);
+		sf::RectangleShape bar({ 6, 120 });
+		bar.setPosition({ x, y });
+		bar.setFillColor(accent);
+		window_.draw(bar);
+		textMgr_.displayText(label, { x + 24, y + 14 }, { 22, 28 }, sf::Color(120, 120, 120));
+		textMgr_.displayText(value, { x + 24, y + 56 }, { 34, 42 }, accent);
+		};
+
+	auto fmtMoney = [](double v) -> std::wstring {
+		std::wostringstream ss;
+		ss << std::fixed << std::setprecision(2) << v;
+		return ss.str();
+		};
+	auto fmtInt = [](int v) -> std::wstring { return std::to_wstring(v); };
+
+	drawCard(100,  90, rangeLabel + L"订单数",  fmtInt(s.rangeOrders),    sf::Color(50, 120, 200));
+	drawCard(500,  90, rangeLabel + L"销售额",  fmtMoney(s.rangeRevenue) + L" 元", sf::Color(50, 160, 90));
+	drawCard(100, 230, L"总订单数",              fmtInt(s.totalOrders),     sf::Color(120, 80, 200));
+	drawCard(500, 230, L"总销售额",              fmtMoney(s.totalRevenue) + L" 元", sf::Color(220, 140, 40));
+
+	// === 下方 销售额排行榜 ===
+	const float listY = 380;
+	textMgr_.displayText(rangeLabel + L"销售额排行榜", { 100, listY }, { 26, 32 }, sf::Color(60, 60, 60));
+
+	if (top.empty()) {
+		textMgr_.displayTextInCenter(L"该时间范围暂无销售数据", { 20, listY + 50 }, sf::Color(150, 150, 150));
+		return;
+	}
+
+	double maxRev = 0.01;
+	for (const auto& t : top) if (t.revenue > maxRev) maxRev = t.revenue;
+
+	const float rowStartY = listY + 50;
+	constexpr float rowH = 56.f;
+	constexpr float barMaxW = 500.f;
+	constexpr float nameX = 100;
+	constexpr float barX = 320;
+	for (size_t i = 0; i < top.size(); ++i) {
+		const auto& t = top[i];
+		const float y = rowStartY + static_cast<float>(i) * rowH;
+
+		sf::RectangleShape rowBg({ 1800, rowH - 6 });
+		rowBg.setPosition({ nameX - 10, y });
+		rowBg.setFillColor(i % 2 == 0 ? sf::Color(248, 248, 248) : sf::Color(252, 252, 252));
+		window_.draw(rowBg);
+
+		textMgr_.displayText(std::to_wstring(i + 1) + L".",
+							 { nameX, y + 14 }, { 22, 28 }, sf::Color(200, 160, 40));
+		textMgr_.displayText(ec::string::to_utf16(t.name),
+							 { nameX + 36, y + 14 }, { 22, 28 }, sf::Color(80, 80, 80));
+		const float barW = barMaxW * static_cast<float>(t.revenue) / static_cast<float>(maxRev);
+		sf::RectangleShape bar({ barW, 28 });
+		bar.setPosition({ barX, y + 10 });
+		const sf::Color colors[] = {
+			{220,80,80}, {220,140,40}, {220,200,40}, {100,180,80}, {80,140,200}
+		};
+		bar.setFillColor(colors[i % 5]);
+		window_.draw(bar);
+		std::wostringstream ss;
+		ss << std::fixed << std::setprecision(2) << t.revenue << L" 元（售 " << t.qtySold << L" 件）";
+		textMgr_.displayText(ss.str(), { barX + barW + 12, y + 14 }, { 22, 28 }, sf::Color(60, 60, 60));
+	}
+}
+
 // === 促销表单状态管理 ===
 
 void ClientView::resetPromotionForm() {
@@ -969,6 +1071,16 @@ sf::FloatRect ClientView::promoCreateBtnRect() const {
 	constexpr float w = 180.f, h = 48.f;
 	const float x = orderCardX;
 	const float y = static_cast<float>(window_.getSize().y) - h - 20.f;
+	return sf::FloatRect(sf::Vector2f{ x, y }, sf::Vector2f{ w, h });
+}
+
+// === Dashboard 时间范围按钮矩形 ===
+sf::FloatRect ClientView::statsRangeBtnRect(int index) const {
+	// 4 个按钮：今日/本周/本月/全部
+	constexpr float w = 100.f, h = 38.f;
+	constexpr float gap = 12.f;
+	const float x = orderCardX + static_cast<float>(index) * (w + gap);
+	const float y = 44.f;  // Tab 栏下方
 	return sf::FloatRect(sf::Vector2f{ x, y }, sf::Vector2f{ w, h });
 }
 
@@ -1139,9 +1251,10 @@ void ClientView::drawTabBar(const ClientModel& model) {
 		{ L"我的订单", Panel::MyOrders },
 		{ L"促销管理", Panel::Promotion },
 		{ L"用户管理", Panel::UserManagement },
+		{ L"销售统计", Panel::Dashboard },
 	};
 	const TabDef* tabs = model.isMerchant() ? merchantTabs : userTabs;
-	const int tabCount = model.isMerchant() ? 4 : 3;
+	const int tabCount = model.isMerchant() ? 5 : 3;
 
 	for (int i = 0; i < tabCount; ++i) {
 		const bool active = (panel_ == tabs[i].panel);
@@ -1537,9 +1650,9 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 	// 顶部 Tab 标签：商家 4 个(商品列表/我的订单/促销管理/用户管理)，用户 3 个(商品列表/购物车/我的订单)
 	struct TabDef { Panel panel; };
 	const TabDef userTabs[] = { Panel::ProductList, Panel::Cart, Panel::MyOrders };
-	const TabDef merchantTabs[] = { Panel::Merchant, Panel::MyOrders, Panel::Promotion, Panel::UserManagement };
+	const TabDef merchantTabs[] = { Panel::Merchant, Panel::MyOrders, Panel::Promotion, Panel::UserManagement, Panel::Dashboard };
 	const TabDef* tabs = model.isMerchant() ? merchantTabs : userTabs;
-	const int tabCount = model.isMerchant() ? 4 : 3;
+	const int tabCount = model.isMerchant() ? 5 : 3;
 	for (int i = 0; i < tabCount; ++i) {
 		if (hit(tabBtnRect(i), mousePos)) {
 			return { ClickAction::SwitchPanel, static_cast<int>(tabs[i].panel) };
@@ -1717,6 +1830,14 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 		}
 		if (hit(promoCreateBtnRect(), mousePos)) {
 			return { ClickAction::MerchantPromoCreate, 0 };
+		}
+	}
+	else if (panel_ == Panel::Dashboard) {
+		// 时间范围选择按钮
+		for (int i = 0; i < 4; ++i) {
+			if (hit(statsRangeBtnRect(i), mousePos)) {
+				return { ClickAction::SwitchStatsRange, i };
+			}
 		}
 	}
 	else if (panel_ == Panel::PromotionForm) {

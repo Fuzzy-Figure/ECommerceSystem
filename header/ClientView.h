@@ -16,7 +16,7 @@ class ClientView {
 public:
 	// 注意顺序：Login=0；商家面板 Merchant/MerchantCreate/MerchantEdit/Promotion/PromotionForm 独立（不参与 Tab 切换）；
 	// ProductList/Cart/MyOrders 三面板按顶部 Tab 切换，Tab 索引仍按 0/1/2；商家 Tab 为 商品列表/我的订单/促销管理。
-	enum class Panel { Login, Merchant, MerchantCreate, MerchantEdit, ProductList, Cart, MyOrders, Promotion, PromotionForm, UserManagement };
+	enum class Panel { Login, Merchant, MerchantCreate, MerchantEdit, ProductList, Cart, MyOrders, Promotion, PromotionForm, UserManagement, Dashboard };
 
 	// 当前聚焦的输入框
 	enum class Field { Username, Password, ProductName, ProductPrice, ProductStock, ProductDesc, ProductImage, ProductSearch, PromoSlot0, PromoSlot1, PromoSlot2, PromoSlot3 };
@@ -48,7 +48,8 @@ public:
 			MerchantPromoCreate,    // 商家新增促销入口：切到 PromotionForm 面板（创建模式）
 			MerchantPromoFormSubmit,// 促销表单提交（创建或编辑）
 			MerchantPromoFormBack,  // 促销表单返回：切回 Promotion 面板
-			MerchantPromoSelectType // 促销表单选择类型：arg 是类型索引 0..4
+			MerchantPromoSelectType, // 促销表单选择类型：arg 是类型索引 0..4
+			SwitchStatsRange         // Dashboard 切换时间范围：arg 是 rangeType 0=今日/1=本周/2=本月/3=全部
 		} type{ None };
 		std::int32_t arg{ 0 };     // 通用参数
 		std::int64_t orderId{};  // ReturnItem 用 orderId
@@ -216,6 +217,9 @@ private:
 	// === 商家促销表单面板（创建/编辑）===
 	void drawPromotionFormPanel(const ClientModel& model);
 	void drawUserManagementPanel(const ClientModel& model);
+	void drawDashboardPanel(const ClientModel& model);
+	// Dashboard 时间范围按钮矩形；index 0..3 对应 今日/本周/本月/全部
+	sf::FloatRect statsRangeBtnRect(int index) const;
 	// 促销类型选择按钮矩形；index 0..4 对应 5 种类型
 	sf::FloatRect promoTypeBtnRect(int index) const;
 	// 促销参数槽位输入框矩形；index 0..3 对应 4 个槽位

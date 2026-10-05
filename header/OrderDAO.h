@@ -10,6 +10,22 @@
 #include <cstdint>
 #include <vector>
 
+// 商家销售统计概览
+struct MerchantStats {
+	int    todayOrders{0};
+	double todayRevenue{0.0};
+	int    totalOrders{0};
+	double totalRevenue{0.0};
+};
+
+// 热销商品排行
+struct TopProduct {
+	std::int32_t productId{};
+	std::string  name;
+	std::int32_t qtySold{};   // 有效销量 = qty - returned_qty
+	double       revenue{};   // 该商品实付金额累计
+};
+
 class OrderDAO {
 public:
 	explicit OrderDAO(Database& db);
@@ -43,6 +59,13 @@ public:
 					 std::int32_t       productId,
 					 std::int32_t       returnQty,
 					 double& refundOut);
+
+	// 商家销售统计：rangeType 0=今日/1=本周/2=本月/3=全部
+	// 返回该范围订单数+销售额 + 总订单数+总销售额（排除全部退货订单）
+	MerchantStats getMerchantStats(int rangeType = 0);
+
+	// 销售额排行榜（按实付金额倒序，limit<=0 返回全部，rangeType 同上）
+	std::vector<TopProduct> getTopProducts(int limit = 0, int rangeType = 0);
 
 private:
 	Database& db_;

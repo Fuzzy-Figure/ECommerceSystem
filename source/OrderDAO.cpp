@@ -292,3 +292,69 @@ bool OrderDAO::placeReturn(std::int64_t       orderId,
 		return false;
 	}
 }
+
+MerchantStats OrderDAO::getMerchantStats(int rangeType) {
+	MerchantStats s;
+	// 当前范围 WHERE 子句
+	std::string rangeFilter;
+	switch (rangeType) {
+		case 1:  rangeFilter = " AND strftime('%Y-%W', created_at)=strftime('%Y-%W','now','localtime')"; break;
+		case 2:  rangeFilter = " AND strftime('%Y-%m', created_at)=strftime('%Y-%m','now','localtime')"; break;
+		case 3:  rangeFilter = ""; break; // 全部
+		default: rangeFilter = " AND date(created_at)=date('now','localtime')"; break; // 今日
+	}
+	// 当前范围统计
+	{
+		std::ostringstream q;
+		q << "SELECT COUNT(*) AS c, COALESCE(SUM(final_total),0) AS r "
+			"FROM orders WHERE status<2" << rangeFilter << ";";
+		auto rows = db_.query(q.str());
+		if (!rows.empty()) {
+			s.todayOrders  = toInt32(rows[0]["c"]);
+			s.todayRevenue = toDouble(rows[0]["r"]);
+		}
+	}
+	// 总计（始终全部）
+	auto totalRows = db_.query(
+		"SELECT COUNT(*) AS c, COALESCE(SUM(final_total),0) AS r "
+		"FROM orders WHERE status<2;");
+	if (!totalRows.empty()) {
+		s.totalOrders  = toInt32(totalRows[0]["c"]);
+		s.totalRevenue = toDouble(totalRows[0]["r"]);
+	}
+	return s;
+}
+
+std::vector<TopProduct> OrderDAO::getTopProducts(int limit, int rangeType) {
+	std::vector<TopProduct> result;
+	// 当前范围 WHERE 子句（用于 JOIN orders 拿 created_at）
+	std::string rangeFilter;
+	switch (rangeType) {
+		case 1:  rangeFilter = " AND strftime('%Y-%W', o.created_at)=strftime('%Y-%W','now','localtime')"; break;
+		case 2:  rangeFilter = " AND strftime('%Y-%m', o.created_at)=strftime('%Y-%m','now','localtime')"; break;
+		case 3:  rangeFilter = ""; break;
+		default: rangeFilter = " AND date(o.created_at)=date('now','localtime')"; break;
+	}
+	std::ostringstream q;
+	q << "SELECT p.id AS pid, p.name AS pname, "
+		"SUM(oi.qty - oi.returned_qty) AS sold, "
+		"SUM((oi.qty - oi.returned_qty) * oi.price) AS rev "
+		"FROM order_items oi JOIN products p ON oi.product_id = p.id "
+		"JOIN orders o ON oi.order_id = o.id "
+		"WHERE o.status<2" << rangeFilter << " "
+		"GROUP BY p.id HAVING sold > 0 "
+		"ORDER BY rev DESC";
+	if (limit > 0) q << " LIMIT " << limit;
+	q << ";";
+	auto rows = db_.query(q.str());
+	result.reserve(rows.size());
+	for (const auto& r : rows) {
+		TopProduct t;
+		t.productId = toInt32(r["pid"]);
+		t.name      = toStr(r["pname"]);
+		t.qtySold   = toInt32(r["sold"]);
+		t.revenue   = toDouble(r["rev"]);
+		result.push_back(std::move(t));
+	}
+	return result;
+}
