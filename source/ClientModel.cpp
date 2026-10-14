@@ -39,3 +39,10 @@ double ClientModel::cartTotal() const {
 	for (const auto& c : cart_) total += c.subtotal();
 	return total;
 }
+
+const Review* ClientModel::findReview(std::int64_t orderId, std::int32_t productId) const {
+	for (const auto& r : reviews_) {
+		if (r.orderId == orderId && r.productId == productId) return &r;
+	}
+	return nullptr;
+}

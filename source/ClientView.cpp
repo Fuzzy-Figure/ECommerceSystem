@@ -1284,6 +1284,7 @@ void ClientView::appendInputChar(std::uint32_t ch) {
 		case Field::ProfileOldPwd:     append(profileOldPwdInput_, 64); break;
 		case Field::ProfileNewPwd:     append(profileNewPwdInput_, 64); break;
 		case Field::ProfileConfirmPwd: append(profileConfirmPwdInput_, 64); break;
+		case Field::ReviewComment:     append(reviewCommentInput_, 200); break;
 	}
 }
 
@@ -1318,6 +1319,7 @@ void ClientView::backspaceInput() {
 		case Field::ProfileOldPwd:     popUtf8Char(profileOldPwdInput_); break;
 		case Field::ProfileNewPwd:     popUtf8Char(profileNewPwdInput_); break;
 		case Field::ProfileConfirmPwd: popUtf8Char(profileConfirmPwdInput_); break;
+		case Field::ReviewComment:     popUtf8Char(reviewCommentInput_); break;
 	}
 }
 
@@ -1333,6 +1335,7 @@ void ClientView::clearInputs() noexcept {
 	profileOldPwdInput_.clear();
 	profileNewPwdInput_.clear();
 	profileConfirmPwdInput_.clear();
+	reviewCommentInput_.clear();
 	activeField_ = Field::Username;
 }
 
@@ -1566,6 +1569,17 @@ void ClientView::drawCard(const Product& p, const sf::Vector2f& pos, const sf::V
 	priceStr << L"¥ " << p.price;
 	textMgr_.displayText(priceStr.str(), { pos.x + 10, pos.y + 330 }, { 20, 32 }, sf::Color(200, 50, 50));
 
+	// 评分（有评价时显示 ★x.x (n)，无评价显示"暂无评价"）
+	if (p.reviewCount > 0) {
+		std::wostringstream rateStr;
+		rateStr << L"★ " << std::fixed << std::setprecision(1) << p.avgRating
+				<< L" (" << p.reviewCount << L")";
+		textMgr_.displayText(rateStr.str(), { pos.x + 10, pos.y + 368 }, { 16, 20 }, sf::Color(200, 140, 30));
+	}
+	else {
+		textMgr_.displayText(L"暂无评价", { pos.x + 10, pos.y + 368 }, { 16, 20 }, sf::Color(160, 160, 160));
+	}
+
 	// 库存
 	std::wostringstream stockStr;
 	stockStr << L"库存：" << p.stock;
@@ -1775,6 +1789,35 @@ void ClientView::drawMyOrdersPanel(const ClientModel& model) {
 									 { r.position.x + 6, r.position.y + 4 },
 									 { 14, 18 }, sf::Color::White);
 			}
+			// 普通用户、订单已完成：显示评价状态（已评价显示星级，未评价显示"评价"按钮）
+			if (!model.isMerchant() && order.shipStatus == 2) {
+				const Review* rv = model.findReview(order.id, it.productId);
+				if (rv != nullptr) {
+					// 已评价：显示星级 + 评论摘要
+					std::wostringstream rvTxt;
+					rvTxt << L"★" << rv->rating;
+					if (!rv->comment.empty()) {
+						rvTxt << L" " << truncateForDisplay(rv->comment, 15);
+					}
+					textMgr_.displayText(rvTxt.str(),
+										 { orderCardX + 900, itemY + 4 },
+										 { 14, 18 }, sf::Color(180, 120, 30));
+				}
+				else {
+					// 未评价：显示"评价"按钮（退货按钮左侧）
+					constexpr float rvBtnW = 60.f, rvBtnH = 28.f;
+					const float rvBtnX = retBtnDX - rvBtnW - 8.f;
+					sf::RectangleShape rvBtn({ rvBtnW, rvBtnH });
+					rvBtn.setPosition({ rvBtnX, rowPos.y + 4.f });
+					rvBtn.setFillColor(sf::Color(80, 130, 200));
+					rvBtn.setOutlineColor(sf::Color(60, 100, 170));
+					rvBtn.setOutlineThickness(1.f);
+					window_.draw(rvBtn);
+					textMgr_.displayText(L"评价",
+										 { rvBtnX + 16, rowPos.y + 8.f },
+										 { 14, 18 }, sf::Color::White);
+				}
+			}
 			// 文本
 			textMgr_.displayText(ec::string::to_utf16(it.name),
 								 { orderCardX + 12,  itemY + 4 }, { 16, 22 }, sf::Color::Black);
@@ -1788,6 +1831,20 @@ void ClientView::drawMyOrdersPanel(const ClientModel& model) {
 		}
 		// 下一张订单间距
 		y = itemY + 12.f;
+	}
+
+	// 评价编辑器（模态，居中绘制在订单列表之上）
+	if (reviewEditorOpen()) {
+		const float winW = static_cast<float>(window_.getSize().x);
+		const float winH = static_cast<float>(window_.getSize().y);
+		constexpr float editorW = 500.f, editorH = 200.f;
+		const sf::Vector2f editorTop{ (winW - editorW) / 2.f, (winH - editorH) / 2.f };
+		// 半透明遮罩
+		sf::RectangleShape mask({ winW, winH });
+		mask.setPosition({ 0, 0 });
+		mask.setFillColor(sf::Color(0, 0, 0, 120));
+		window_.draw(mask);
+		drawReviewEditor(editorTop);
 	}
 }
 
@@ -1918,6 +1975,35 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 		}
 	}
 	else if (panel_ == Panel::MyOrders) {
+		// 评价编辑器打开时：优先检测编辑器内的点击（模态，拦截底层订单点击）
+		if (reviewEditorOpen()) {
+			const float winW = static_cast<float>(window_.getSize().x);
+			const float winH = static_cast<float>(window_.getSize().y);
+			constexpr float editorW = 500.f, editorH = 200.f;
+			const sf::Vector2f editorTop{ (winW - editorW) / 2.f, (winH - editorH) / 2.f };
+			// 星级选择
+			for (int s = 1; s <= 5; ++s) {
+				if (hit(reviewStarRect(s, editorTop), mousePos)) {
+					return { ClickAction::SelectRating, s };
+				}
+			}
+			// 评论文本框聚焦
+			if (hit(reviewCommentRect(editorTop), mousePos)) {
+				activeField_ = Field::ReviewComment;
+				return { ClickAction::None, 0 };
+			}
+			// 提交
+			if (hit(reviewSubmitBtnRect(editorTop), mousePos)) {
+				return { ClickAction::SubmitReview, 0 };
+			}
+			// 取消
+			if (hit(reviewCancelBtnRect(editorTop), mousePos)) {
+				return { ClickAction::CancelReview, 0 };
+			}
+			// 点击编辑器外（遮罩区）也取消
+			return { ClickAction::None, 0 };
+		}
+
 		// 复刻 drawMyOrdersPanel 的布局：从 orderCardStartY - 滚动偏移 起逐订单逐明细下移
 		float y = orderCardStartY - myOrdersScrollY_;
 		for (const auto& order : model.orders()) {
@@ -1950,6 +2036,21 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 						act.productId = it.productId;
 						act.qty = 1;  // 暂固定 1 件，UI 可扩展数量输入框
 						return act;
+					}
+				}
+				// 普通用户、已完成订单、未评价："评价"按钮命中
+				if (!model.isMerchant() && order.shipStatus == 2) {
+					const Review* rv = model.findReview(order.id, it.productId);
+					if (rv == nullptr) {
+						constexpr float rvBtnW = 60.f, rvBtnH = 28.f;
+						const float rvBtnX = retBtnDX - rvBtnW - 8.f;
+						const sf::FloatRect rvBtnRect{ sf::Vector2f{ rvBtnX, rowPos.y + 4.f }, sf::Vector2f{ rvBtnW, rvBtnH } };
+						if (hit(rvBtnRect, mousePos)) {
+							ClickAction act{ ClickAction::OpenReview, 0 };
+							act.orderId = order.id;
+							act.productId = it.productId;
+							return act;
+						}
 					}
 				}
 				itemY += orderItemRowH;
@@ -2338,6 +2439,102 @@ void ClientView::clearProfileInputs() noexcept {
 	profileOldPwdInput_.clear();
 	profileNewPwdInput_.clear();
 	profileConfirmPwdInput_.clear();
+}
+
+// ===================== 评价编辑器 =====================
+
+void ClientView::openReviewEditor(std::int64_t orderId, std::int32_t productId) {
+	reviewOrderId_ = orderId;
+	reviewProductId_ = productId;
+	reviewRating_ = 0;
+	reviewCommentInput_.clear();
+	activeField_ = Field::ReviewComment;
+}
+
+sf::FloatRect ClientView::reviewStarRect(int star, const sf::Vector2f& topLeft) {
+	constexpr float starSize = 30.f, gap = 8.f;
+	const float x = topLeft.x + 20.f + (star - 1) * (starSize + gap);
+	return sf::FloatRect(sf::Vector2f{ x, topLeft.y + 10.f }, sf::Vector2f{ starSize, starSize });
+}
+
+sf::FloatRect ClientView::reviewCommentRect(const sf::Vector2f& topLeft) {
+	return sf::FloatRect(sf::Vector2f{ topLeft.x + 20.f, topLeft.y + 60.f },
+						 sf::Vector2f{ 460.f, 70.f });
+}
+
+sf::FloatRect ClientView::reviewSubmitBtnRect(const sf::Vector2f& topLeft) {
+	return sf::FloatRect(sf::Vector2f{ topLeft.x + 300.f, topLeft.y + 145.f },
+						 sf::Vector2f{ 80.f, 32.f });
+}
+
+sf::FloatRect ClientView::reviewCancelBtnRect(const sf::Vector2f& topLeft) {
+	return sf::FloatRect(sf::Vector2f{ topLeft.x + 400.f, topLeft.y + 145.f },
+						 sf::Vector2f{ 80.f, 32.f });
+}
+
+void ClientView::drawReviewEditor(const sf::Vector2f& topLeft) {
+	constexpr float editorW = 500.f, editorH = 200.f;
+
+	// 编辑器背景（白色圆角模拟 + 边框）
+	sf::RectangleShape bg({ editorW, editorH });
+	bg.setPosition({ topLeft.x, topLeft.y });
+	bg.setFillColor(sf::Color::White);
+	bg.setOutlineColor(sf::Color(150, 150, 150));
+	bg.setOutlineThickness(2.f);
+	window_.draw(bg);
+
+	// 标题
+	textMgr_.displayText(L"评价商品", { topLeft.x + 20, topLeft.y - 2 }, { 18, 24 }, sf::Color(60, 60, 60));
+
+	// 星级选择（5 颗星，实心=已选，空心=未选）
+	for (int s = 1; s <= 5; ++s) {
+		const auto sr = reviewStarRect(s, topLeft);
+		sf::RectangleShape starBg({ sr.size.x, sr.size.y });
+		starBg.setPosition({ sr.position.x, sr.position.y });
+		starBg.setFillColor(s <= reviewRating_ ? sf::Color(240, 180, 40) : sf::Color(230, 230, 230));
+		starBg.setOutlineColor(sf::Color(200, 200, 200));
+		starBg.setOutlineThickness(1.f);
+		window_.draw(starBg);
+		// 星号字符（用 ★ 简化）
+		const wchar_t starCh = L'★';
+		textMgr_.displayText(std::wstring(1, starCh),
+							 { sr.position.x + 7, sr.position.y + 2 },
+							 { 20, 26 }, sf::Color::White);
+	}
+
+	// 评论文本框
+	const auto cr = reviewCommentRect(topLeft);
+	sf::RectangleShape commentBg({ cr.size.x, cr.size.y });
+	commentBg.setPosition({ cr.position.x, cr.position.y });
+	commentBg.setFillColor(sf::Color::White);
+	commentBg.setOutlineColor(activeField_ == Field::ReviewComment ? sf::Color(80, 130, 200) : sf::Color(200, 200, 200));
+	commentBg.setOutlineThickness(activeField_ == Field::ReviewComment ? 2.f : 1.f);
+	window_.draw(commentBg);
+	std::wstring shown = ec::string::to_utf16(reviewCommentInput_);
+	if (activeField_ == Field::ReviewComment) shown += L"_";
+	textMgr_.displayText(shown,
+						 { cr.position.x + 6, cr.position.y + 4 },
+						 { 16, 22 }, sf::Color::Black);
+
+	// 提交按钮
+	const auto sb = reviewSubmitBtnRect(topLeft);
+	sf::RectangleShape submitBtn({ sb.size.x, sb.size.y });
+	submitBtn.setPosition({ sb.position.x, sb.position.y });
+	submitBtn.setFillColor(sf::Color(50, 150, 80));
+	submitBtn.setOutlineColor(sf::Color(40, 120, 60));
+	submitBtn.setOutlineThickness(1.f);
+	window_.draw(submitBtn);
+	textMgr_.displayText(L"提交", { sb.position.x + 22, sb.position.y + 6 }, { 16, 22 }, sf::Color::White);
+
+	// 取消按钮
+	const auto cb = reviewCancelBtnRect(topLeft);
+	sf::RectangleShape cancelBtn({ cb.size.x, cb.size.y });
+	cancelBtn.setPosition({ cb.position.x, cb.position.y });
+	cancelBtn.setFillColor(sf::Color(150, 150, 150));
+	cancelBtn.setOutlineColor(sf::Color(120, 120, 120));
+	cancelBtn.setOutlineThickness(1.f);
+	window_.draw(cancelBtn);
+	textMgr_.displayText(L"取消", { cb.position.x + 22, cb.position.y + 6 }, { 16, 22 }, sf::Color::White);
 }
 
 // ===================== "我的订单"面板滚动 =====================

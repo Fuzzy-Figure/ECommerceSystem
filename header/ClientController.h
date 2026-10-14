@@ -98,6 +98,9 @@ public:
 	// 用户：用个人信息表单输入提交修改（用户名/密码至少改一项；旧密码用于身份验证）
 	void requestUpdateProfile();
 
+	// 用户：提交对已完成订单某商品的评价（rating 1-5，comment 可选）
+	void requestSubmitReview();
+
 	// 处理 SFML 事件（按键、关闭、文本输入等）
 	void handleEvent(const sf::Event& event);
 

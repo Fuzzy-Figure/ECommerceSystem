@@ -1,6 +1,7 @@
 #include "ProductDAO.h"
 #include <sstream>
 #include <stdexcept>
+#include <unordered_map>
 
 ProductDAO::ProductDAO(Database& db) : db_(db) {}
 
@@ -42,11 +43,51 @@ Product ProductDAO::mapRow(const nlohmann::json& row) {
 	return p;
 }
 
+// 批量填充每个商品的平均评分 + 评价数（LEFT JOIN reviews 聚合）
+// 无评价时 avgRating=0、reviewCount=0
+static void fillRatings(Database& db, std::vector<Product>& products) {
+	if (products.empty()) return;
+	// 拼 IN 列表
+	std::ostringstream inList;
+	for (std::size_t i = 0; i < products.size(); ++i) {
+		if (i > 0) inList << ",";
+		inList << products[i].id;
+	}
+	std::ostringstream q;
+	q << "SELECT product_id, AVG(rating) AS avg, COUNT(*) AS cnt"
+	  << " FROM reviews WHERE product_id IN (" << inList.str() << ")"
+	  << " GROUP BY product_id;";
+	auto rows = db.query(q.str());
+	// 建 id → {avg, cnt} 映射
+	std::unordered_map<std::int32_t, std::pair<double, int>> ratingMap;
+	ratingMap.reserve(rows.size());
+	for (const auto& r : rows) {
+		std::int32_t pid = 0;
+		double avg = 0.0;
+		int cnt = 0;
+		if (r["product_id"].is_number()) pid = r["product_id"].get<std::int32_t>();
+		else if (r["product_id"].is_string()) { try { pid = std::stoi(r["product_id"].get<std::string>()); } catch (...) {} }
+		if (r["avg"].is_number()) avg = r["avg"].get<double>();
+		else if (r["avg"].is_string()) { try { avg = std::stod(r["avg"].get<std::string>()); } catch (...) {} }
+		if (r["cnt"].is_number()) cnt = r["cnt"].get<int>();
+		else if (r["cnt"].is_string()) { try { cnt = std::stoi(r["cnt"].get<std::string>()); } catch (...) {} }
+		ratingMap[pid] = { avg, cnt };
+	}
+	for (auto& p : products) {
+		auto it = ratingMap.find(p.id);
+		if (it != ratingMap.end()) {
+			p.avgRating = it->second.first;
+			p.reviewCount = it->second.second;
+		}
+	}
+}
+
 std::vector<Product> ProductDAO::findAll() {
 	auto rows = db_.query("SELECT id, name, description, price, stock, imagePath, on_sale FROM products WHERE on_sale = 1 ORDER BY id ASC;");
 	std::vector<Product> result;
 	result.reserve(rows.size());
 	for (const auto& row : rows) result.push_back(mapRow(row));
+	fillRatings(db_, result);
 	return result;
 }
 
@@ -55,6 +96,7 @@ std::vector<Product> ProductDAO::findAllForMerchant() {
 	std::vector<Product> result;
 	result.reserve(rows.size());
 	for (const auto& row : rows) result.push_back(mapRow(row));
+	fillRatings(db_, result);
 	return result;
 }
 
@@ -63,7 +105,10 @@ std::optional<Product> ProductDAO::findById(std::int32_t id) {
 	ss << "SELECT id, name, description, price, stock, imagePath, on_sale FROM products WHERE id = " << id << ";";
 	auto rows = db_.query(ss.str());
 	if (rows.empty()) return std::nullopt;
-	return mapRow(rows.front());
+	auto p = mapRow(rows.front());
+	std::vector<Product> single{ p };
+	fillRatings(db_, single);
+	return single.front();
 }
 
 bool ProductDAO::reduceStock(std::int32_t id, std::int32_t qty) {

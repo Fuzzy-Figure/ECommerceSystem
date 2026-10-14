@@ -5,7 +5,7 @@
 #include <utility>
 
 ServerController::ServerController(Database& db)
-	: db_(db), productDao_(db), orderDao_(db), userDao_(db), promotionDao_(db),
+	: db_(db), productDao_(db), orderDao_(db), userDao_(db), promotionDao_(db), reviewDao_(db),
 	worker_(&ServerController::workerLoop, this) {
 	// 启动时从 DB 加载促销规则并组装装饰器链
 	reloadPromotions();
@@ -128,6 +128,9 @@ void ServerController::handle(std::shared_ptr<sf::TcpSocket> socket, const nlohm
 		case static_cast<int>(proto::RequestCode::UpdateProfile):
 			response = handleUpdateProfile(request);
 			break;
+		case static_cast<int>(proto::RequestCode::SubmitReview):
+			response = handleSubmitReview(request);
+			break;
 		default:
 			response = {
 				{"code",    static_cast<int>(proto::ResponseCode::Error)},
@@ -243,10 +246,17 @@ nlohmann::json ServerController::handleListOrders(const nlohmann::json& req) {
 	auto orders = orderDao_.findAllWithItems(userId);
 	nlohmann::json arr = nlohmann::json::array();
 	for (const auto& o : orders) arr.push_back(o.toJson());
+	// 附带该用户的全部评价，供客户端判断订单商品是否已评价
+	nlohmann::json reviewArr = nlohmann::json::array();
+	if (userId > 0) {
+		auto reviews = reviewDao_.findByUserId(userId);
+		for (const auto& rv : reviews) reviewArr.push_back(rv.toJson());
+	}
 	std::cout << "[ServerController] 用户 " << userId << " 返回 " << orders.size() << " 条历史订单" << std::endl;
 	return {
-		{"code",   static_cast<int>(proto::ResponseCode::OrderList)},
-		{"orders", arr}
+		{"code",    static_cast<int>(proto::ResponseCode::OrderList)},
+		{"orders",  arr},
+		{"reviews", reviewArr}
 	};
 }
 
@@ -410,6 +420,103 @@ nlohmann::json ServerController::handleUpdateProfile(const nlohmann::json& req) 
 		{"success",     true},
 		{"newUsername", currentName},
 		{"message",     "修改成功"}
+	};
+}
+
+nlohmann::json ServerController::handleSubmitReview(const nlohmann::json& req) {
+	const auto orderId   = req.value("orderId",   std::int64_t{});
+	const auto productId = req.value("productId", std::int32_t{});
+	const auto userId    = req.value("userId",    std::int64_t{});
+	const auto rating    = req.value("rating",    0);
+	const auto comment   = req.value("comment",   std::string{});
+
+	if (orderId <= 0 || productId <= 0 || userId <= 0) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::ReviewResult)},
+			{"success", false},
+			{"message", "评价失败：参数非法"}
+		};
+	}
+	if (rating < 1 || rating > 5) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::ReviewResult)},
+			{"success", false},
+			{"message", "评价失败：评分必须为 1-5 星"}
+		};
+	}
+
+	// 1. 查订单归属 + 状态
+	std::ostringstream oq;
+	oq << "SELECT user_id, ship_status FROM orders WHERE id=" << orderId << ";";
+	auto oRows = db_.query(oq.str());
+	if (oRows.empty()) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::ReviewResult)},
+			{"success", false},
+			{"message", "评价失败：订单不存在"}
+		};
+	}
+	std::int64_t orderUserId = 0;
+	int shipStatus = 0;
+	{
+		const auto& r = oRows.front();
+		if (r["user_id"].is_number()) orderUserId = r["user_id"].get<std::int64_t>();
+		else if (r["user_id"].is_string()) { try { orderUserId = std::stoll(r["user_id"].get<std::string>()); } catch (...) {} }
+		if (r["ship_status"].is_number()) shipStatus = r["ship_status"].get<int>();
+		else if (r["ship_status"].is_string()) { try { shipStatus = std::stoi(r["ship_status"].get<std::string>()); } catch (...) {} }
+	}
+	if (orderUserId != userId) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::ReviewResult)},
+			{"success", false},
+			{"message", "评价失败：只能评价自己的订单"}
+		};
+	}
+	if (shipStatus != 2) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::ReviewResult)},
+			{"success", false},
+			{"message", "评价失败：仅已完成（确认收货）的订单可评价"}
+		};
+	}
+
+	// 2. 校验 productId 在该订单明细中
+	std::ostringstream iq;
+	iq << "SELECT 1 FROM order_items WHERE order_id=" << orderId
+	   << " AND product_id=" << productId << " LIMIT 1;";
+	if (db_.query(iq.str()).empty()) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::ReviewResult)},
+			{"success", false},
+			{"message", "评价失败：该商品不在此订单中"}
+		};
+	}
+
+	// 3. 校验未重复评价（DB 有 UNIQUE 约束，DAO 内也会再查一次）
+	if (reviewDao_.hasReviewed(orderId, productId)) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::ReviewResult)},
+			{"success", false},
+			{"message", "评价失败：该商品已评价过"}
+		};
+	}
+
+	// 4. 写入评价
+	if (!reviewDao_.createReview(orderId, productId, userId, rating, comment)) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::ReviewResult)},
+			{"success", false},
+			{"message", "评价失败：服务端异常"}
+		};
+	}
+
+	std::cout << "[ServerController] 用户 id=" << userId
+		<< " 对订单 #" << orderId << " 商品 #" << productId
+		<< " 评价 " << rating << " 星" << std::endl;
+	return {
+		{"code",    static_cast<int>(proto::ResponseCode::ReviewResult)},
+		{"success", true},
+		{"message", "评价成功"}
 	};
 }
 

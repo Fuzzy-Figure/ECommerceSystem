@@ -19,7 +19,8 @@ namespace {
 	//   v4 = users 表 + orders 加 user_id 列 + 种子用户
 	//   v5 = products 加 on_sale 列（上下架）+ users 加 role 列（0普通/1商家）
 	//   v6 = orders 加 ship_status 列（0待发货/1已发货/2已完成）
-	constexpr int kSchemaVersion = 6;
+	//   v7 = 新增 reviews 评价表（order_id+product_id 唯一）
+	constexpr int kSchemaVersion = 7;
 
 	// 创建 schema 并插入种子数据；旧版本库会先 DROP 再重建
 	void initDatabase(Database& db) {
@@ -40,11 +41,12 @@ namespace {
 				<< " ≠ 期望 " << kSchemaVersion
 				<< "，丢弃旧表重建" << std::endl;
 			// 外键依赖顺序：先子表后父表
-			db.execute("DROP TABLE IF EXISTS order_items;");
-			db.execute("DROP TABLE IF EXISTS orders;");
-			db.execute("DROP TABLE IF EXISTS promotions;");
-			db.execute("DROP TABLE IF EXISTS products;");
-			db.execute("DROP TABLE IF EXISTS users;");
+		db.execute("DROP TABLE IF EXISTS order_items;");
+		db.execute("DROP TABLE IF EXISTS orders;");
+		db.execute("DROP TABLE IF EXISTS reviews;");
+		db.execute("DROP TABLE IF EXISTS promotions;");
+		db.execute("DROP TABLE IF EXISTS products;");
+		db.execute("DROP TABLE IF EXISTS users;");
 		}
 
 		db.execute(
@@ -98,15 +100,31 @@ namespace {
 			");"
 		);
 		// 用户表：username 唯一，password_hash 不存明文
-		// role: 0=普通用户，1=商家
-		db.execute(
-			"CREATE TABLE IF NOT EXISTS users ("
-			"  id            INTEGER PRIMARY KEY AUTOINCREMENT,"
-			"  username      TEXT NOT NULL UNIQUE,"
-			"  password_hash TEXT NOT NULL,"
-			"  role          INTEGER NOT NULL DEFAULT 0"
-			");"
-		);
+	// role: 0=普通用户，1=商家
+	db.execute(
+		"CREATE TABLE IF NOT EXISTS users ("
+		"  id            INTEGER PRIMARY KEY AUTOINCREMENT,"
+		"  username      TEXT NOT NULL UNIQUE,"
+		"  password_hash TEXT NOT NULL,"
+		"  role          INTEGER NOT NULL DEFAULT 0"
+		");"
+	);
+	// 评价表：用户对已完成订单中某商品的评价
+	// (order_id, product_id) 联合唯一：同一订单同一商品只能评价一次
+	// rating: 1-5 星，comment: 评价文本
+	db.execute(
+		"CREATE TABLE IF NOT EXISTS reviews ("
+		"  id         INTEGER PRIMARY KEY AUTOINCREMENT,"
+		"  order_id   INTEGER NOT NULL,"
+		"  product_id INTEGER NOT NULL,"
+		"  user_id    INTEGER NOT NULL,"
+		"  username   TEXT NOT NULL,"
+		"  rating     INTEGER NOT NULL,"
+		"  comment    TEXT,"
+		"  created_at TEXT NOT NULL,"
+		"  UNIQUE(order_id, product_id)"
+		");"
+	);
 		// 写入当前 schema 版本号
 		db.execute("PRAGMA user_version = " + std::to_string(kSchemaVersion) + ";");
 

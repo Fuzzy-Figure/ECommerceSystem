@@ -566,6 +566,44 @@ void ClientController::requestUpdateProfile() {
 	model_.setStatus(L"正在提交修改，请稍候...");
 }
 
+void ClientController::requestSubmitReview() {
+	if (!socket_) {
+		model_.setStatus(L"未连接服务器，无法提交评价");
+		return;
+	}
+	if (model_.currentUserId() <= 0) {
+		model_.setStatus(L"未登录，无法提交评价");
+		return;
+	}
+	const std::int64_t orderId = view_.reviewOrderId();
+	const std::int32_t productId = view_.reviewProductId();
+	const int rating = view_.reviewRating();
+	const auto& comment = view_.reviewCommentInput();
+
+	if (orderId <= 0 || productId <= 0) {
+		model_.setStatus(L"评价失败：参数异常");
+		return;
+	}
+	if (rating < 1 || rating > 5) {
+		model_.setStatus(L"请先选择 1-5 星评分");
+		return;
+	}
+
+	const nlohmann::json req = {
+		{"code",      static_cast<int>(proto::RequestCode::SubmitReview)},
+		{"orderId",   orderId},
+		{"productId", productId},
+		{"userId",    model_.currentUserId()},
+		{"rating",    rating},
+		{"comment",   comment}
+	};
+	if (!proto::sendJson(*socket_, req)) {
+		model_.setStatus(L"发送评价请求失败，连接可能已断开");
+		return;
+	}
+	model_.setStatus(L"正在提交评价，请稍候...");
+}
+
 void ClientController::handleEvent(const sf::Event& event) {
 	if (event.is<sf::Event::Closed>()) {
 		window_.close();
@@ -697,11 +735,32 @@ void ClientController::handleEvent(const sf::Event& event) {
 					view_.setPanel(ClientView::Panel::ProductList);
 					break;
 				}
+				case ClientView::ClickAction::OpenReview: {
+					// 打开评价编辑器（记录 orderId+productId，重置评分+评论）
+					view_.openReviewEditor(action.orderId, action.productId);
+					break;
+				}
+				case ClientView::ClickAction::SelectRating: {
+					// 选择星级
+					view_.setReviewRating(action.arg);
+					break;
+				}
+				case ClientView::ClickAction::SubmitReview: {
+					// 提交评价
+					requestSubmitReview();
+					break;
+				}
+				case ClientView::ClickAction::CancelReview: {
+					// 取消评价
+					view_.closeReviewEditor();
+					break;
+				}
 				case ClientView::ClickAction::Logout:
 					// 清用户身份 + 购物车 + 订单缓存，切回登录面板
 					model_.clearUser();
 					model_.clearCart();
 					model_.clearOrders();
+					model_.clearReviews();
 					model_.clearPromotions();
 					model_.clearUsers();
 					model_.clearStats();
@@ -919,6 +978,18 @@ void ClientController::handleEvent(const sf::Event& event) {
 				view_.backspaceInput();
 			}
 		}
+		// 我的订单面板：评价编辑器打开时，Enter=提交、Escape=取消、Backspace=删字符
+		else if (view_.panel() == ClientView::Panel::MyOrders && view_.reviewEditorOpen()) {
+			if (key == sf::Keyboard::Key::Enter) {
+				requestSubmitReview();
+			}
+			else if (key == sf::Keyboard::Key::Escape) {
+				view_.closeReviewEditor();
+			}
+			else if (key == sf::Keyboard::Key::Backspace) {
+				view_.backspaceInput();
+			}
+		}
 		return;
 	}
 	// 文本输入事件：Login/MerchantCreate/MerchantEdit/PromotionForm/ProductList/Profile 面板接收字符（ASCII 或中文 CJK）到当前聚焦输入框
@@ -926,12 +997,15 @@ void ClientController::handleEvent(const sf::Event& event) {
 		const auto* te = event.getIf<sf::Event::TextEntered>();
 		if (te == nullptr) return;
 		// 仅以下面板接收文本输入；ProductList 仅当搜索框聚焦时有效（appendInputChar 内按 activeField 分发）
-		if (view_.panel() != ClientView::Panel::Login
-			&& view_.panel() != ClientView::Panel::MerchantCreate
-			&& view_.panel() != ClientView::Panel::MerchantEdit
-			&& view_.panel() != ClientView::Panel::PromotionForm
-			&& view_.panel() != ClientView::Panel::ProductList
-			&& view_.panel() != ClientView::Panel::Profile) return;
+		// MyOrders 面板仅在评价编辑器打开时接收评论文本输入
+		const bool allowText = (view_.panel() == ClientView::Panel::Login
+			|| view_.panel() == ClientView::Panel::MerchantCreate
+			|| view_.panel() == ClientView::Panel::MerchantEdit
+			|| view_.panel() == ClientView::Panel::PromotionForm
+			|| view_.panel() == ClientView::Panel::ProductList
+			|| view_.panel() == ClientView::Panel::Profile
+			|| (view_.panel() == ClientView::Panel::MyOrders && view_.reviewEditorOpen()));
+		if (!allowText) return;
 		// 传 UTF-32 码点；appendInputChar 内部按 ASCII/CJK 过滤并转 UTF-8
 		view_.appendInputChar(te->unicode);
 		return;
@@ -1033,6 +1107,14 @@ void ClientController::processMessage(nlohmann::json& msg) {
 				}
 			}
 			model_.setOrders(std::move(orders));
+			// 解析附带的评价列表（普通用户订单列表带）
+			std::vector<Review> reviews;
+			if (msg.contains("reviews") && msg["reviews"].is_array()) {
+				for (const auto& rj : msg["reviews"]) {
+					reviews.push_back(Review::fromJson(rj));
+				}
+			}
+			model_.setReviews(std::move(reviews));
 			std::wostringstream ss;
 			ss << L"已加载 " << model_.orders().size() << L" 条订单";
 			model_.setStatus(ss.str());
@@ -1242,6 +1324,17 @@ void ClientController::processMessage(nlohmann::json& msg) {
 				// 切回 ProductList 前重置聚焦字段，避免输入仍写入 Profile 不可见字段
 				view_.setActiveField(ClientView::Field::ProductSearch);
 				view_.setPanel(ClientView::Panel::ProductList);
+			}
+			model_.setStatus(ec::string::to_utf16(m));
+			break;
+		}
+		case static_cast<int>(proto::ResponseCode::ReviewResult): {
+			const auto success = msg.value("success", false);
+			const auto m = msg.value("message", std::string{});
+			if (success) {
+				// 评价成功：关闭编辑器，刷新订单列表（服务端 reviews 会随订单列表返回）
+				view_.closeReviewEditor();
+				requestListOrders();
 			}
 			model_.setStatus(ec::string::to_utf16(m));
 			break;

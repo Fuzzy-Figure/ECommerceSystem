@@ -19,7 +19,7 @@ public:
 	enum class Panel { Login, Merchant, MerchantCreate, MerchantEdit, ProductList, Cart, MyOrders, Promotion, PromotionForm, UserManagement, Dashboard, Profile };
 
 	// 当前聚焦的输入框
-	enum class Field { Username, Password, ProductName, ProductPrice, ProductStock, ProductDesc, ProductImage, ProductSearch, PriceMin, PriceMax, PromoSlot0, PromoSlot1, PromoSlot2, PromoSlot3, ProfileNewName, ProfileOldPwd, ProfileNewPwd, ProfileConfirmPwd };
+	enum class Field { Username, Password, ProductName, ProductPrice, ProductStock, ProductDesc, ProductImage, ProductSearch, PriceMin, PriceMax, PromoSlot0, PromoSlot1, PromoSlot2, PromoSlot3, ProfileNewName, ProfileOldPwd, ProfileNewPwd, ProfileConfirmPwd, ReviewComment };
 
 	// 鼠标点击命中后返回的动作；type=None 表示未命中任何按钮
 	struct ClickAction {
@@ -53,11 +53,15 @@ public:
 			SwitchTopSort,           // Dashboard 切换排行榜排序：arg 0=按销售额/1=按销量
 			SwitchProductSort,       // 商品列表切换排序：arg 0=默认/1=价格升/2=价格降
 			ProfileSubmit,           // 个人信息表单提交
-			ProfileBack              // 个人信息表单返回
+			ProfileBack,             // 个人信息表单返回
+			OpenReview,              // 打开评价编辑器：orderId + productId
+			SelectRating,            // 评价编辑器选星：arg=1..5 星
+			SubmitReview,            // 提交评价
+			CancelReview             // 取消评价
 		} type{ None };
 		std::int32_t arg{ 0 };     // 通用参数
-		std::int64_t orderId{};  // ReturnItem 用 orderId
-		std::int32_t productId{};// ReturnItem/Merchant* 用 productId
+		std::int64_t orderId{};  // ReturnItem/OpenReview 用 orderId
+		std::int32_t productId{};// ReturnItem/Merchant*/OpenReview 用 productId
 		std::int32_t promotionId{}; // 促销操作的 promotionId
 		std::int32_t qty{ 1 };      // ReturnItem 的退货数量（暂固定 1，可扩展）
 	};
@@ -103,6 +107,21 @@ public:
 	const std::string& profileConfirmPwdInput()  const noexcept { return profileConfirmPwdInput_; }
 	// 清空个人信息表单（提交成功/切面板时调用）
 	void clearProfileInputs() noexcept;
+
+	// === 评价编辑器状态 ===
+	const std::string& reviewCommentInput() const noexcept { return reviewCommentInput_; }
+	// 当前编辑评价的订单 id + 商品 id（0 表示未打开编辑器）
+	std::int64_t  reviewOrderId()   const noexcept { return reviewOrderId_; }
+	std::int32_t  reviewProductId() const noexcept { return reviewProductId_; }
+	int           reviewRating()    const noexcept { return reviewRating_; }
+	// 打开评价编辑器（记录 orderId+productId，重置评分=0，清空评论）
+	void openReviewEditor(std::int64_t orderId, std::int32_t productId);
+	// 设置评分（选星时调用）
+	void setReviewRating(int rating) noexcept { reviewRating_ = rating; }
+	// 关闭评价编辑器
+	void closeReviewEditor() noexcept { reviewOrderId_ = 0; reviewProductId_ = 0; reviewRating_ = 0; reviewCommentInput_.clear(); }
+	// 评价编辑器是否打开
+	bool reviewEditorOpen() const noexcept { return reviewOrderId_ > 0 && reviewProductId_ > 0; }
 
 	// === "我的订单"面板滚动 ===
 	// 滚动 deltaPx 像素（正值内容向上=向下滚动；负值相反），自动按内容/可见区夹取边界
@@ -167,6 +186,11 @@ private:
 	std::string profileOldPwdInput_;
 	std::string profileNewPwdInput_;
 	std::string profileConfirmPwdInput_;
+	// === 评价编辑器 ===
+	std::int64_t  reviewOrderId_{ 0 };    // 0 表示未打开
+	std::int32_t  reviewProductId_{ 0 };
+	int           reviewRating_{ 0 };     // 0 表示未选星
+	std::string   reviewCommentInput_;
 	Field       activeField_{ Field::Username };
 	// === 商家编辑商品的 productId ===
 	std::int32_t editingProductId_{ 0 };
@@ -293,4 +317,16 @@ private:
 	static sf::FloatRect profileSubmitBtnRect();
 	// 表单"返回"按钮矩形
 	static sf::FloatRect profileBackBtnRect();
+
+	// === 评价编辑器（在"我的订单"面板内联绘制）===
+	// 绘制评价编辑器（星级选择 + 评论文本框 + 提交/取消按钮），返回编辑器矩形供调用者布局用
+	void drawReviewEditor(const sf::Vector2f& topLeft);
+	// 评价编辑器第 star(1..5) 颗星的命中矩形；topLeft 是编辑器左上角
+	static sf::FloatRect reviewStarRect(int star, const sf::Vector2f& topLeft);
+	// 评价编辑器评论文本框矩形
+	static sf::FloatRect reviewCommentRect(const sf::Vector2f& topLeft);
+	// 评价编辑器"提交"按钮矩形
+	static sf::FloatRect reviewSubmitBtnRect(const sf::Vector2f& topLeft);
+	// 评价编辑器"取消"按钮矩形
+	static sf::FloatRect reviewCancelBtnRect(const sf::Vector2f& topLeft);
 };

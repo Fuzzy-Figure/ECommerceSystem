@@ -16,6 +16,7 @@
 #include "OrderDAO.h"
 #include "UserDAO.h"
 #include "PromotionDAO.h"
+#include "ReviewDAO.h"
 #include "PromotionFactory.h"
 #include "ServerView.h"
 #include "Protocol.h"
@@ -49,6 +50,7 @@ private:
 	OrderDAO       orderDao_;
 	UserDAO        userDao_;
 	PromotionDAO   promotionDao_;
+	ReviewDAO      reviewDao_;
 	// 促销链头：nullptr 表示无促销；多线程读需持 promotionMtx_
 	std::unique_ptr<Promotion> promotionChain_;
 	std::mutex     promotionMtx_;
@@ -79,6 +81,8 @@ private:
 	nlohmann::json handleRegister(const nlohmann::json& req);
 	// 修改个人信息：{userId, newUsername, oldPassword, newPassword} → ProfileResult
 	nlohmann::json handleUpdateProfile(const nlohmann::json& req);
+	// 提交评价：{orderId, productId, userId, rating, comment} → ReviewResult
+	nlohmann::json handleSubmitReview(const nlohmann::json& req);
 	// 商家拉取全部商品（含下架）：{userId} → MerchantProductList
 	nlohmann::json handleMerchantListProducts(const nlohmann::json& req);
 	// 商家上架/下架：{userId, productId, onSale} → MerchantActionResult

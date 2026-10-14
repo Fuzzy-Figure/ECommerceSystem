@@ -10,6 +10,7 @@
 #include "Product.h"
 #include "CartItem.h"
 #include "Order.h"
+#include "Review.h"
 
 // 促销规则（客户端展示用）
 struct Promotion {
@@ -73,6 +74,13 @@ public:
 	// 清空订单缓存（登出时调用，防止下个用户看到上一个用户的订单）
 	void clearOrders() noexcept { orders_.clear(); }
 
+	// === 评价缓存（当前用户的全部评价，按 orderId+productId 查）===
+	void setReviews(std::vector<Review> reviews) { reviews_ = std::move(reviews); }
+	const std::vector<Review>& reviews() const noexcept { return reviews_; }
+	void clearReviews() noexcept { reviews_.clear(); }
+	// 查找某订单某商品的评价；未评价返回 nullptr
+	const Review* findReview(std::int64_t orderId, std::int32_t productId) const;
+
 	// === 商家促销规则 ===
 	void setPromotions(std::vector<Promotion> promotions) { promotions_ = std::move(promotions); }
 	const std::vector<Promotion>& promotions() const noexcept { return promotions_; }
@@ -119,6 +127,7 @@ private:
 	std::vector<Product>   products_;
 	std::vector<CartItem>  cart_;
 	std::vector<Order>     orders_;
+	std::vector<Review>    reviews_;
 	std::vector<Promotion> promotions_;
 	std::vector<SimpleUser> users_;
 	MerchantStats           stats_;

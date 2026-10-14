@@ -13,6 +13,8 @@ struct Product {
 	std::int32_t stock{};
 	std::string  imagePath;  // 相对路径，客户端用 ImageManager 加载
 	bool         onSale{ true };  // 是否上架：true=上架（用户可见可买），false=下架
+	double       avgRating{ 0.0 };  // 平均评分（0-5，无评价为 0）
+	int          reviewCount{ 0 };  // 评价数
 
 	nlohmann::json toJson() const;
 	static Product fromJson(const nlohmann::json& j);
