@@ -2,7 +2,6 @@
 #include "utils.h"
 #include "Product.h"
 #include "Order.h"
-#include <iostream>
 
 ClientController::ClientController(sf::RenderWindow& window, ClientModel& model, ClientView& view)
 	: window_(window), model_(model), view_(view) {}
