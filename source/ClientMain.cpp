@@ -13,14 +13,14 @@ int main() {
 	SetConsoleCP(CP_UTF8);
 	SetConsoleOutputCP(CP_UTF8);
 	try {
-		ec::reloadClientConfig();
+		ecs::reloadClientConfig();
 	} catch (const std::exception& e) {
 		std::println(stderr, "加载配置失败：{}", e.what());
 		system("pause");
 		return 1;
 	}
 
-	const auto& cfg = ec::getClientConfig();
+	const auto& cfg = ecs::getClientConfig();
 	const auto  winW = cfg["size"]["window"]["width"].get<unsigned>();
 	const auto  winH = cfg["size"]["window"]["height"].get<unsigned>();
 	const auto  ip = cfg["server"]["ip"].get<std::string>();

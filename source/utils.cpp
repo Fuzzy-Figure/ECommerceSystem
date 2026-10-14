@@ -2,7 +2,7 @@
 #include <Windows.h>
 #include <fstream>
 
-namespace ec {
+namespace ecs {
 	nlohmann::json& getServerConfig() {
 		static nlohmann::json config = []() {
 			std::ifstream configFile("../server_config.json");

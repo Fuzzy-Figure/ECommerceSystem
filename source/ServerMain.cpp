@@ -223,14 +223,14 @@ int main() {
 	std::println("[Server] 进程启动");
 
 	try {
-		ec::reloadServerConfig();
+		ecs::reloadServerConfig();
 	} catch (const std::exception& e) {
 		std::println(stderr, "加载配置失败：{}", e.what());
 		system("pause");
 		return 1;
 	}
 
-	const auto& cfg = ec::getServerConfig();
+	const auto& cfg = ecs::getServerConfig();
 	const auto  dbPath = cfg["database"]["path"].get<std::string>();
 	const auto  listenPort = cfg["server"]["port"].get<unsigned short>();
 

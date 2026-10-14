@@ -71,7 +71,7 @@ namespace {
 // 商品名超长截断显示：中文算 2 宽度单位，ASCII 算 1，累计超过 maxWidthUnits 截断加"…"
 // 30 单位 ≈ 15 个中文字符或 30 个 ASCII 字符（18px 字体下约 270 像素）
 static std::wstring truncateForDisplay(const std::string& utf8, int maxWidthUnits) {
-	std::wstring ws = ec::string::to_utf16(utf8);
+	std::wstring ws = ecs::string::to_utf16(utf8);
 	int width = 0;
 	std::wstring result;
 	for (wchar_t c : ws) {
@@ -118,7 +118,7 @@ void ClientView::drawLoginPanel(const ClientModel& model) {
 	userBg.setOutlineThickness(activeField_ == Field::Username ? 2.f : 1.f);
 	window_.draw(userBg);
 	textMgr_.displayText(L"用户名：", { userRect.position.x - 100, userRect.position.y + 10 }, { 18, 24 }, sf::Color(80, 80, 80));
-	textMgr_.displayText(ec::string::to_utf16(usernameInput_),
+	textMgr_.displayText(ecs::string::to_utf16(usernameInput_),
 						 { userRect.position.x + 12, userRect.position.y + 12 }, { 20, 26 }, sf::Color::Black);
 
 	// 密码输入框（显示成 '*'）
@@ -350,7 +350,7 @@ void ClientView::drawMerchantCreatePanel(const ClientModel& model) {
 	if (model.loggedIn()) {
 		const auto lr = logoutBtnRect();
 		std::wostringstream user;
-		user << L"商家：" << ec::string::to_utf16(model.currentUsername());
+		user << L"商家：" << ecs::string::to_utf16(model.currentUsername());
 		textMgr_.displayText(user.str(),
 							 { lr.position.x - 220, lr.position.y + 8 },
 							 { 18, 24 }, sf::Color(60, 60, 60));
@@ -392,7 +392,7 @@ void ClientView::drawMerchantCreatePanel(const ClientModel& model) {
 		bg.setOutlineThickness(activeField_ == fields[i] ? 2.f : 1.f);
 		window_.draw(bg);
 		// 输入框文本
-		std::wstring shown = ec::string::to_utf16(*values[i]);
+		std::wstring shown = ecs::string::to_utf16(*values[i]);
 		if (activeField_ == fields[i]) shown += L"_";  // 光标占位
 		textMgr_.displayText(shown,
 							 { r.position.x + 8, r.position.y + 8 },
@@ -458,7 +458,7 @@ void ClientView::drawMerchantEditPanel(const ClientModel& model) {
 	if (model.loggedIn()) {
 		const auto lr = logoutBtnRect();
 		std::wostringstream user;
-		user << L"商家：" << ec::string::to_utf16(model.currentUsername());
+		user << L"商家：" << ecs::string::to_utf16(model.currentUsername());
 		textMgr_.displayText(user.str(),
 							 { lr.position.x - 220, lr.position.y + 8 },
 							 { 18, 24 }, sf::Color(60, 60, 60));
@@ -497,7 +497,7 @@ void ClientView::drawMerchantEditPanel(const ClientModel& model) {
 		bg.setOutlineColor(activeField_ == fields[i] ? sf::Color(80, 130, 200) : sf::Color(200, 200, 200));
 		bg.setOutlineThickness(activeField_ == fields[i] ? 2.f : 1.f);
 		window_.draw(bg);
-		std::wstring shown = ec::string::to_utf16(*values[i]);
+		std::wstring shown = ecs::string::to_utf16(*values[i]);
 		if (activeField_ == fields[i]) shown += L"_";
 		textMgr_.displayText(shown,
 							 { r.position.x + 8, r.position.y + 8 },
@@ -570,7 +570,7 @@ static std::wstring describePromotion(const std::string& type, const nlohmann::j
 		ss << L"抵扣券" << amt << L"元";
 	}
 	else {
-		ss << ec::string::to_utf16(type);
+		ss << ecs::string::to_utf16(type);
 	}
 	return ss.str();
 }
@@ -749,7 +749,7 @@ void ClientView::drawPromotionFormPanel(const ClientModel& model) {
 			box.setOutlineThickness(activeField_ == slotFields[i] ? 2.f : 1.f);
 			window_.draw(box);
 			if (!promoSlotValue_[i].empty()) {
-				textMgr_.displayText(ec::string::to_utf16(promoSlotValue_[i]),
+				textMgr_.displayText(ecs::string::to_utf16(promoSlotValue_[i]),
 									 { r.position.x + 12, r.position.y + 8 }, { 20, 26 }, sf::Color::Black);
 			}
 		}
@@ -830,7 +830,7 @@ void ClientView::drawUserManagementPanel(const ClientModel& model) {
 		textMgr_.displayText(idSs.str(),
 							 { rowPos.x + 12, rowPos.y + 14 }, { 22, 28 }, sf::Color::Black);
 		// 用户名
-		textMgr_.displayText(ec::string::to_utf16(u.username),
+		textMgr_.displayText(ecs::string::to_utf16(u.username),
 							 { rowPos.x + 120, rowPos.y + 14 }, { 22, 28 }, sf::Color(80, 80, 80));
 		// 角色
 		const bool isMerchant = (u.role == 1);
@@ -852,7 +852,7 @@ void ClientView::drawDashboardPanel(const ClientModel& model) {
 
 	const auto& s = model.stats();
 	const auto& top = model.topProducts();
-	const std::wstring rangeLabel = ec::string::to_utf16(s.rangeLabel);
+	const std::wstring rangeLabel = ecs::string::to_utf16(s.rangeLabel);
 	const int curRange = model.statsRange();
 
 	// === 时间范围选择器（4 个按钮） ===
@@ -959,7 +959,7 @@ void ClientView::drawDashboardPanel(const ClientModel& model) {
 
 		textMgr_.displayText(std::to_wstring(i + 1) + L".",
 							 { nameX, y + 14 }, { 22, 28 }, sf::Color(200, 160, 40));
-		textMgr_.displayText(ec::string::to_utf16(t.name),
+		textMgr_.displayText(ecs::string::to_utf16(t.name),
 							 { nameX + 36, y + 14 }, { 22, 28 }, sf::Color(80, 80, 80));
 		// 条形图：按选定方式的比例
 		float barW;
@@ -1384,7 +1384,7 @@ void ClientView::drawTabBar(const ClientModel& model) {
 		const auto lr = logoutBtnRect();
 		// 用户名文本（登出按钮左侧）
 		std::wostringstream user;
-		user << L"用户：" << ec::string::to_utf16(model.currentUsername());
+		user << L"用户：" << ecs::string::to_utf16(model.currentUsername());
 		textMgr_.displayText(user.str(),
 							 { lr.position.x - 200, lr.position.y + 8 },
 							 { 18, 24 }, sf::Color(60, 60, 60));
@@ -1419,7 +1419,7 @@ void ClientView::drawProductListPanel(const ClientModel& model) {
 	if (searchInput_.empty()) {
 		textMgr_.displayText(L"搜索商品名称...", { searchX + 10, searchY + 6 }, { 16, 22 }, sf::Color(180, 180, 180));
 	} else {
-		textMgr_.displayText(ec::string::to_utf16(searchInput_), { searchX + 10, searchY + 6 }, { 16, 22 }, sf::Color::Black);
+		textMgr_.displayText(ecs::string::to_utf16(searchInput_), { searchX + 10, searchY + 6 }, { 16, 22 }, sf::Color::Black);
 	}
 
 	// 价格区间输入框
@@ -1433,7 +1433,7 @@ void ClientView::drawProductListPanel(const ClientModel& model) {
 		if (input.empty()) {
 			textMgr_.displayText(placeholder, { boxX + 8, searchY + 6 }, { 14, 22 }, sf::Color(180, 180, 180));
 		} else {
-			textMgr_.displayText(ec::string::to_utf16(input), { boxX + 8, searchY + 6 }, { 14, 22 }, sf::Color::Black);
+			textMgr_.displayText(ecs::string::to_utf16(input), { boxX + 8, searchY + 6 }, { 14, 22 }, sf::Color::Black);
 		}
 	};
 	drawPriceInput(priceMinInput_, priceMinX, Field::PriceMin, L"最低价");
@@ -1554,11 +1554,11 @@ void ClientView::drawCard(const Product& p, const sf::Vector2f& pos, const sf::V
 	window_.draw(line);
 
 	// 名称
-	const auto name = ec::string::to_utf16(p.name);
+	const auto name = ecs::string::to_utf16(p.name);
 	textMgr_.displayText(name, { pos.x + 10, pos.y + 260 }, { 20, 28 }, sf::Color::Black);
 
 	// 描述
-	const auto desc = ec::string::to_utf16(p.description);
+	const auto desc = ecs::string::to_utf16(p.description);
 	textMgr_.displayText(desc, { pos.x + 10, pos.y + 300 }, { 20, 20 }, sf::Color(100, 100, 100));
 
 	// 价格
@@ -1635,7 +1635,7 @@ void ClientView::drawCartPanel(const ClientModel& model) {
 
 		const auto& item = cart[i];
 		// 商品名
-		const auto name = ec::string::to_utf16(item.name);
+		const auto name = ecs::string::to_utf16(item.name);
 		textMgr_.displayText(name, { rowPos.x, rowPos.y + 15 }, { 20, 26 }, sf::Color::Black);
 		// 数量
 		std::wostringstream qtyStr;
@@ -1710,10 +1710,10 @@ void ClientView::drawMyOrdersPanel(const ClientModel& model) {
 
 		// 订单头：ID + 时间 + 状态 + 发货状态
 		std::wostringstream head;
-		head << L"订单 #" << order.id << L"   " << ec::string::to_utf16(order.createdAt);
+		head << L"订单 #" << order.id << L"   " << ecs::string::to_utf16(order.createdAt);
 		// 商家看全部订单时显示下单用户名
 		if (model.isMerchant() && !order.username.empty()) {
-			head << L"   用户：" << ec::string::to_utf16(order.username);
+			head << L"   用户：" << ecs::string::to_utf16(order.username);
 		}
 		switch (order.status) {
 			case 1:  head << L"   [部分退货]"; break;
@@ -1816,7 +1816,7 @@ void ClientView::drawMyOrdersPanel(const ClientModel& model) {
 				}
 			}
 			// 文本
-			textMgr_.displayText(ec::string::to_utf16(it.name),
+			textMgr_.displayText(ecs::string::to_utf16(it.name),
 								 { orderCardX + 12,  itemY + 4 }, { 16, 22 }, sf::Color::Black);
 			std::wostringstream pp; pp << L"¥" << it.price;
 			textMgr_.displayText(pp.str(), { orderCardX + 400, itemY + 4 }, { 16, 22 }, sf::Color(80, 80, 80));
@@ -2359,7 +2359,7 @@ void ClientView::drawProfilePanel(const ClientModel& model) {
 
 	// 当前用户名只读显示
 	std::wostringstream cur;
-	cur << L"当前用户名：" << ec::string::to_utf16(model.currentUsername());
+	cur << L"当前用户名：" << ecs::string::to_utf16(model.currentUsername());
 	textMgr_.displayText(cur.str(), { 400, 145 }, { 18, 24 }, sf::Color(80, 80, 80));
 
 	// 4 个输入框：新用户名/旧密码/新密码/确认密码
@@ -2390,7 +2390,7 @@ void ClientView::drawProfilePanel(const ClientModel& model) {
 		// 输入框文本（密码框显示 '*'）
 		std::wstring shown = isPassword[i]
 			? std::wstring(values[i]->size(), L'*')
-			: ec::string::to_utf16(*values[i]);
+			: ecs::string::to_utf16(*values[i]);
 		if (activeField_ == fields[i]) shown += L"_";  // 光标占位
 		textMgr_.displayText(shown,
 							 { r.position.x + 8, r.position.y + 4 },
@@ -2507,7 +2507,7 @@ void ClientView::drawReviewEditor(const sf::Vector2f& topLeft) {
 	commentBg.setOutlineColor(activeField_ == Field::ReviewComment ? sf::Color(80, 130, 200) : sf::Color(200, 200, 200));
 	commentBg.setOutlineThickness(activeField_ == Field::ReviewComment ? 2.f : 1.f);
 	window_.draw(commentBg);
-	std::wstring shown = ec::string::to_utf16(reviewCommentInput_);
+	std::wstring shown = ecs::string::to_utf16(reviewCommentInput_);
 	if (activeField_ == Field::ReviewComment) shown += L"_";
 	textMgr_.displayText(shown,
 						 { cr.position.x + 6, cr.position.y + 4 },

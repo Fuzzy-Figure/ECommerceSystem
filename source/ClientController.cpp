@@ -15,7 +15,7 @@ bool ClientController::connect(const std::string& ip, unsigned short port) {
 	// IpAddress 在 SFML 3 通过 fromString 工厂构造
 	auto addrOpt = sf::IpAddress::fromString(ip);
 	if (!addrOpt) {
-		model_.setStatus(L"无效的服务器地址：" + ec::string::to_utf16(ip));
+		model_.setStatus(L"无效的服务器地址：" + ecs::string::to_utf16(ip));
 		return false;
 	}
 	const auto status = socket_->connect(*addrOpt, port, sf::seconds(5));
@@ -27,7 +27,7 @@ bool ClientController::connect(const std::string& ip, unsigned short port) {
 
 	running_.store(true);
 	recvThread_ = std::thread(&ClientController::recvLoop, this);
-	model_.setStatus(L"已连接服务器 " + ec::string::to_utf16(ip));
+	model_.setStatus(L"已连接服务器 " + ecs::string::to_utf16(ip));
 	return true;
 }
 
@@ -1093,7 +1093,7 @@ void ClientController::processMessage(nlohmann::json& msg) {
 			}
 			else {
 				const auto m = msg.value("message", std::string{ "未知错误" });
-				model_.setStatus(L"结算失败：" + ec::string::to_utf16(m));
+				model_.setStatus(L"结算失败：" + ecs::string::to_utf16(m));
 			}
 			break;
 		}
@@ -1122,7 +1122,7 @@ void ClientController::processMessage(nlohmann::json& msg) {
 		case static_cast<int>(proto::ResponseCode::OrderStatusUpdateResult): {
 			const auto success = msg.value("success", false);
 			const auto m = msg.value("message", std::string{});
-			model_.setStatus(ec::string::to_utf16(m));
+			model_.setStatus(ecs::string::to_utf16(m));
 			if (success) {
 				// 发货/确认收货成功后刷新订单列表
 				if (model_.isMerchant()) requestMerchantListOrders();
@@ -1142,13 +1142,13 @@ void ClientController::processMessage(nlohmann::json& msg) {
 			}
 			else {
 				const auto m = msg.value("message", std::string{ "未知错误" });
-				model_.setStatus(L"退货失败：" + ec::string::to_utf16(m));
+				model_.setStatus(L"退货失败：" + ecs::string::to_utf16(m));
 			}
 			break;
 		}
 		case static_cast<int>(proto::ResponseCode::Error): {
 			const auto m = msg.value("message", std::string{ "未知错误" });
-			model_.setStatus(L"错误：" + ec::string::to_utf16(m));
+			model_.setStatus(L"错误：" + ecs::string::to_utf16(m));
 			break;
 		}
 		case static_cast<int>(proto::ResponseCode::LoginResult): {
@@ -1170,13 +1170,13 @@ void ClientController::processMessage(nlohmann::json& msg) {
 					requestProductList();
 				}
 				std::wostringstream ss;
-				ss << L"欢迎 " << ec::string::to_utf16(username)
+				ss << L"欢迎 " << ecs::string::to_utf16(username)
 					<< (model_.isMerchant() ? L"（商家）" : L"") << L"，已登录";
 				model_.setStatus(ss.str());
 			}
 			else {
 				const auto m = msg.value("message", std::string{ "登录失败" });
-				model_.setStatus(ec::string::to_utf16(m));
+				model_.setStatus(ecs::string::to_utf16(m));
 			}
 			break;
 		}
@@ -1192,12 +1192,12 @@ void ClientController::processMessage(nlohmann::json& msg) {
 				view_.setPanel(ClientView::Panel::ProductList);
 				requestProductList();
 				std::wostringstream ss;
-				ss << L"注册成功，已自动登录为 " << ec::string::to_utf16(username);
+				ss << L"注册成功，已自动登录为 " << ecs::string::to_utf16(username);
 				model_.setStatus(ss.str());
 			}
 			else {
 				const auto m = msg.value("message", std::string{ "注册失败" });
-				model_.setStatus(ec::string::to_utf16(m));
+				model_.setStatus(ecs::string::to_utf16(m));
 			}
 			break;
 		}
@@ -1217,7 +1217,7 @@ void ClientController::processMessage(nlohmann::json& msg) {
 		case static_cast<int>(proto::ResponseCode::MerchantActionResult): {
 			const auto success = msg.value("success", false);
 			const auto m = msg.value("message", std::string{});
-			model_.setStatus(ec::string::to_utf16(m));
+			model_.setStatus(ecs::string::to_utf16(m));
 			if (success) {
 				// 新增/编辑成功后清表单 + 切回 Merchant 面板
 				if (view_.panel() == ClientView::Panel::MerchantCreate
@@ -1256,7 +1256,7 @@ void ClientController::processMessage(nlohmann::json& msg) {
 		case static_cast<int>(proto::ResponseCode::MerchantPromotionResult): {
 			const auto success = msg.value("success", false);
 			const auto m = msg.value("message", std::string{});
-			model_.setStatus(ec::string::to_utf16(m));
+			model_.setStatus(ecs::string::to_utf16(m));
 			if (success) {
 				// 创建/编辑成功：清促销表单，切回促销列表面板
 				if (view_.panel() == ClientView::Panel::PromotionForm) {
@@ -1324,7 +1324,7 @@ void ClientController::processMessage(nlohmann::json& msg) {
 				view_.setActiveField(ClientView::Field::ProductSearch);
 				view_.setPanel(ClientView::Panel::ProductList);
 			}
-			model_.setStatus(ec::string::to_utf16(m));
+			model_.setStatus(ecs::string::to_utf16(m));
 			break;
 		}
 		case static_cast<int>(proto::ResponseCode::ReviewResult): {
@@ -1335,7 +1335,7 @@ void ClientController::processMessage(nlohmann::json& msg) {
 				view_.closeReviewEditor();
 				requestListOrders();
 			}
-			model_.setStatus(ec::string::to_utf16(m));
+			model_.setStatus(ecs::string::to_utf16(m));
 			break;
 		}
 

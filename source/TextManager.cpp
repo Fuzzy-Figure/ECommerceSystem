@@ -4,7 +4,7 @@
 
 TextManager::TextManager(sf::RenderWindow& _window)
 	:window(_window) {
-	const auto& config = ec::getClientConfig();
+	const auto& config = ecs::getClientConfig();
 	if (!font.openFromFile(config["fonts"])) {
 		std::println("错误：加载字体失败");
 	}
