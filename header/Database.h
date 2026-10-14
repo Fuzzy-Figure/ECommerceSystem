@@ -4,9 +4,15 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <variant>
+#include <cstdint>
 #include <json.hpp>
 
 struct sqlite3;  // 前向声明；实现见 Database.cpp
+
+// SQL 绑定参数值：支持 64 位整数 / 浮点 / UTF-8 字符串
+// 传给 executeStmt/queryStmt 后按位置绑定到 SQL 中的 ? 占位符
+using DbValue = std::variant<std::int64_t, double, std::string>;
 
 class Database {
 public:
@@ -23,6 +29,13 @@ public:
 
 	// 查询，每行以 JSON 对象返回；列名作为键，列值按类型映射。
 	std::vector<nlohmann::json> query(const std::string& sql);
+
+	// 执行带绑定参数的 SQL（DML），参数按位置绑定到 ?；返回受影响行数
+	// 用户输入必须走此接口，禁止拼接到 SQL 字符串（防注入）
+	int executeStmt(const std::string& sql, const std::vector<DbValue>& params);
+
+	// 查询带绑定参数的 SQL，返回 JSON 行（列值按 SQLite 实际类型映射：INTEGER/FLOAT→number，TEXT→string，NULL→null）
+	std::vector<nlohmann::json> queryStmt(const std::string& sql, const std::vector<DbValue>& params);
 
 private:
 	struct SqliteDeleter {

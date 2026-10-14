@@ -101,9 +101,9 @@ std::vector<Product> ProductDAO::findAllForMerchant() {
 }
 
 std::optional<Product> ProductDAO::findById(std::int32_t id) {
-	std::ostringstream ss;
-	ss << "SELECT id, name, description, price, stock, imagePath, on_sale FROM products WHERE id = " << id << ";";
-	auto rows = db_.query(ss.str());
+	auto rows = db_.queryStmt(
+		"SELECT id, name, description, price, stock, imagePath, on_sale FROM products WHERE id = ?;",
+		{ static_cast<std::int64_t>(id) });
 	if (rows.empty()) return std::nullopt;
 	auto p = mapRow(rows.front());
 	std::vector<Product> single{ p };
@@ -114,51 +114,35 @@ std::optional<Product> ProductDAO::findById(std::int32_t id) {
 bool ProductDAO::reduceStock(std::int32_t id, std::int32_t qty) {
 	if (qty <= 0) return false;
 	// 用 SQLite 的原子更新带条件，避免超扣：UPDATE products SET stock = stock - qty WHERE id = ? AND stock >= qty
-	std::ostringstream ss;
-	ss << "UPDATE products SET stock = stock - " << qty
-		<< " WHERE id = " << id << " AND stock >= " << qty << ";";
-	const int affected = db_.execute(ss.str());
+	const int affected = db_.executeStmt(
+		"UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?;",
+		{ static_cast<std::int64_t>(qty), static_cast<std::int64_t>(id), static_cast<std::int64_t>(qty) });
 	return affected > 0;
 }
 
 bool ProductDAO::setOnSale(std::int32_t id, bool onSale) {
-	std::ostringstream ss;
-	ss << "UPDATE products SET on_sale = " << (onSale ? 1 : 0)
-		<< " WHERE id = " << id << ";";
-	return db_.execute(ss.str()) > 0;
+	return db_.executeStmt(
+		"UPDATE products SET on_sale = ? WHERE id = ?;",
+		{ static_cast<std::int64_t>(onSale ? 1 : 0), static_cast<std::int64_t>(id) }) > 0;
 }
 
 bool ProductDAO::updateStock(std::int32_t id, std::int32_t newStock) {
 	if (newStock < 0) return false;
-	std::ostringstream ss;
-	ss << "UPDATE products SET stock = " << newStock
-		<< " WHERE id = " << id << ";";
-	return db_.execute(ss.str()) > 0;
-}
-
-// 字符串转义：单引号 → ''
-static std::string escapeSql(const std::string& s) {
-	std::string out;
-	out.reserve(s.size());
-	for (char c : s) out += (c == '\'' ? "''" : std::string(1, c));
-	return out;
+	return db_.executeStmt(
+		"UPDATE products SET stock = ? WHERE id = ?;",
+		{ static_cast<std::int64_t>(newStock), static_cast<std::int64_t>(id) }) > 0;
 }
 
 std::int32_t ProductDAO::createProduct(const std::string& name,
-										const std::string& description,
-										double             price,
-										std::int32_t       stock,
-										const std::string& imagePath) {
+									const std::string& description,
+									double             price,
+									std::int32_t       stock,
+									const std::string& imagePath) {
 	if (name.empty() || price < 0 || stock < 0) return 0;
 	const std::string img = imagePath.empty() ? "images/placeholder.png" : imagePath;
-	std::ostringstream ss;
-	ss << "INSERT INTO products (name, description, price, stock, imagePath, on_sale) VALUES ('"
-		<< escapeSql(name) << "', '"
-		<< escapeSql(description) << "', "
-		<< price << ", "
-		<< stock << ", '"
-		<< escapeSql(img) << "', 1);";
-	if (db_.execute(ss.str()) <= 0) return 0;
+	if (db_.executeStmt(
+			"INSERT INTO products (name, description, price, stock, imagePath, on_sale) VALUES (?, ?, ?, ?, ?, 1);",
+			{ name, description, price, static_cast<std::int64_t>(stock), img }) <= 0) return 0;
 	auto idRows = db_.query("SELECT last_insert_rowid() AS id;");
 	if (idRows.empty()) return 0;
 	const auto& v = idRows.front()["id"];
@@ -169,21 +153,16 @@ std::int32_t ProductDAO::createProduct(const std::string& name,
 }
 
 bool ProductDAO::deleteProduct(std::int32_t id) {
-	std::ostringstream ss;
-	ss << "DELETE FROM products WHERE id = " << id << ";";
-	return db_.execute(ss.str()) > 0;
+	return db_.executeStmt(
+		"DELETE FROM products WHERE id = ?;",
+		{ static_cast<std::int64_t>(id) }) > 0;
 }
 
 bool ProductDAO::updateProduct(std::int32_t id, const std::string& name, const std::string& description,
-								double price, std::int32_t stock, const std::string& imagePath) {
+							double price, std::int32_t stock, const std::string& imagePath) {
 	if (id <= 0 || name.empty() || price < 0 || stock < 0) return false;
 	const std::string img = imagePath.empty() ? "images/placeholder.png" : imagePath;
-	std::ostringstream ss;
-	ss << "UPDATE products SET name='" << escapeSql(name)
-		<< "', description='" << escapeSql(description)
-		<< "', price=" << price
-		<< ", stock=" << stock
-		<< ", imagePath='" << escapeSql(img)
-		<< "' WHERE id=" << id << ";";
-	return db_.execute(ss.str()) > 0;
+	return db_.executeStmt(
+		"UPDATE products SET name=?, description=?, price=?, stock=?, imagePath=? WHERE id=?;",
+		{ name, description, price, static_cast<std::int64_t>(stock), img, static_cast<std::int64_t>(id) }) > 0;
 }

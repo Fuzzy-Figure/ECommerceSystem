@@ -182,6 +182,7 @@
     <ClInclude Include="..\header\UserDAO.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\.gitattributes" />
     <None Include="..\.gitignore" />
     <None Include="..\server_config.json" />
   </ItemGroup>

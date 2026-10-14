@@ -3,17 +3,6 @@
 PromotionDAO::PromotionDAO(Database& db) : db_(db) {}
 
 namespace {
-	// 转义 SQL 字符串中的单引号，防注入
-	std::string escapeSql(const std::string& s) {
-		std::string out;
-		out.reserve(s.size() + 8);
-		for (char c : s) {
-			if (c == '\'') out += "''";
-			else out.push_back(c);
-		}
-		return out;
-	}
-
 	// 从 query 行稳健读取 string 字段
 	std::string getStr(const nlohmann::json& row, const char* key) {
 		if (!row.contains(key)) return {};
@@ -76,27 +65,21 @@ std::vector<PromotionDAO::Config> PromotionDAO::findAll() {
 }
 
 bool PromotionDAO::setEnabled(std::int32_t id, bool enabled) {
-	const std::string sql =
-		"UPDATE promotions SET enabled = " + std::to_string(enabled ? 1 : 0) +
-		" WHERE id = " + std::to_string(id) + ";";
-	return db_.execute(sql) > 0;
+	return db_.executeStmt(
+		"UPDATE promotions SET enabled = ? WHERE id = ?;",
+		{ static_cast<std::int64_t>(enabled ? 1 : 0), static_cast<std::int64_t>(id) }) > 0;
 }
 
 bool PromotionDAO::updateParams(std::int32_t id, const nlohmann::json& params) {
-	const std::string paramsStr = escapeSql(params.dump());
-	const std::string sql =
-		"UPDATE promotions SET params = '" + paramsStr +
-		"' WHERE id = " + std::to_string(id) + ";";
-	return db_.execute(sql) > 0;
+	return db_.executeStmt(
+		"UPDATE promotions SET params = ? WHERE id = ?;",
+		{ params.dump(), static_cast<std::int64_t>(id) }) > 0;
 }
 
 std::int32_t PromotionDAO::create(const std::string& type, const nlohmann::json& params) {
-	const std::string typeStr = escapeSql(type);
-	const std::string paramsStr = escapeSql(params.dump());
-	const std::string sql =
-		"INSERT INTO promotions (type, params, enabled) VALUES ('"
-		+ typeStr + "', '" + paramsStr + "', 1);";
-	db_.execute(sql);
+	db_.executeStmt(
+		"INSERT INTO promotions (type, params, enabled) VALUES (?, ?, 1);",
+		{ type, params.dump() });
 	// 取刚插入的自增 id
 	auto rows = db_.query("SELECT last_insert_rowid() AS id;");
 	if (rows.empty()) return 0;
@@ -104,6 +87,7 @@ std::int32_t PromotionDAO::create(const std::string& type, const nlohmann::json&
 }
 
 bool PromotionDAO::remove(std::int32_t id) {
-	const std::string sql = "DELETE FROM promotions WHERE id = " + std::to_string(id) + ";";
-	return db_.execute(sql) > 0;
+	return db_.executeStmt(
+		"DELETE FROM promotions WHERE id = ?;",
+		{ static_cast<std::int64_t>(id) }) > 0;
 }

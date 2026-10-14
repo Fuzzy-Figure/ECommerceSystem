@@ -25,70 +25,49 @@ namespace {
         if (v.is_number()) return std::to_string(v.get<double>());
         return {};
     }
+
+    // 把一行 JSON 映射为 User（findByUsername/authenticate 共用）
+    User mapUserRow(const nlohmann::json& row) {
+        User u;
+        u.id       = toInt64(row["id"]);
+        u.username = toStr(row["username"]);
+        u.role     = static_cast<std::int32_t>(toInt64(row["role"]));
+        return u;
+    }
 }
 
 std::optional<User> UserDAO::findByUsername(const std::string& username) {
-    // 用单引号转义用户名中的单引号
-    std::string escaped;
-    escaped.reserve(username.size());
-    for (char c : username) { escaped += (c == '\'' ? "''" : std::string(1, c)); }
-    std::ostringstream q;
-    q << "SELECT id, username, role FROM users WHERE username='" << escaped << "';";
-    auto rows = db_.query(q.str());
+    auto rows = db_.queryStmt(
+        "SELECT id, username, role FROM users WHERE username=?;",
+        { username });
     if (rows.empty()) return std::nullopt;
-    User u;
-    u.id       = toInt64(rows.front()["id"]);
-    u.username = toStr(rows.front()["username"]);
-    u.role     = static_cast<std::int32_t>(toInt64(rows.front()["role"]));
-    return u;
+    return mapUserRow(rows.front());
 }
 
 std::optional<User> UserDAO::authenticate(const std::string& username, const std::string& password) {
-    std::string escaped;
-    escaped.reserve(username.size());
-    for (char c : username) { escaped += (c == '\'' ? "''" : std::string(1, c)); }
     const std::string hash = hashPassword(username, password);
-    std::ostringstream q;
-    q << "SELECT id, username, role FROM users WHERE username='" << escaped
-      << "' AND password_hash='" << hash << "';";
-    auto rows = db_.query(q.str());
+    auto rows = db_.queryStmt(
+        "SELECT id, username, role FROM users WHERE username=? AND password_hash=?;",
+        { username, hash });
     if (rows.empty()) return std::nullopt;
-    User u;
-    u.id       = toInt64(rows.front()["id"]);
-    u.username = toStr(rows.front()["username"]);
-    u.role     = static_cast<std::int32_t>(toInt64(rows.front()["role"]));
-    return u;
+    return mapUserRow(rows.front());
 }
 
 std::vector<User> UserDAO::findAll() {
     std::vector<User> users;
     auto rows = db_.query("SELECT id, username, role FROM users ORDER BY id;");
     users.reserve(rows.size());
-    for (const auto& r : rows) {
-        User u;
-        u.id       = toInt64(r["id"]);
-        u.username = toStr(r["username"]);
-        u.role     = static_cast<std::int32_t>(toInt64(r["role"]));
-        users.push_back(std::move(u));
-    }
+    for (const auto& r : rows) users.push_back(mapUserRow(r));
     return users;
 }
 
 bool UserDAO::createUser(const std::string& username, const std::string& password, std::int64_t& newIdOut) {
     if (findByUsername(username).has_value()) return false;  // 用户名已存在
 
-    std::string escapedUser, escapedHash;
-    escapedUser.reserve(username.size());
-    escapedHash.reserve(hashPassword(username, password).size());
-    for (char c : username) { escapedUser += (c == '\'' ? "''" : std::string(1, c)); }
-    const std::string hash = hashPassword(username, password);
-    for (char c : hash) { escapedHash += (c == '\'' ? "''" : std::string(1, c)); }
-
     // 新注册用户默认 role=0（普通用户），商家角色由种子数据或后台指定
-    std::ostringstream ins;
-    ins << "INSERT INTO users (username, password_hash, role) VALUES ('"
-        << escapedUser << "', '" << escapedHash << "', 0);";
-    db_.execute(ins.str());
+    db_.executeStmt(
+        "INSERT INTO users (username, password_hash, role) VALUES (?, ?, 0);",
+        { username, hashPassword(username, password) });
 
     auto idRows = db_.query("SELECT last_insert_rowid() AS id;");
 	if (!idRows.empty()) {
@@ -101,9 +80,9 @@ bool UserDAO::createUser(const std::string& username, const std::string& passwor
 // 按 id 查 username（UserDAO 内部用，不暴露到 .h）
 namespace {
     std::string usernameById(Database& db, std::int64_t userId) {
-        std::ostringstream q;
-        q << "SELECT username FROM users WHERE id=" << userId << ";";
-        auto rows = db.query(q.str());
+        auto rows = db.queryStmt(
+            "SELECT username FROM users WHERE id=?;",
+            { userId });
         if (rows.empty()) return {};
         return toStr(rows.front()["username"]);
     }
@@ -125,20 +104,9 @@ bool UserDAO::updateUsername(std::int64_t userId, const std::string& newName,
     // 4. 新哈希（salt = newName，密码沿用 currentPassword）
     const std::string newHash = hashPassword(newName, currentPassword);
 
-    // 转义单引号
-    auto escape = [](const std::string& s) {
-        std::string out; out.reserve(s.size());
-        for (char c : s) out += (c == '\'' ? "''" : std::string(1, c));
-        return out;
-    };
-    const std::string escapedName = escape(newName);
-    const std::string escapedHash = escape(newHash);
-
-    std::ostringstream upd;
-    upd << "UPDATE users SET username='" << escapedName
-        << "', password_hash='" << escapedHash
-        << "' WHERE id=" << userId << ";";
-    db_.execute(upd.str());
+    db_.executeStmt(
+        "UPDATE users SET username=?, password_hash=? WHERE id=?;",
+        { newName, newHash, userId });
     return true;
 }
 
@@ -152,17 +120,8 @@ bool UserDAO::updatePassword(std::int64_t userId, const std::string& oldPwd,
     if (!authenticate(name, oldPwd).has_value()) return false;
 
     // 3. 新哈希（salt = 旧名）
-    const std::string newHash = hashPassword(name, newPwd);
-    auto escape = [](const std::string& s) {
-        std::string out; out.reserve(s.size());
-        for (char c : s) out += (c == '\'' ? "''" : std::string(1, c));
-        return out;
-    };
-    const std::string escapedHash = escape(newHash);
-
-    std::ostringstream upd;
-    upd << "UPDATE users SET password_hash='" << escapedHash
-        << "' WHERE id=" << userId << ";";
-    db_.execute(upd.str());
+    db_.executeStmt(
+        "UPDATE users SET password_hash=? WHERE id=?;",
+        { hashPassword(name, newPwd), userId });
     return true;
 }

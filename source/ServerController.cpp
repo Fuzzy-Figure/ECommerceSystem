@@ -1,7 +1,6 @@
 #include "ServerController.h"
 #include <iostream>
 #include <optional>
-#include <sstream>
 #include <utility>
 
 ServerController::ServerController(Database& db)
@@ -377,9 +376,9 @@ nlohmann::json ServerController::handleUpdateProfile(const nlohmann::json& req) 
 	}
 
 	// 取当前用户名（用于回显和校验）
-	std::ostringstream q;
-	q << "SELECT username FROM users WHERE id=" << userId << ";";
-	auto rows = db_.query(q.str());
+	auto rows = db_.queryStmt(
+		"SELECT username FROM users WHERE id=?;",
+		{ userId });
 	if (rows.empty()) {
 		return {
 			{"code",    static_cast<int>(proto::ResponseCode::ProfileResult)},
@@ -446,9 +445,9 @@ nlohmann::json ServerController::handleSubmitReview(const nlohmann::json& req) {
 	}
 
 	// 1. 查订单归属 + 状态
-	std::ostringstream oq;
-	oq << "SELECT user_id, ship_status FROM orders WHERE id=" << orderId << ";";
-	auto oRows = db_.query(oq.str());
+	auto oRows = db_.queryStmt(
+		"SELECT user_id, ship_status FROM orders WHERE id=?;",
+		{ orderId });
 	if (oRows.empty()) {
 		return {
 			{"code",    static_cast<int>(proto::ResponseCode::ReviewResult)},
@@ -481,10 +480,9 @@ nlohmann::json ServerController::handleSubmitReview(const nlohmann::json& req) {
 	}
 
 	// 2. 校验 productId 在该订单明细中
-	std::ostringstream iq;
-	iq << "SELECT 1 FROM order_items WHERE order_id=" << orderId
-	   << " AND product_id=" << productId << " LIMIT 1;";
-	if (db_.query(iq.str()).empty()) {
+	if (db_.queryStmt(
+		"SELECT 1 FROM order_items WHERE order_id=? AND product_id=? LIMIT 1;",
+		{ orderId, static_cast<std::int64_t>(productId) }).empty()) {
 		return {
 			{"code",    static_cast<int>(proto::ResponseCode::ReviewResult)},
 			{"success", false},
@@ -531,9 +529,9 @@ std::optional<nlohmann::json> ServerController::requireMerchant(const nlohmann::
 		};
 	}
 	// 按 userId 查用户角色
-	std::ostringstream q;
-	q << "SELECT role FROM users WHERE id = " << userId << ";";
-	auto rows = db_.query(q.str());
+	auto rows = db_.queryStmt(
+		"SELECT role FROM users WHERE id=?;",
+		{ userId });
 	if (rows.empty()) {
 		return nlohmann::json{
 			{"code",    static_cast<int>(proto::ResponseCode::Error)},

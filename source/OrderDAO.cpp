@@ -58,9 +58,9 @@ std::int64_t OrderDAO::placeOrder(const std::vector<CartItem>& items,
 		double originalTotal = 0.0;
 		for (const auto& c : items) {
 			if (c.qty <= 0) { db_.execute("ROLLBACK;"); return -1; }
-			std::ostringstream q;
-			q << "SELECT stock FROM products WHERE id=" << c.productId << ";";
-			auto rows = db_.query(q.str());
+			auto rows = db_.queryStmt(
+				"SELECT stock FROM products WHERE id=?;",
+				{ static_cast<std::int64_t>(c.productId) });
 			if (rows.empty()) { db_.execute("ROLLBACK;"); return -1; }
 			const std::int64_t stock = toInt64(rows.front()["stock"]);
 			if (stock < c.qty) {
@@ -75,13 +75,9 @@ std::int64_t OrderDAO::placeOrder(const std::vector<CartItem>& items,
 		const double finalTotal = originalTotal - discount;
 
 		// 2. 生成订单主表（原价 + 折扣 + 实付 + 状态0=正常 + user_id）
-		{
-			std::ostringstream ins;
-			ins << "INSERT INTO orders (user_id, total, discount, final_total, status, created_at) VALUES ("
-				<< userId << ", " << originalTotal << ", " << discount << ", " << finalTotal
-				<< ", 0, '" << nowString() << "');";
-			db_.execute(ins.str());
-		}
+		db_.executeStmt(
+			"INSERT INTO orders (user_id, total, discount, final_total, status, created_at) VALUES (?, ?, ?, ?, 0, ?);",
+			{ userId, originalTotal, discount, finalTotal, nowString() });
 		// 3. 拿订单自增 ID
 		std::int64_t orderId = 0;
 		{
@@ -92,15 +88,13 @@ std::int64_t OrderDAO::placeOrder(const std::vector<CartItem>& items,
 
 		// 4. 写明细 + 条件扣库存（受影响行数=0 说明并发下被抢光，回滚整单）
 		for (const auto& c : items) {
-			std::ostringstream ins;
-			ins << "INSERT INTO order_items (order_id, product_id, qty, price, returned_qty) VALUES ("
-				<< orderId << ", " << c.productId << ", " << c.qty << ", " << c.price << ", 0);";
-			db_.execute(ins.str());
+			db_.executeStmt(
+				"INSERT INTO order_items (order_id, product_id, qty, price, returned_qty) VALUES (?, ?, ?, ?, 0);",
+				{ orderId, static_cast<std::int64_t>(c.productId), static_cast<std::int64_t>(c.qty), c.price });
 
-			std::ostringstream upd;
-			upd << "UPDATE products SET stock = stock - " << c.qty
-				<< " WHERE id = " << c.productId << " AND stock >= " << c.qty << ";";
-			const int affected = db_.execute(upd.str());
+			const int affected = db_.executeStmt(
+				"UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?;",
+				{ static_cast<std::int64_t>(c.qty), static_cast<std::int64_t>(c.productId), static_cast<std::int64_t>(c.qty) });
 			if (affected == 0) {
 				db_.execute("ROLLBACK;");
 				return -1;
@@ -118,10 +112,9 @@ std::int64_t OrderDAO::placeOrder(const std::vector<CartItem>& items,
 }
 
 void OrderDAO::loadItemsOf(Order& order) {
-	std::ostringstream q;
-	q << "SELECT product_id, qty, price, returned_qty FROM order_items WHERE order_id="
-		<< order.id << " ORDER BY id ASC;";
-	auto rows = db_.query(q.str());
+	auto rows = db_.queryStmt(
+		"SELECT product_id, qty, price, returned_qty FROM order_items WHERE order_id=? ORDER BY id ASC;",
+		{ order.id });
 	order.items.clear();
 	order.items.reserve(rows.size());
 	for (const auto& r : rows) {
@@ -131,9 +124,9 @@ void OrderDAO::loadItemsOf(Order& order) {
 		it.price = toDouble(r["price"]);
 		it.returnedQty = toInt32(r["returned_qty"]);
 		// 查商品名（若商品已删则留空）
-		std::ostringstream pq;
-		pq << "SELECT name FROM products WHERE id=" << it.productId << ";";
-		auto prows = db_.query(pq.str());
+		auto prows = db_.queryStmt(
+			"SELECT name FROM products WHERE id=?;",
+			{ static_cast<std::int64_t>(it.productId) });
 		if (!prows.empty()) it.name = toStr(prows.front()["name"]);
 		order.items.push_back(std::move(it));
 	}
@@ -141,11 +134,16 @@ void OrderDAO::loadItemsOf(Order& order) {
 
 std::vector<Order> OrderDAO::findAllWithItems(std::int64_t userId) {
 	// 查订单按 id 倒序（最新在前）；userId > 0 只查该用户订单
-	std::ostringstream q;
-	q << "SELECT id, total, discount, final_total, status, ship_status, created_at FROM orders";
-	if (userId > 0) q << " WHERE user_id=" << userId;
-	q << " ORDER BY id DESC;";
-	auto rows = db_.query(q.str());
+	std::vector<nlohmann::json> rows;
+	if (userId > 0) {
+		rows = db_.queryStmt(
+			"SELECT id, total, discount, final_total, status, ship_status, created_at FROM orders WHERE user_id=? ORDER BY id DESC;",
+			{ userId });
+	}
+	else {
+		rows = db_.query(
+			"SELECT id, total, discount, final_total, status, ship_status, created_at FROM orders ORDER BY id DESC;");
+	}
 	std::vector<Order> result;
 	result.reserve(rows.size());
 	for (const auto& r : rows) {
@@ -190,16 +188,16 @@ std::vector<Order> OrderDAO::findAllWithItemsForMerchant() {
 
 bool OrderDAO::updateShipStatus(std::int64_t orderId, int newStatus) {
 	if (orderId <= 0 || newStatus < 0 || newStatus > 2) return false;
-	std::ostringstream ss;
-	ss << "UPDATE orders SET ship_status=" << newStatus << " WHERE id=" << orderId << ";";
-	return db_.execute(ss.str()) > 0;
+	return db_.executeStmt(
+		"UPDATE orders SET ship_status=? WHERE id=?;",
+		{ static_cast<std::int64_t>(newStatus), orderId }) > 0;
 }
 
 bool OrderDAO::findOrderShipStatus(std::int64_t orderId, int& statusOut, std::int64_t& userIdOut) {
 	if (orderId <= 0) return false;
-	std::ostringstream q;
-	q << "SELECT ship_status, user_id FROM orders WHERE id=" << orderId << ";";
-	auto rows = db_.query(q.str());
+	auto rows = db_.queryStmt(
+		"SELECT ship_status, user_id FROM orders WHERE id=?;",
+		{ orderId });
 	if (rows.empty()) return false;
 	statusOut = toInt32(rows.front()["ship_status"]);
 	userIdOut = toInt64(rows.front()["user_id"]);
@@ -216,10 +214,9 @@ bool OrderDAO::placeReturn(std::int64_t       orderId,
 		db_.execute("BEGIN;");
 
 		// 1. 查订单 + 该商品明细，校验状态/数量
-		std::ostringstream oq;
-		oq << "SELECT total, discount, final_total, status FROM orders WHERE id="
-			<< orderId << ";";
-		auto orows = db_.query(oq.str());
+		auto orows = db_.queryStmt(
+			"SELECT total, discount, final_total, status FROM orders WHERE id=?;",
+			{ orderId });
 		if (orows.empty()) { db_.execute("ROLLBACK;"); return false; }
 		const auto& orow = orows.front();
 		const double originalTotal = toDouble(orow["total"]);
@@ -227,10 +224,9 @@ bool OrderDAO::placeReturn(std::int64_t       orderId,
 		const int    status = toInt32(orow["status"]);
 		if (status == 2) { db_.execute("ROLLBACK;"); return false; }  // 已全部退货
 
-		std::ostringstream iq;
-		iq << "SELECT qty, price, returned_qty FROM order_items "
-			"WHERE order_id=" << orderId << " AND product_id=" << productId << ";";
-		auto irows = db_.query(iq.str());
+		auto irows = db_.queryStmt(
+			"SELECT qty, price, returned_qty FROM order_items WHERE order_id=? AND product_id=?;",
+			{ orderId, static_cast<std::int64_t>(productId) });
 		if (irows.empty()) { db_.execute("ROLLBACK;"); return false; }
 		const auto& irow = irows.front();
 		const std::int32_t qty = toInt32(irow["qty"]);
@@ -246,20 +242,13 @@ bool OrderDAO::placeReturn(std::int64_t       orderId,
 
 		// 3. 更新明细：累加 returned_qty；若已退完则该明细视为"全退"
 		const std::int32_t newReturned = returnedQty + returnQty;
-		{
-			std::ostringstream upd;
-			upd << "UPDATE order_items SET returned_qty=" << newReturned
-				<< " WHERE order_id=" << orderId
-				<< " AND product_id=" << productId << ";";
-			db_.execute(upd.str());
-		}
+		db_.executeStmt(
+			"UPDATE order_items SET returned_qty=? WHERE order_id=? AND product_id=?;",
+			{ static_cast<std::int64_t>(newReturned), orderId, static_cast<std::int64_t>(productId) });
 		// 4. 回库存
-		{
-			std::ostringstream upd;
-			upd << "UPDATE products SET stock = stock + " << returnQty
-				<< " WHERE id=" << productId << ";";
-			db_.execute(upd.str());
-		}
+		db_.executeStmt(
+			"UPDATE products SET stock = stock + ? WHERE id=?;",
+			{ static_cast<std::int64_t>(returnQty), static_cast<std::int64_t>(productId) });
 		// 5. 更新订单实付金额 + 状态
 		const double newFinal = finalTotal - refund;
 		int newStatus = status;
@@ -267,22 +256,17 @@ bool OrderDAO::placeReturn(std::int64_t       orderId,
 		else if (newReturned >= qty) newStatus = 1;     // 该项全退（未必全单全退）
 		// 检查是否全部明细都全退
 		{
-			std::ostringstream cq;
-			cq << "SELECT COUNT(*) AS cnt FROM order_items "
-				"WHERE order_id=" << orderId << " AND returned_qty < qty;";
-			auto crows = db_.query(cq.str());
+			auto crows = db_.queryStmt(
+				"SELECT COUNT(*) AS cnt FROM order_items WHERE order_id=? AND returned_qty < qty;",
+				{ orderId });
 			if (!crows.empty()) {
 				const int remain = toInt32(crows.front()["cnt"]);
 				if (remain == 0) newStatus = 2;  // 全部明细都退完
 			}
 		}
-		{
-			std::ostringstream upd;
-			upd << "UPDATE orders SET final_total=" << newFinal
-				<< ", status=" << newStatus
-				<< " WHERE id=" << orderId << ";";
-			db_.execute(upd.str());
-		}
+		db_.executeStmt(
+			"UPDATE orders SET final_total=?, status=? WHERE id=?;",
+			{ newFinal, static_cast<std::int64_t>(newStatus), orderId });
 
 		db_.execute("COMMIT;");
 		refundOut = refund;
@@ -335,18 +319,25 @@ std::vector<TopProduct> OrderDAO::getTopProducts(int limit, int rangeType) {
 		case 3:  rangeFilter = ""; break;
 		default: rangeFilter = " AND date(o.created_at)=date('now','localtime')"; break;
 	}
-	std::ostringstream q;
-	q << "SELECT p.id AS pid, p.name AS pname, "
+	// rangeFilter 是代码常量片段（无用户输入），允许拼接；limit 走绑定参数
+	std::string sql =
+		"SELECT p.id AS pid, p.name AS pname, "
 		"SUM(oi.qty - oi.returned_qty) AS sold, "
 		"SUM((oi.qty - oi.returned_qty) * oi.price) AS rev "
 		"FROM order_items oi JOIN products p ON oi.product_id = p.id "
 		"JOIN orders o ON oi.order_id = o.id "
-		"WHERE o.status<2" << rangeFilter << " "
+		"WHERE o.status<2" + rangeFilter + " "
 		"GROUP BY p.id HAVING sold > 0 "
 		"ORDER BY rev DESC";
-	if (limit > 0) q << " LIMIT " << limit;
-	q << ";";
-	auto rows = db_.query(q.str());
+	std::vector<nlohmann::json> rows;
+	if (limit > 0) {
+		sql += " LIMIT ?;";
+		rows = db_.queryStmt(sql, { static_cast<std::int64_t>(limit) });
+	}
+	else {
+		sql += ";";
+		rows = db_.query(sql);
+	}
 	result.reserve(rows.size());
 	for (const auto& r : rows) {
 		TopProduct t;
