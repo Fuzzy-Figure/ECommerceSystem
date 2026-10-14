@@ -1,5 +1,5 @@
 #include "ServerController.h"
-#include <iostream>
+#include <print>
 #include <optional>
 #include <utility>
 
@@ -8,7 +8,7 @@ ServerController::ServerController(Database& db)
 	worker_(&ServerController::workerLoop, this) {
 	// 启动时从 DB 加载促销规则并组装装饰器链
 	reloadPromotions();
-	std::cout << "[ServerController] 业务层已启动，工作线程就绪" << std::endl;
+	std::println("[ServerController] 业务层已启动，工作线程就绪");
 }
 
 ServerController::~ServerController() {
@@ -19,7 +19,7 @@ void ServerController::shutdown() {
 	if (!running_.exchange(false)) return;
 	cv_.notify_all();
 	if (worker_.joinable()) worker_.join();
-	std::cout << "[ServerController] 已关闭" << std::endl;
+	std::println("[ServerController] 已关闭");
 }
 
 void ServerController::submit(std::shared_ptr<sf::TcpSocket> socket, nlohmann::json request) {
@@ -159,9 +159,8 @@ void ServerController::reloadPromotions() {
 	auto chain = PromotionFactory::buildChainFromDB(promotionDao_);
 	std::lock_guard<std::mutex> lk(promotionMtx_);
 	promotionChain_ = std::move(chain);
-	std::cout << "[ServerController] 促销链已"
-		<< (promotionChain_ ? "加载" : "为空（无启用规则）")
-		<< std::endl;
+	std::println("[ServerController] 促销链已{}",
+		promotionChain_ ? "加载" : "为空（无启用规则）");
 }
 
 nlohmann::json ServerController::handleCheckout(const nlohmann::json& req) {
@@ -224,10 +223,8 @@ nlohmann::json ServerController::handleCheckout(const nlohmann::json& req) {
 			{"message", "结算失败：库存不足或服务端异常"}
 		};
 	}
-	std::cout << "[ServerController] 订单 #" << orderId
-		<< " 原价 " << outOriginal
-		<< " 折扣 " << discount
-		<< " 实付 " << outFinal << std::endl;
+	std::println("[ServerController] 订单 #{} 原价 {:.2f} 折扣 {:.2f} 实付 {:.2f}",
+		orderId, outOriginal, discount, outFinal);
 	return {
 		{"code",         static_cast<int>(proto::ResponseCode::CheckoutResult)},
 		{"success",      true},
@@ -251,7 +248,7 @@ nlohmann::json ServerController::handleListOrders(const nlohmann::json& req) {
 		auto reviews = reviewDao_.findByUserId(userId);
 		for (const auto& rv : reviews) reviewArr.push_back(rv.toJson());
 	}
-	std::cout << "[ServerController] 用户 " << userId << " 返回 " << orders.size() << " 条历史订单" << std::endl;
+	std::println("[ServerController] 用户 {} 返回 {} 条历史订单", userId, orders.size());
 	return {
 		{"code",    static_cast<int>(proto::ResponseCode::OrderList)},
 		{"orders",  arr},
@@ -278,10 +275,8 @@ nlohmann::json ServerController::handleAfterSale(const nlohmann::json& req) {
 			{"message", "退货失败：订单不存在/已全退/数量超限"}
 		};
 	}
-	std::cout << "[ServerController] 订单 #" << orderId
-		<< " 退货 product=" << productId
-		<< " qty=" << qty
-		<< " 退款 ¥" << refund << std::endl;
+	std::println("[ServerController] 订单 #{} 退货 product={} qty={} 退款 ¥{:.2f}",
+		orderId, productId, qty, refund);
 	return {
 		{"code",    static_cast<int>(proto::ResponseCode::AfterSaleResult)},
 		{"success", true},
@@ -309,8 +304,7 @@ nlohmann::json ServerController::handleLogin(const nlohmann::json& req) {
 		};
 	}
 	const auto& u = opt.value();
-	std::cout << "[ServerController] 用户登录成功 id=" << u.id
-		<< " username=" << u.username << std::endl;
+	std::println("[ServerController] 用户登录成功 id={} username={}", u.id, u.username);
 	return {
 		{"code",    static_cast<int>(proto::ResponseCode::LoginResult)},
 		{"success", true},
@@ -337,8 +331,7 @@ nlohmann::json ServerController::handleRegister(const nlohmann::json& req) {
 			{"message", "注册失败：用户名已存在"}
 		};
 	}
-	std::cout << "[ServerController] 新用户注册成功 id=" << newId
-		<< " username=" << username << std::endl;
+	std::println("[ServerController] 新用户注册成功 id={} username={}", newId, username);
 	return {
 		{"code",    static_cast<int>(proto::ResponseCode::RegisterResult)},
 		{"success", true},
@@ -412,8 +405,7 @@ nlohmann::json ServerController::handleUpdateProfile(const nlohmann::json& req) 
 		}
 	}
 
-	std::cout << "[ServerController] 用户 id=" << userId
-		<< " 修改个人信息成功，新用户名=" << currentName << std::endl;
+	std::println("[ServerController] 用户 id={} 修改个人信息成功，新用户名={}", userId, currentName);
 	return {
 		{"code",        static_cast<int>(proto::ResponseCode::ProfileResult)},
 		{"success",     true},
@@ -508,9 +500,8 @@ nlohmann::json ServerController::handleSubmitReview(const nlohmann::json& req) {
 		};
 	}
 
-	std::cout << "[ServerController] 用户 id=" << userId
-		<< " 对订单 #" << orderId << " 商品 #" << productId
-		<< " 评价 " << rating << " 星" << std::endl;
+	std::println("[ServerController] 用户 id={} 对订单 #{} 商品 #{} 评价 {} 星",
+		userId, orderId, productId, rating);
 	return {
 		{"code",    static_cast<int>(proto::ResponseCode::ReviewResult)},
 		{"success", true},
@@ -556,7 +547,7 @@ nlohmann::json ServerController::handleMerchantListProducts(const nlohmann::json
 	auto products = productDao_.findAllForMerchant();
 	nlohmann::json arr = nlohmann::json::array();
 	for (const auto& p : products) arr.push_back(p.toJson());
-	std::cout << "[ServerController] 商家拉取全部商品 " << products.size() << " 件" << std::endl;
+	std::println("[ServerController] 商家拉取全部商品 {} 件", products.size());
 	return {
 		{"code",     static_cast<int>(proto::ResponseCode::MerchantProductList)},
 		{"products", arr}
@@ -581,8 +572,7 @@ nlohmann::json ServerController::handleMerchantSetOnSale(const nlohmann::json& r
 			{"message", "上架/下架失败：商品不存在"}
 		};
 	}
-	std::cout << "[ServerController] 商品 " << productId
-		<< (onSale ? " 已上架" : " 已下架") << std::endl;
+	std::println("[ServerController] 商品 {}{}", productId, onSale ? " 已上架" : " 已下架");
 	return {
 		{"code",    static_cast<int>(proto::ResponseCode::MerchantActionResult)},
 		{"success", true},
@@ -608,8 +598,7 @@ nlohmann::json ServerController::handleMerchantUpdateStock(const nlohmann::json&
 			{"message", "调整库存失败：商品不存在"}
 		};
 	}
-	std::cout << "[ServerController] 商品 " << productId
-		<< " 库存调整为 " << newStock << std::endl;
+	std::println("[ServerController] 商品 {} 库存调整为 {}", productId, newStock);
 	return {
 		{"code",    static_cast<int>(proto::ResponseCode::MerchantActionResult)},
 		{"success", true},
@@ -646,7 +635,7 @@ nlohmann::json ServerController::handleMerchantCreateProduct(const nlohmann::jso
 			{"message", "新增失败：数据库写入异常"}
 		};
 	}
-	std::cout << "[ServerController] 商家新增商品 id=" << newId << " name=" << name << std::endl;
+	std::println("[ServerController] 商家新增商品 id={} name={}", newId, name);
 	return {
 		{"code",    static_cast<int>(proto::ResponseCode::MerchantActionResult)},
 		{"success", true},
@@ -671,7 +660,7 @@ nlohmann::json ServerController::handleMerchantDeleteProduct(const nlohmann::jso
 			{"message", "删除失败：商品不存在或已删除"}
 		};
 	}
-	std::cout << "[ServerController] 商家删除商品 id=" << productId << std::endl;
+	std::println("[ServerController] 商家删除商品 id={}", productId);
 	return {
 		{"code",    static_cast<int>(proto::ResponseCode::MerchantActionResult)},
 		{"success", true},
@@ -699,7 +688,7 @@ nlohmann::json ServerController::handleMerchantUpdateProduct(const nlohmann::jso
 	if (!productDao_.updateProduct(productId, name, description, price, stock, imagePath)) {
 		return { {"code", static_cast<int>(proto::ResponseCode::MerchantActionResult)}, {"success", false}, {"message", "编辑失败：商品不存在或数据库异常"} };
 	}
-	std::cout << "[ServerController] 商家编辑商品 id=" << productId << " name=" << name << std::endl;
+	std::println("[ServerController] 商家编辑商品 id={} name={}", productId, name);
 	return { {"code", static_cast<int>(proto::ResponseCode::MerchantActionResult)}, {"success", true}, {"message", "编辑成功"} };
 }
 
@@ -728,7 +717,7 @@ nlohmann::json ServerController::handleMerchantShipOrder(const nlohmann::json& r
 	if (!orderDao_.updateShipStatus(orderId, 1)) {
 		return { {"code", static_cast<int>(proto::ResponseCode::OrderStatusUpdateResult)}, {"success", false}, {"message", "发货失败：数据库异常"} };
 	}
-	std::cout << "[ServerController] 商家发货 orderId=" << orderId << std::endl;
+	std::println("[ServerController] 商家发货 orderId={}", orderId);
 	return { {"code", static_cast<int>(proto::ResponseCode::OrderStatusUpdateResult)}, {"success", true}, {"message", "发货成功"} };
 }
 
@@ -752,7 +741,7 @@ nlohmann::json ServerController::handleUserConfirmReceive(const nlohmann::json& 
 	if (!orderDao_.updateShipStatus(orderId, 2)) {
 		return { {"code", static_cast<int>(proto::ResponseCode::OrderStatusUpdateResult)}, {"success", false}, {"message", "确认收货失败：数据库异常"} };
 	}
-	std::cout << "[ServerController] 用户确认收货 orderId=" << orderId << " userId=" << userId << std::endl;
+	std::println("[ServerController] 用户确认收货 orderId={} userId={}", orderId, userId);
 	return { {"code", static_cast<int>(proto::ResponseCode::OrderStatusUpdateResult)}, {"success", true}, {"message", "已确认收货"} };
 }
 
@@ -790,7 +779,7 @@ nlohmann::json ServerController::handleMerchantSetPromotionEnabled(const nlohman
 		return { {"code", static_cast<int>(proto::ResponseCode::MerchantPromotionResult)}, {"success", false}, {"message", "操作失败：促销不存在"} };
 	}
 	reloadPromotions();
-	std::cout << "[ServerController] 商家" << (enabled ? "启用" : "禁用") << "促销 id=" << id << std::endl;
+	std::println("[ServerController] 商家{}促销 id={}", enabled ? "启用" : "禁用", id);
 	return { {"code", static_cast<int>(proto::ResponseCode::MerchantPromotionResult)}, {"success", true}, {"message", enabled ? "已启用" : "已禁用"} };
 }
 
@@ -804,7 +793,7 @@ nlohmann::json ServerController::handleMerchantUpdatePromotion(const nlohmann::j
 		return { {"code", static_cast<int>(proto::ResponseCode::MerchantPromotionResult)}, {"success", false}, {"message", "编辑失败：促销不存在"} };
 	}
 	reloadPromotions();
-	std::cout << "[ServerController] 商家编辑促销参数 id=" << id << std::endl;
+	std::println("[ServerController] 商家编辑促销参数 id={}", id);
 	return { {"code", static_cast<int>(proto::ResponseCode::MerchantPromotionResult)}, {"success", true}, {"message", "编辑成功，促销链已更新"} };
 }
 
@@ -822,7 +811,7 @@ nlohmann::json ServerController::handleMerchantCreatePromotion(const nlohmann::j
 		return { {"code", static_cast<int>(proto::ResponseCode::MerchantPromotionResult)}, {"success", false}, {"message", "新增失败：数据库异常"} };
 	}
 	reloadPromotions();
-	std::cout << "[ServerController] 商家新增促销 id=" << newId << " type=" << type << std::endl;
+	std::println("[ServerController] 商家新增促销 id={} type={}", newId, type);
 	return { {"code", static_cast<int>(proto::ResponseCode::MerchantPromotionResult)}, {"success", true}, {"message", "新增成功"} };
 }
 
@@ -836,7 +825,7 @@ nlohmann::json ServerController::handleMerchantDeletePromotion(const nlohmann::j
 		return { {"code", static_cast<int>(proto::ResponseCode::MerchantPromotionResult)}, {"success", false}, {"message", "删除失败：促销不存在"} };
 	}
 	reloadPromotions();
-	std::cout << "[ServerController] 商家删除促销 id=" << id << std::endl;
+	std::println("[ServerController] 商家删除促销 id={}", id);
 	return { {"code", static_cast<int>(proto::ResponseCode::MerchantPromotionResult)}, {"success", true}, {"message", "删除成功"} };
 }
 
@@ -845,7 +834,7 @@ nlohmann::json ServerController::handleAdminListUsers(const nlohmann::json& req)
 	auto users = userDao_.findAll();
 	nlohmann::json arr = nlohmann::json::array();
 	for (const auto& u : users) arr.push_back(u.toJson());
-	std::cout << "[ServerController] 管理员拉取用户列表，共 " << users.size() << " 人" << std::endl;
+	std::println("[ServerController] 管理员拉取用户列表，共 {} 人", users.size());
 	return {
 		{"code",  static_cast<int>(proto::ResponseCode::AdminUserList)},
 		{"users", arr}
@@ -868,10 +857,8 @@ nlohmann::json ServerController::handleMerchantGetStats(const nlohmann::json& re
 			{"revenue",  t.revenue}
 		});
 	}
-	std::cout << "[ServerController] 商家拉取销售统计（" << labels[rangeType]
-		<< "）：" << s.todayOrders << " 单/" << s.todayRevenue
-		<< " 元，总计 " << s.totalOrders << " 单/" << s.totalRevenue
-		<< " 元，商品排行 " << top.size() << " 项" << std::endl;
+	std::println("[ServerController] 商家拉取销售统计（{}）：{} 单/{:.2f} 元，总计 {} 单/{:.2f} 元，商品排行 {} 项",
+		labels[rangeType], s.todayOrders, s.todayRevenue, s.totalOrders, s.totalRevenue, top.size());
 	return {
 		{"code",          static_cast<int>(proto::ResponseCode::MerchantStats)},
 		{"rangeType",     rangeType},

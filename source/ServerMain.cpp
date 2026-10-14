@@ -5,9 +5,9 @@
 #include "Protocol.h"
 
 #include <atomic>
-#include <iostream>
+#include <print>
+#include <format>
 #include <memory>
-#include <sstream>
 #include <thread>
 #include <Windows.h>
 
@@ -37,9 +37,7 @@ namespace {
 			}
 		}
 		if (userVersion != kSchemaVersion) {
-			std::cout << "[Init] schema 版本 " << userVersion
-				<< " ≠ 期望 " << kSchemaVersion
-				<< "，丢弃旧表重建" << std::endl;
+			std::println("[Init] schema 版本 {} ≠ 期望 {}，丢弃旧表重建", userVersion, kSchemaVersion);
 			// 外键依赖顺序：先子表后父表
 		db.execute("DROP TABLE IF EXISTS order_items;");
 		db.execute("DROP TABLE IF EXISTS orders;");
@@ -138,7 +136,7 @@ namespace {
 			}
 		}
 		if (existing > 0) {
-			std::cout << "[Init] 数据库已有 " << existing << " 件商品" << std::endl;
+			std::println("[Init] 数据库已有 {} 件商品", existing);
 		}
 		else {
 			db.execute("DELETE FROM products;");
@@ -151,7 +149,7 @@ namespace {
 				"(5, '普洱茶',   '云南普洱茶饼 357g',    59.0,  30, 'images/普洱茶.png',   1),"
 				"(6, '白茶',     '福鼎白毫银针 100g',    78.0,  20, 'images/白茶.png',     1);"
 			);
-			std::cout << "[Init] 已插入种子商品数据" << std::endl;
+			std::println("[Init] 已插入种子商品数据");
 		}
 
 		// 促销种子数据：仅当 promotions 表为空时插入
@@ -165,7 +163,7 @@ namespace {
 			}
 		}
 		if (promoExisting > 0) {
-			std::cout << "[Init] 数据库已有 " << promoExisting << " 条促销规则" << std::endl;
+			std::println("[Init] 数据库已有 {} 条促销规则", promoExisting);
 		}
 		else {
 			db.execute("DELETE FROM promotions;");
@@ -184,7 +182,7 @@ namespace {
 				"('freeitem',   '{\"buyN\":3,\"freeM\":1}',         1),"
 				"('coupon',     '{\"amount\":10}',                1);"
 			);
-			std::cout << "[Init] 已插入种子促销规则" << std::endl;
+			std::println("[Init] 已插入种子促销规则");
 		}
 
 		// 用户种子数据：仅当 users 表为空时插入
@@ -199,7 +197,7 @@ namespace {
 			}
 		}
 		if (userExisting > 0) {
-			std::cout << "[Init] 数据库已有 " << userExisting << " 个用户" << std::endl;
+			std::println("[Init] 数据库已有 {} 个用户", userExisting);
 		}
 		else {
 			db.execute("DELETE FROM users;");
@@ -209,13 +207,11 @@ namespace {
 			};
 			const auto adminHash = hashPwd("admin", "admin");
 			const auto user1Hash = hashPwd("user1", "123456");
-			std::ostringstream ins;
-			// admin 为商家（role=1），user1 为普通用户（role=0）
-			ins << "INSERT INTO users (username, password_hash, role) VALUES "
-				<< "('admin', '" << adminHash << "', 1),"
-				<< "('user1', '" << user1Hash << "', 0);";
-			db.execute(ins.str());
-			std::cout << "[Init] 已插入种子用户（admin/admin 商家, user1/123456 普通用户）" << std::endl;
+			db.execute(std::format(
+				"INSERT INTO users (username, password_hash, role) VALUES "
+				"('admin', '{}', 1),"
+				"('user1', '{}', 0);", adminHash, user1Hash));
+			std::println("[Init] 已插入种子用户（admin/admin 商家, user1/123456 普通用户）");
 		}
 	}
 }
@@ -224,14 +220,12 @@ int main() {
 	SetConsoleCP(CP_UTF8);
 	SetConsoleOutputCP(CP_UTF8);
 	// 重定向到文件时强制立即刷新，便于诊断
-	std::cout.setf(std::ios_base::unitbuf);
-	std::cerr.setf(std::ios_base::unitbuf);
-	std::cout << "[Server] 进程启动" << std::endl;
+	std::println("[Server] 进程启动");
 
 	try {
 		ec::reloadServerConfig();
 	} catch (const std::exception& e) {
-		std::cerr << "加载配置失败：" << e.what() << std::endl;
+		std::println(stderr, "加载配置失败：{}", e.what());
 		system("pause");
 		return 1;
 	}
@@ -245,7 +239,7 @@ int main() {
 		db = std::make_unique<Database>(dbPath);
 		initDatabase(*db);
 	} catch (const std::exception& e) {
-		std::cerr << "数据库初始化失败：" << e.what() << std::endl;
+		std::println(stderr, "数据库初始化失败：{}", e.what());
 		return 1;
 	}
 
@@ -253,29 +247,29 @@ int main() {
 
 	sf::TcpListener listener;
 	if (listener.listen(listenPort) != sf::Socket::Status::Done) {
-		std::cerr << "[Server] TcpListener 监听端口 " << listenPort << " 失败" << std::endl;
+		std::println(stderr, "[Server] TcpListener 监听端口 {} 失败", listenPort);
 		return 1;
 	}
-	std::cout << "[Server] 已监听端口 " << listenPort << "，等待客户端连接..." << std::endl;
+	std::println("[Server] 已监听端口 {}，等待客户端连接...", listenPort);
 
 	std::atomic<bool> running{ true };
 	while (running.load()) {
 		auto sock = std::make_shared<sf::TcpSocket>();
 		if (listener.accept(*sock) != sf::Socket::Status::Done) {
-			std::cerr << "[Server] accept 失败" << std::endl;
+			std::println(stderr, "[Server] accept 失败");
 			continue;
 		}
 		const auto addr = sock->getRemoteAddress();
-		std::cout << "[Server] 新客户端连接："
-			<< (addr ? addr->toString() : std::string{ "unknown" })
-			<< ":" << sock->getRemotePort() << std::endl;
+		std::println("[Server] 新客户端连接：{}:{}",
+			addr ? addr->toString() : std::string{ "unknown" },
+			sock->getRemotePort());
 
 		// 每客户端一线程，循环收消息并投递到工作队列
 		std::thread([sock, &controller, &running]() {
 			while (running.load()) {
 				auto req = proto::recvJson(*sock);
 				if (!req) {
-					std::cout << "[Server] 客户端断开连接" << std::endl;
+					std::println("[Server] 客户端断开连接");
 					break;
 				}
 				controller.submit(sock, std::move(*req));

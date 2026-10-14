@@ -1,6 +1,6 @@
 #include <SFML/Graphics.hpp>
 #include <string>
-#include <iostream>
+#include <print>
 #include "utils.h"
 #include "TextManager.h"
 #include "ImageManager.h"
@@ -15,7 +15,7 @@ int main() {
 	try {
 		ec::reloadClientConfig();
 	} catch (const std::exception& e) {
-		std::cerr << "加载配置失败：" << e.what() << std::endl;
+		std::println(stderr, "加载配置失败：{}", e.what());
 		system("pause");
 		return 1;
 	}

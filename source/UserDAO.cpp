@@ -1,6 +1,6 @@
 #include "UserDAO.h"
 #include <functional>
-#include <sstream>
+#include <format>
 
 UserDAO::UserDAO(Database& db) : db_(db) {}
 
@@ -9,9 +9,7 @@ std::string UserDAO::hashPassword(const std::string& username, const std::string
     // 课设够用，非密码学安全；同编译器同平台结果一致
     const std::string salted = username + ":" + password;
     const auto h = std::hash<std::string>{}(salted);
-    std::ostringstream ss;
-    ss << h;
-    return ss.str();
+    return std::format("{}", h);
 }
 
 namespace {

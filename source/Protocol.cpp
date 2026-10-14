@@ -1,6 +1,6 @@
 #include "Protocol.h"
 #include <string>
-#include <iostream>
+#include <print>
 
 namespace proto {
 	namespace {
@@ -62,7 +62,7 @@ namespace proto {
 		try {
 			return nlohmann::json::parse(body, nullptr, true, true);
 		} catch (const std::exception& e) {
-			std::cout << "[Protocol] JSON 解析失败：" << e.what() << std::endl;
+			std::println("[Protocol] JSON 解析失败：{}", e.what());
 			return std::nullopt;
 		}
 	}

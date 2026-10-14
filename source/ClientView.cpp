@@ -1,8 +1,7 @@
 #include "ClientView.h"
 #include "utils.h"
 #include <algorithm>
-#include <iomanip>
-#include <sstream>
+#include <format>
 #include <string>
 
 ClientView::ClientView(sf::RenderWindow& window, TextManager& text, ImageManager& image)
@@ -1008,11 +1007,9 @@ void ClientView::setEditPromotion(std::int32_t id, const std::string& type, cons
 	editingPromotionId_ = id;
 	promoType_ = type;
 	for (auto& s : promoSlotValue_) s.clear();
-	// 把 double 格式化为固定小数位的字符串（去掉 std::to_string 的多余零）
+	// 把 double 格式化为固定小数位的字符串
 	auto fmtDouble = [](double v, int precision) -> std::string {
-		std::ostringstream ss;
-		ss << std::fixed << std::setprecision(precision) << v;
-		return ss.str();
+		return std::format("{:.{}f}", v, precision);
 	};
 	// 按类型把 params 拆入对应槽位
 	if (type == "reduction") {

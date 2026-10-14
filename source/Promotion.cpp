@@ -1,6 +1,6 @@
 #include "Promotion.h"
 #include <algorithm>
-#include <sstream>
+#include <format>
 
 // === Promotion 基类 ===
 double Promotion::apply(const std::vector<CartItem>& cart, double currentTotal) const {
@@ -17,9 +17,7 @@ double Promotion::apply(const std::vector<CartItem>& cart, double currentTotal) 
 Discount::Discount(double rate) : rate_(rate) {}
 
 std::string Discount::description() const {
-	std::ostringstream ss;
-	ss << "全场" << (rate_ * 10.0) << "折";
-	return ss.str();
+	return std::format("全场{:g}折", rate_ * 10.0);
 }
 
 double Discount::myDiscount(const std::vector<CartItem>& /*cart*/, double afterPrevTotal) const {
@@ -35,13 +33,12 @@ TieredDiscount::TieredDiscount(std::vector<std::pair<int, double>> tiers) : tier
 }
 
 std::string TieredDiscount::description() const {
-	std::ostringstream ss;
-	ss << "阶梯折：";
+	std::string result = "阶梯折：";
 	for (std::size_t i = 0; i < tiers_.size(); ++i) {
-		if (i) ss << "、";
-		ss << "第" << tiers_[i].first << "件" << (tiers_[i].second * 10.0) << "折";
+		if (i) result += "、";
+		result += std::format("第{}件{:g}折", tiers_[i].first, tiers_[i].second * 10.0);
 	}
-	return ss.str();
+	return result;
 }
 
 double TieredDiscount::myDiscount(const std::vector<CartItem>& cart, double afterPrevTotal) const {
@@ -77,9 +74,7 @@ double TieredDiscount::myDiscount(const std::vector<CartItem>& cart, double afte
 FreeItem::FreeItem(int buyN, int freeM) : buyN_(buyN), freeM_(freeM) {}
 
 std::string FreeItem::description() const {
-	std::ostringstream ss;
-	ss << "买" << buyN_ << "送" << freeM_;
-	return ss.str();
+	return std::format("买{}送{}", buyN_, freeM_);
 }
 
 double FreeItem::myDiscount(const std::vector<CartItem>& cart, double afterPrevTotal) const {
@@ -124,9 +119,7 @@ double FreeItem::myDiscount(const std::vector<CartItem>& cart, double afterPrevT
 Reduction::Reduction(double threshold, double reduce) : threshold_(threshold), reduce_(reduce) {}
 
 std::string Reduction::description() const {
-	std::ostringstream ss;
-	ss << "满" << threshold_ << "减" << reduce_;
-	return ss.str();
+	return std::format("满{:g}减{:g}", threshold_, reduce_);
 }
 
 double Reduction::myDiscount(const std::vector<CartItem>& /*cart*/, double afterPrevTotal) const {
@@ -138,9 +131,7 @@ double Reduction::myDiscount(const std::vector<CartItem>& /*cart*/, double after
 Coupon::Coupon(double amount) : amount_(amount) {}
 
 std::string Coupon::description() const {
-	std::ostringstream ss;
-	ss << "抵扣券" << amount_ << "元";
-	return ss.str();
+	return std::format("抵扣券{:g}元", amount_);
 }
 
 double Coupon::myDiscount(const std::vector<CartItem>& /*cart*/, double afterPrevTotal) const {

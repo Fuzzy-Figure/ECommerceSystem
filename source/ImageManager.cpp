@@ -1,12 +1,12 @@
 #include "ImageManager.h"
 #include "utils.h"
-#include <iostream>
+#include <print>
 #include <fstream>
 
 
 ImageManager::ImageManager(sf::RenderWindow& _window) :window(_window) {
 	EC = std::filesystem::current_path().parent_path().string() + '/';
-	std::cout << "EC路径：" << EC << std::endl;
+	std::println("EC路径：{}", EC);
 }
 
 // 显示图片
@@ -22,8 +22,8 @@ void ImageManager::displayImage(const std::string& path, const sf::Vector2f& pos
 		if (!texture->loadFromFile(ec::string::to_utf16(absolutePath))) {
 			throw std::runtime_error("[ImageManager] 纹理加载失败，路径：" + absolutePath);
 		}
-		std::cout << "[ImageManager] 纹理加载成功，路径：" << absolutePath
-			<< "，尺寸：" << texture->getSize().x << "*" << texture->getSize().y << std::endl;
+		std::println("[ImageManager] 纹理加载成功，路径：{}，尺寸：{}*{}",
+				absolutePath, texture->getSize().x, texture->getSize().y);
 		textureCache.emplace(absolutePath, std::move(texture));
 	}
 

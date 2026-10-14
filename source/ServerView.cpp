@@ -1,5 +1,5 @@
 #include "ServerView.h"
-#include <iostream>
+#include <print>
 #include <chrono>
 #include <iomanip>
 #include <sstream>
@@ -18,13 +18,13 @@ namespace {
 }
 
 void ServerView::showRequest(const std::string& clientAddr, const std::string& action) {
-	std::cout << "[" << nowStr() << "][REQ ] " << clientAddr << " -> " << action << std::endl;
+	std::println("[{}][REQ ] {} -> {}", nowStr(), clientAddr, action);
 }
 
 void ServerView::showResponse(const std::string& clientAddr, const std::string& result) {
-	std::cout << "[" << nowStr() << "][RSP ] " << clientAddr << " <- " << result << std::endl;
+	std::println("[{}][RSP ] {} <- {}", nowStr(), clientAddr, result);
 }
 
 void ServerView::showError(const std::string& msg) {
-	std::cout << "[" << nowStr() << "][ERR ] " << msg << std::endl;
+	std::println("[{}][ERR ] {}", nowStr(), msg);
 }

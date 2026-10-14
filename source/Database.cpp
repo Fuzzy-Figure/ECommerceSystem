@@ -1,7 +1,8 @@
 #include "Database.h"
 #include <sqlite3.h>
 #include <stdexcept>
-#include <iostream>
+#include <print>
+#include <format>
 
 Database::Database(const std::string& path) {
 	sqlite3* raw = nullptr;
@@ -9,10 +10,10 @@ Database::Database(const std::string& path) {
 	if (rc != SQLITE_OK) {
 		const std::string msg = raw ? sqlite3_errmsg(raw) : "未知错误";
 		if (raw) sqlite3_close(raw);
-		throw std::runtime_error("[Database] 打开失败：" + path + " -> " + msg);
+		throw std::runtime_error(std::format("[Database] 打开失败：{} -> {}", path, msg));
 	}
 	db_.reset(raw);
-	std::cout << "[Database] 已打开：" << path << std::endl;
+	std::println("[Database] 已打开：{}", path);
 }
 
 Database::~Database() = default;
