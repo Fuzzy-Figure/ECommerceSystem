@@ -66,6 +66,12 @@
     <ClInclude Include="..\header\UserDAO.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="..\header\Review.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\header\ReviewDAO.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\source\utils.cpp">
@@ -112,6 +118,9 @@
     </ClCompile>
     <ClCompile Include="..\dep\sqlite3\sqlite3.c">
       <Filter>第三方库\sqlite3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\ReviewDAO.cpp">
+      <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

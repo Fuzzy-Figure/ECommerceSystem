@@ -155,6 +155,7 @@
     <ClCompile Include="..\source\PromotionDAO.cpp" />
     <ClCompile Include="..\source\PromotionFactory.cpp" />
     <ClCompile Include="..\source\Protocol.cpp" />
+    <ClCompile Include="..\source\ReviewDAO.cpp" />
     <ClCompile Include="..\source\ServerController.cpp" />
     <ClCompile Include="..\source\ServerMain.cpp" />
     <ClCompile Include="..\source\ServerView.cpp" />
@@ -172,6 +173,8 @@
     <ClInclude Include="..\header\PromotionDAO.h" />
     <ClInclude Include="..\header\PromotionFactory.h" />
     <ClInclude Include="..\header\Protocol.h" />
+    <ClInclude Include="..\header\Review.h" />
+    <ClInclude Include="..\header\ReviewDAO.h" />
     <ClInclude Include="..\header\ServerController.h" />
     <ClInclude Include="..\header\ServerView.h" />
     <ClInclude Include="..\header\utils.h" />

@@ -923,7 +923,7 @@ void ClientView::drawDashboardPanel(const ClientModel& model) {
 	}
 
 	if (top.empty()) {
-		textMgr_.displayTextInCenter(L"该时间范围暂无销售数据", { 20, listY + 50 }, sf::Color(150, 150, 150));
+		textMgr_.displayTextInCenter(L"该时间范围暂无销售数据", { 20, 50 }, sf::Color(150, 150, 150));
 		return;
 	}
 
