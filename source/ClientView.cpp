@@ -8,68 +8,82 @@ ClientView::ClientView(sf::RenderWindow& window, TextManager& text, ImageManager
 	: window_(window), textMgr_(text), imageMgr_(image) {}
 
 namespace {
+	// === 全局字号表（displayText/displayTextInXxx 的 size.y 即字号）===
+	// TextManager 只读取 size.y，size.x 为无效参数（历史遗留），替换时保留 x 原值。
+	constexpr auto kFontTiny      = 22u;  // 订单明细表头等最小文字（原 18）
+	constexpr auto kFontSmall     = 24u;  // 小按钮/卡片描述/评分行（原 20）
+	constexpr auto kFontSecondary = 26u;  // 状态栏/次要信息/小按钮（原 22）
+	constexpr auto kFontBody      = 28u;  // 正文/表格/表单主力（原 24）
+	constexpr auto kFontInput     = 30u;  // 输入框文字/开关（原 25/26）
+	constexpr auto kFontHeader    = 32u;  // 表头/主按钮/卡片名称/面板标题（原 28）
+	constexpr auto kFontNumber    = 34u;  // 统计卡数值/空提示（原 30）
+	constexpr auto kFontBig       = 36u;  // 排行榜标题/结算按钮（原 32）
+	constexpr auto kFontTotal     = 40u;  // 购物车合计（原 36）
+	constexpr auto kFontTitle     = 46u;  // 大标题（原 40）
+	constexpr auto kFontStatValue = 48u;  // Dashboard 大数字（原 42）
+
 	// === 商品列表面板布局 ===
-	constexpr float cardW = 580.f, cardH = 380.f;
+	constexpr float cardW = 580.f, cardH = 400.f;
 	constexpr float gapX = 10.f, gapY = 10.f;
 	constexpr float startX = 120.f, startY = 130.f;
 	constexpr int   perRow = 3;
 	// 搜索框（商品列表面板顶部左侧）
 	constexpr float searchX = 120.f, searchY = 86.f;
-	constexpr float searchW = 380.f, searchH = 32.f;
+	constexpr float searchW = 380.f, searchH = 38.f;
 	// 价格区间输入框（搜索框右侧）
 	constexpr float priceMinX = 520.f, priceMaxX = 630.f;
-	constexpr float priceW = 90.f, priceH = 32.f;
+	constexpr float priceW = 90.f, priceH = 38.f;
 	// 排序按钮组（价格区间右侧）
 	constexpr float sortBtnX = 740.f, sortBtnY = 86.f;
-	constexpr float sortBtnW = 60.f, sortBtnH = 32.f, sortBtnGap = 6.f;
+	constexpr float sortBtnW = 60.f, sortBtnH = 38.f, sortBtnGap = 6.f;
 	// 加购按钮：卡片右下角
-	constexpr float addBtnDX = 460.f, addBtnDY = 340.f;
-	constexpr float addBtnW = 100.f, addBtnH = 30.f;
+	constexpr float addBtnDX = 460.f, addBtnDY = 358.f;
+	constexpr float addBtnW = 100.f, addBtnH = 34.f;
 
 	// === 购物车面板布局 ===
-	constexpr float cartRowX = 200.f, cartStartY = 150.f, cartRowH = 70.f;
+	constexpr float cartRowX = 200.f, cartStartY = 150.f, cartRowH = 78.f;
 	constexpr float cartNameX = 200.f;
 	constexpr float cartQtyX = 620.f;
 	constexpr float cartPriceX = 780.f;
 	constexpr float cartSubX = 940.f;
 	// 删除按钮：行内右侧
-	constexpr float rmBtnDX = 1120.f, rmBtnDY = 15.f;
-	constexpr float rmBtnW = 80.f, rmBtnH = 40.f;
+	constexpr float rmBtnDX = 1120.f, rmBtnDY = 17.f;
+	constexpr float rmBtnW = 80.f, rmBtnH = 44.f;
 	// 结算按钮 + 总额
 	constexpr float checkoutBtnX = 1150.f, checkoutBtnY = 890.f;
-	constexpr float checkoutBtnW = 200.f, checkoutBtnH = 60.f;
+	constexpr float checkoutBtnW = 200.f, checkoutBtnH = 66.f;
 	constexpr float cartTotalY = 900.f;
 
 	// === 我的订单面板布局 ===
 	constexpr float orderCardX = 200.f, orderCardStartY = 150.f;
 	constexpr float orderCardW = 1500.f;
-	constexpr float orderItemRowH = 36.f;
+	constexpr float orderItemRowH = 42.f;
 	// 退货按钮：明细行右端
-	constexpr float retBtnDX = 1500.f, retBtnDY = 4.f;
-	constexpr float retBtnW = 100.f, retBtnH = 28.f;
+	constexpr float retBtnDX = 1500.f, retBtnDY = 5.f;
+	constexpr float retBtnW = 100.f, retBtnH = 32.f;
 
 	// === 顶部 Tab 标签栏（所有面板共用）===
-	constexpr float tabY = 8.f, tabH = 40.f;
+	constexpr float tabY = 8.f, tabH = 48.f;
 	constexpr float tabW = 200.f, tabGap = 10.f;
 	constexpr float tabStartX = 20.f;
-	constexpr float statusY = 56.f;  // Tab 下方状态信息行
+	constexpr float statusY = 64.f;  // Tab 下方状态信息行
 
 	// === 登录面板布局（窗口居中，窗口默认 1700x1000）===
 	constexpr float loginFieldX = 600.f;
 	constexpr float loginFieldW = 500.f;
-	constexpr float loginFieldH = 50.f;
+	constexpr float loginFieldH = 56.f;
 	constexpr float usernameY = 300.f;
 	constexpr float passwordY = 380.f;
 	constexpr float authBtnY = 480.f;
 	constexpr float authBtnW = 200.f;
-	constexpr float authBtnH = 50.f;
+	constexpr float authBtnH = 56.f;
 	constexpr float loginBtnX = 600.f;
 	constexpr float registerBtnX = 850.f;
 	constexpr float loginTitleY = 200.f;
 }
 
 // 商品名超长截断显示：中文算 2 宽度单位，ASCII 算 1，累计超过 maxWidthUnits 截断加"…"
-// 30 单位 ≈ 15 个中文字符或 30 个 ASCII 字符（18px 字体下约 270 像素）
+// 30 单位 ≈ 15 个中文字符或 30 个 ASCII 字符（22px 字体下约 330 像素）
 static std::wstring truncateForDisplay(const std::string& utf8, int maxWidthUnits) {
 	std::wstring ws = ecs::string::to_utf16(utf8);
 	int width = 0;
@@ -107,7 +121,7 @@ void ClientView::render(const ClientModel& model) {
 
 void ClientView::drawLoginPanel(const ClientModel& model) {
 	// 标题
-	textMgr_.displayTextInUp(L"微商系统 - 用户登录", { 20, 40 }, sf::Color(40, 80, 160));
+	textMgr_.displayTextInUp(L"微商系统 - 用户登录", { 20, kFontTitle }, sf::Color(40, 80, 160));
 
 	// 用户名输入框
 	const auto userRect = inputFieldRect(0);
@@ -117,9 +131,9 @@ void ClientView::drawLoginPanel(const ClientModel& model) {
 	userBg.setOutlineColor(activeField_ == Field::Username ? sf::Color(80, 130, 200) : sf::Color(200, 200, 200));
 	userBg.setOutlineThickness(activeField_ == Field::Username ? 2.f : 1.f);
 	window_.draw(userBg);
-	textMgr_.displayText(L"用户名：", { userRect.position.x - 100, userRect.position.y + 10 }, { 18, 24 }, sf::Color(80, 80, 80));
+	textMgr_.displayText(L"用户名：", { userRect.position.x - 100, userRect.position.y + 12 }, { 18, kFontBody }, sf::Color(80, 80, 80));
 	textMgr_.displayText(ecs::string::to_utf16(usernameInput_),
-						 { userRect.position.x + 12, userRect.position.y + 12 }, { 20, 26 }, sf::Color::Black);
+						 { userRect.position.x + 12, userRect.position.y + 14 }, { 20, kFontInput }, sf::Color::Black);
 
 	// 密码输入框（显示成 '*'）
 	const auto pwRect = inputFieldRect(1);
@@ -129,9 +143,9 @@ void ClientView::drawLoginPanel(const ClientModel& model) {
 	pwBg.setOutlineColor(activeField_ == Field::Password ? sf::Color(80, 130, 200) : sf::Color(200, 200, 200));
 	pwBg.setOutlineThickness(activeField_ == Field::Password ? 2.f : 1.f);
 	window_.draw(pwBg);
-	textMgr_.displayText(L"密码：", { pwRect.position.x - 100, pwRect.position.y + 10 }, { 18, 24 }, sf::Color(80, 80, 80));
+	textMgr_.displayText(L"密码：", { pwRect.position.x - 100, pwRect.position.y + 12 }, { 18, kFontBody }, sf::Color(80, 80, 80));
 	textMgr_.displayText(std::wstring(passwordInput_.size(), L'*'),
-						 { pwRect.position.x + 12, pwRect.position.y + 12 }, { 20, 26 }, sf::Color::Black);
+						 { pwRect.position.x + 12, pwRect.position.y + 14 }, { 20, kFontInput }, sf::Color::Black);
 
 	// 登录按钮（蓝色）
 	const auto loginRect = authBtnRect(0);
@@ -141,7 +155,7 @@ void ClientView::drawLoginPanel(const ClientModel& model) {
 	loginBtn.setOutlineColor(sf::Color(60, 100, 170));
 	loginBtn.setOutlineThickness(1.f);
 	window_.draw(loginBtn);
-	textMgr_.displayText(L"登录", { loginRect.position.x + 70, loginRect.position.y + 12 }, { 22, 28 }, sf::Color::White);
+	textMgr_.displayText(L"登录", { loginRect.position.x + 70, loginRect.position.y + 14 }, { 22, kFontHeader }, sf::Color::White);
 
 	// 注册按钮（灰色）
 	const auto regRect = authBtnRect(1);
@@ -151,16 +165,16 @@ void ClientView::drawLoginPanel(const ClientModel& model) {
 	regBtn.setOutlineColor(sf::Color(110, 110, 110));
 	regBtn.setOutlineThickness(1.f);
 	window_.draw(regBtn);
-	textMgr_.displayText(L"注册", { regRect.position.x + 70, regRect.position.y + 12 }, { 22, 28 }, sf::Color::White);
+	textMgr_.displayText(L"注册", { regRect.position.x + 70, regRect.position.y + 14 }, { 22, kFontHeader }, sf::Color::White);
 
 	// 状态信息
 	if (!model.status().empty()) {
-		textMgr_.displayText(model.status(), { 600, 580 }, { 20, 26 }, sf::Color(200, 50, 50));
+		textMgr_.displayText(model.status(), { 600, 580 }, { 20, kFontInput }, sf::Color(200, 50, 50));
 	}
 
 	// 提示文字
 	textMgr_.displayText(L"（提示：点击输入框切换聚焦，Enter 键等同登录）",
-						 { 600, 620 }, { 16, 22 }, sf::Color(150, 150, 150));
+						 { 600, 620 }, { 16, kFontSecondary }, sf::Color(150, 150, 150));
 }
 
 // ===================== 商家管理面板 =====================
@@ -171,7 +185,7 @@ void ClientView::drawMerchantPanel(const ClientModel& model) {
 
 	// 状态信息
 	if (!model.status().empty()) {
-		textMgr_.displayText(model.status(), { 700, statusY }, { 18, 22 }, sf::Color(150, 150, 150));
+		textMgr_.displayText(model.status(), { 700, statusY }, { 18, kFontSecondary }, sf::Color(150, 150, 150));
 	}
 
 	const auto& products = model.products();
@@ -214,7 +228,7 @@ void ClientView::drawMerchantPanel(const ClientModel& model) {
 			card.setOutlineThickness(1.f);
 			window_.draw(card);
 			// 标签
-			textMgr_.displayText(stats[i].label, { x + 14, statY + 10 }, { 16, 22 }, sf::Color(120, 120, 120));
+			textMgr_.displayText(stats[i].label, { x + 14, statY + 12 }, { 16, kFontSecondary }, sf::Color(120, 120, 120));
 			// 数值：销售额保留 2 位小数，其余按整数显示
 			std::wostringstream vs;
 			if (stats[i].isMoney) {
@@ -223,24 +237,24 @@ void ClientView::drawMerchantPanel(const ClientModel& model) {
 			} else {
 				vs << static_cast<std::int64_t>(stats[i].value) << stats[i].suffix;
 			}
-			textMgr_.displayText(vs.str(), { x + 14, statY + 36 }, { 22, 30 }, stats[i].color);
+			textMgr_.displayText(vs.str(), { x + 14, statY + 36 }, { 22, kFontNumber }, stats[i].color);
 		}
 	}
 
 	if (products.empty()) {
-		textMgr_.displayTextInCenter(L"暂无商品数据", { 20, 30 }, sf::Color(150, 150, 150));
+		textMgr_.displayTextInCenter(L"暂无商品数据", { 20, kFontNumber }, sf::Color(150, 150, 150));
 		return;
 	}
 
 	// 表头
 	const float tableY = orderCardStartY;
-	textMgr_.displayText(L"商品名", { orderCardX + 12,  tableY }, { 18, 24 }, sf::Color(120, 120, 120));
-	textMgr_.displayText(L"价格", { orderCardX + 450, tableY }, { 18, 24 }, sf::Color(120, 120, 120));
-	textMgr_.displayText(L"库存", { orderCardX + 600, tableY }, { 18, 24 }, sf::Color(120, 120, 120));
-	textMgr_.displayText(L"状态", { orderCardX + 750, tableY }, { 18, 24 }, sf::Color(120, 120, 120));
+	textMgr_.displayText(L"商品名", { orderCardX + 12,  tableY }, { 18, kFontBody }, sf::Color(120, 120, 120));
+	textMgr_.displayText(L"价格", { orderCardX + 450, tableY }, { 18, kFontBody }, sf::Color(120, 120, 120));
+	textMgr_.displayText(L"库存", { orderCardX + 600, tableY }, { 18, kFontBody }, sf::Color(120, 120, 120));
+	textMgr_.displayText(L"状态", { orderCardX + 750, tableY }, { 18, kFontBody }, sf::Color(120, 120, 120));
 
 	float rowY = tableY + 30.f;
-	constexpr float rowH = 44.f;
+	constexpr float rowH = 52.f;
 	for (const auto& p : products) {
 		const sf::Vector2f rowPos{ orderCardX, rowY };
 
@@ -254,17 +268,17 @@ void ClientView::drawMerchantPanel(const ClientModel& model) {
 
 		// 商品名（超长截断显示，防止与价格列重叠）
 		textMgr_.displayText(truncateForDisplay(p.name, 45),
-							 { rowPos.x + 12, rowPos.y + 12 }, { 18, 24 }, sf::Color::Black);
+							 { rowPos.x + 12, rowPos.y + 14 }, { 18, kFontBody }, sf::Color::Black);
 		// 价格
 		std::wostringstream pp; pp << L"¥" << p.price;
-		textMgr_.displayText(pp.str(), { rowPos.x + 450, rowPos.y + 12 }, { 18, 24 }, sf::Color(80, 80, 80));
+		textMgr_.displayText(pp.str(), { rowPos.x + 450, rowPos.y + 14 }, { 18, kFontBody }, sf::Color(80, 80, 80));
 		// 库存（<10 标红预警）
 		std::wostringstream ss; ss << p.stock;
-		textMgr_.displayText(ss.str(), { rowPos.x + 600, rowPos.y + 12 }, { 18, 24 },
+		textMgr_.displayText(ss.str(), { rowPos.x + 600, rowPos.y + 14 }, { 18, kFontBody },
 							 p.stock < 10 ? sf::Color(220, 80, 80) : sf::Color::Black);
 		// 状态
 		textMgr_.displayText(p.onSale ? L"已上架" : L"已下架",
-							 { rowPos.x + 750, rowPos.y + 12 }, { 18, 24 },
+							 { rowPos.x + 750, rowPos.y + 14 }, { 18, kFontBody },
 							 p.onSale ? sf::Color(50, 150, 50) : sf::Color(180, 80, 80));
 		// 编辑按钮
 		const auto editRect = merchantEditBtnRect(rowPos);
@@ -275,8 +289,8 @@ void ClientView::drawMerchantPanel(const ClientModel& model) {
 		editBtn.setOutlineThickness(1.f);
 		window_.draw(editBtn);
 		textMgr_.displayText(L"编辑",
-							 { editRect.position.x + 14, editRect.position.y + 8 },
-							 { 16, 22 }, sf::Color::White);
+							 { editRect.position.x + 14, editRect.position.y + 10 },
+							 { 16, kFontSecondary }, sf::Color::White);
 		// 删除按钮
 		const auto delRect = merchantDeleteBtnRect(rowPos);
 		sf::RectangleShape delBtn({ delRect.size.x, delRect.size.y });
@@ -286,8 +300,8 @@ void ClientView::drawMerchantPanel(const ClientModel& model) {
 		delBtn.setOutlineThickness(1.f);
 		window_.draw(delBtn);
 		textMgr_.displayText(L"删除",
-							 { delRect.position.x + 14, delRect.position.y + 8 },
-							 { 16, 22 }, sf::Color::White);
+							 { delRect.position.x + 14, delRect.position.y + 10 },
+							 { 16, kFontSecondary }, sf::Color::White);
 
 		// 上架/下架按钮
 		const auto saleRect = merchantSaleBtnRect(rowPos);
@@ -298,8 +312,8 @@ void ClientView::drawMerchantPanel(const ClientModel& model) {
 		saleBtn.setOutlineThickness(1.f);
 		window_.draw(saleBtn);
 		textMgr_.displayText(p.onSale ? L"下架" : L"上架",
-							 { saleRect.position.x + 18, saleRect.position.y + 10 },
-							 { 16, 22 }, sf::Color::White);
+							 { saleRect.position.x + 18, saleRect.position.y + 12 },
+							 { 16, kFontSecondary }, sf::Color::White);
 
 		// 库存 -10 按钮
 		const auto minusRect = merchantStockMinusBtnRect(rowPos);
@@ -310,8 +324,8 @@ void ClientView::drawMerchantPanel(const ClientModel& model) {
 		minusBtn.setOutlineThickness(1.f);
 		window_.draw(minusBtn);
 		textMgr_.displayText(L"库存-10",
-							 { minusRect.position.x + 4, minusRect.position.y + 10 },
-							 { 14, 20 }, sf::Color::White);
+							 { minusRect.position.x + 4, minusRect.position.y + 12 },
+							 { 14, kFontSmall }, sf::Color::White);
 
 		// 库存 +10 按钮
 		const auto plusRect = merchantStockPlusBtnRect(rowPos);
@@ -322,8 +336,8 @@ void ClientView::drawMerchantPanel(const ClientModel& model) {
 		plusBtn.setOutlineThickness(1.f);
 		window_.draw(plusBtn);
 		textMgr_.displayText(L"库存+10",
-							 { plusRect.position.x + 4, plusRect.position.y + 10 },
-							 { 14, 20 }, sf::Color::White);
+							 { plusRect.position.x + 4, plusRect.position.y + 12 },
+							 { 14, kFontSmall }, sf::Color::White);
 
 		rowY += rowH + 4.f;
 	}
@@ -337,14 +351,14 @@ void ClientView::drawMerchantPanel(const ClientModel& model) {
 	createBtn.setOutlineThickness(1.f);
 	window_.draw(createBtn);
 	textMgr_.displayText(L"+ 新增商品",
-						 { cb.position.x + 30, cb.position.y + 10 },
-						 { 18, 24 }, sf::Color::White);
+						 { cb.position.x + 30, cb.position.y + 12 },
+						 { 18, kFontBody }, sf::Color::White);
 }
 
 // ===================== 商家新增商品表单面板 =====================
 
 void ClientView::drawMerchantCreatePanel(const ClientModel& model) {
-	textMgr_.displayTextInUp(L"商家管理 - 新增商品", { 20, 12 }, sf::Color(40, 80, 160));
+	textMgr_.displayTextInUp(L"商家管理 - 新增商品", { 20, kFontHeader }, sf::Color(40, 80, 160));
 
 	// 右上角用户名 + 登出（与商家面板一致）
 	if (model.loggedIn()) {
@@ -352,8 +366,8 @@ void ClientView::drawMerchantCreatePanel(const ClientModel& model) {
 		std::wostringstream user;
 		user << L"商家：" << ecs::string::to_utf16(model.currentUsername());
 		textMgr_.displayText(user.str(),
-							 { lr.position.x - 220, lr.position.y + 8 },
-							 { 18, 24 }, sf::Color(60, 60, 60));
+							 { lr.position.x - 220, lr.position.y + 10 },
+							 { 18, kFontBody }, sf::Color(60, 60, 60));
 		sf::RectangleShape btn({ lr.size.x, lr.size.y });
 		btn.setPosition({ lr.position.x, lr.position.y });
 		btn.setFillColor(sf::Color(200, 80, 80));
@@ -361,12 +375,12 @@ void ClientView::drawMerchantCreatePanel(const ClientModel& model) {
 		btn.setOutlineThickness(1.f);
 		window_.draw(btn);
 		textMgr_.displayText(L"登出",
-							 { lr.position.x + 30, lr.position.y + 8 },
-							 { 18, 24 }, sf::Color::White);
+							 { lr.position.x + 30, lr.position.y + 10 },
+							 { 18, kFontBody }, sf::Color::White);
 	}
 
 	// 表单标题
-	textMgr_.displayText(L"填写商品信息（带 * 为必填）", { 100, 100 }, { 20, 26 }, sf::Color(60, 60, 60));
+	textMgr_.displayText(L"填写商品信息（带 * 为必填）", { 100, 100 }, { 20, kFontInput }, sf::Color(60, 60, 60));
 
 	// 5 个输入框：名称/价格/库存/描述/图片路径
 	const wchar_t* labels[] = { L"商品名称 *", L"价格 (元) *", L"库存 *", L"描述", L"图片路径" };
@@ -382,8 +396,8 @@ void ClientView::drawMerchantCreatePanel(const ClientModel& model) {
 		const auto r = merchantCreateFieldRect(i);
 		// 标签
 		textMgr_.displayText(labels[i],
-							 { r.position.x - 130, r.position.y + 8 },
-							 { 18, 24 }, sf::Color(80, 80, 80));
+							 { r.position.x - 130, r.position.y + 10 },
+							 { 18, kFontBody }, sf::Color(80, 80, 80));
 		// 输入框背景
 		sf::RectangleShape bg({ r.size.x, r.size.y });
 		bg.setPosition({ r.position.x, r.position.y });
@@ -395,8 +409,8 @@ void ClientView::drawMerchantCreatePanel(const ClientModel& model) {
 		std::wstring shown = ecs::string::to_utf16(*values[i]);
 		if (activeField_ == fields[i]) shown += L"_";  // 光标占位
 		textMgr_.displayText(shown,
-							 { r.position.x + 8, r.position.y + 8 },
-							 { 18, 24 }, sf::Color::Black);
+							 { r.position.x + 8, r.position.y + 10 },
+							 { 18, kFontBody }, sf::Color::Black);
 	}
 
 	// 提交 + 返回按钮
@@ -408,8 +422,8 @@ void ClientView::drawMerchantCreatePanel(const ClientModel& model) {
 	submitBtn.setOutlineThickness(1.f);
 	window_.draw(submitBtn);
 	textMgr_.displayText(L"提交新增",
-						 { sb.position.x + 30, sb.position.y + 10 },
-						 { 18, 24 }, sf::Color::White);
+						 { sb.position.x + 30, sb.position.y + 12 },
+						 { 18, kFontBody }, sf::Color::White);
 
 	const auto bb = merchantCreateBackBtnRect();
 	sf::RectangleShape backBtn({ bb.size.x, bb.size.y });
@@ -419,17 +433,17 @@ void ClientView::drawMerchantCreatePanel(const ClientModel& model) {
 	backBtn.setOutlineThickness(1.f);
 	window_.draw(backBtn);
 	textMgr_.displayText(L"返回",
-						 { bb.position.x + 30, bb.position.y + 10 },
-						 { 18, 24 }, sf::Color::White);
+						 { bb.position.x + 30, bb.position.y + 12 },
+						 { 18, kFontBody }, sf::Color::White);
 
 	// 状态信息
 	if (!model.status().empty()) {
-		textMgr_.displayText(model.status(), { 100, 580 }, { 18, 22 }, sf::Color(200, 50, 50));
+		textMgr_.displayText(model.status(), { 100, 580 }, { 18, kFontSecondary }, sf::Color(200, 50, 50));
 	}
 
 	// 提示
 	textMgr_.displayText(L"（Tab 键切换输入框，Enter 键等同提交）",
-						 { 100, 620 }, { 16, 22 }, sf::Color(150, 150, 150));
+						 { 100, 620 }, { 16, kFontSecondary }, sf::Color(150, 150, 150));
 }
 
 // ===================== 商家编辑商品表单面板 =====================
@@ -452,7 +466,7 @@ void ClientView::setEditProduct(std::int32_t id, const std::string& name, double
 }
 
 void ClientView::drawMerchantEditPanel(const ClientModel& model) {
-	textMgr_.displayTextInUp(L"商家管理 - 编辑商品", { 20, 12 }, sf::Color(40, 80, 160));
+	textMgr_.displayTextInUp(L"商家管理 - 编辑商品", { 20, kFontHeader }, sf::Color(40, 80, 160));
 
 	// 右上角用户名 + 登出
 	if (model.loggedIn()) {
@@ -460,8 +474,8 @@ void ClientView::drawMerchantEditPanel(const ClientModel& model) {
 		std::wostringstream user;
 		user << L"商家：" << ecs::string::to_utf16(model.currentUsername());
 		textMgr_.displayText(user.str(),
-							 { lr.position.x - 220, lr.position.y + 8 },
-							 { 18, 24 }, sf::Color(60, 60, 60));
+							 { lr.position.x - 220, lr.position.y + 10 },
+							 { 18, kFontBody }, sf::Color(60, 60, 60));
 		sf::RectangleShape btn({ lr.size.x, lr.size.y });
 		btn.setPosition({ lr.position.x, lr.position.y });
 		btn.setFillColor(sf::Color(200, 80, 80));
@@ -469,12 +483,12 @@ void ClientView::drawMerchantEditPanel(const ClientModel& model) {
 		btn.setOutlineThickness(1.f);
 		window_.draw(btn);
 		textMgr_.displayText(L"登出",
-							 { lr.position.x + 30, lr.position.y + 8 },
-							 { 18, 24 }, sf::Color::White);
+							 { lr.position.x + 30, lr.position.y + 10 },
+							 { 18, kFontBody }, sf::Color::White);
 	}
 
 	// 表单标题
-	textMgr_.displayText(L"修改商品信息（带 * 为必填）", { 100, 100 }, { 20, 26 }, sf::Color(60, 60, 60));
+	textMgr_.displayText(L"修改商品信息（带 * 为必填）", { 100, 100 }, { 20, kFontInput }, sf::Color(60, 60, 60));
 
 	// 复用 MerchantCreate 的 5 个输入框布局
 	const wchar_t* labels[] = { L"商品名称 *", L"价格 (元) *", L"库存 *", L"描述", L"图片路径（留空用占位图）" };
@@ -489,8 +503,8 @@ void ClientView::drawMerchantEditPanel(const ClientModel& model) {
 	for (int i = 0; i < 5; ++i) {
 		const auto r = merchantCreateFieldRect(i);
 		textMgr_.displayText(labels[i],
-							 { r.position.x - 130, r.position.y + 8 },
-							 { 18, 24 }, sf::Color(80, 80, 80));
+							 { r.position.x - 130, r.position.y + 10 },
+							 { 18, kFontBody }, sf::Color(80, 80, 80));
 		sf::RectangleShape bg({ r.size.x, r.size.y });
 		bg.setPosition({ r.position.x, r.position.y });
 		bg.setFillColor(sf::Color::White);
@@ -500,8 +514,8 @@ void ClientView::drawMerchantEditPanel(const ClientModel& model) {
 		std::wstring shown = ecs::string::to_utf16(*values[i]);
 		if (activeField_ == fields[i]) shown += L"_";
 		textMgr_.displayText(shown,
-							 { r.position.x + 8, r.position.y + 8 },
-							 { 18, 24 }, sf::Color::Black);
+							 { r.position.x + 8, r.position.y + 10 },
+							 { 18, kFontBody }, sf::Color::Black);
 	}
 
 	// 提交（保存修改）+ 返回按钮
@@ -513,8 +527,8 @@ void ClientView::drawMerchantEditPanel(const ClientModel& model) {
 	submitBtn.setOutlineThickness(1.f);
 	window_.draw(submitBtn);
 	textMgr_.displayText(L"保存修改",
-						 { sb.position.x + 30, sb.position.y + 10 },
-						 { 18, 24 }, sf::Color::White);
+						 { sb.position.x + 30, sb.position.y + 12 },
+						 { 18, kFontBody }, sf::Color::White);
 
 	const auto bb = merchantCreateBackBtnRect();
 	sf::RectangleShape backBtn({ bb.size.x, bb.size.y });
@@ -524,14 +538,14 @@ void ClientView::drawMerchantEditPanel(const ClientModel& model) {
 	backBtn.setOutlineThickness(1.f);
 	window_.draw(backBtn);
 	textMgr_.displayText(L"返回",
-						 { bb.position.x + 30, bb.position.y + 10 },
-						 { 18, 24 }, sf::Color::White);
+						 { bb.position.x + 30, bb.position.y + 12 },
+						 { 18, kFontBody }, sf::Color::White);
 
 	if (!model.status().empty()) {
-		textMgr_.displayText(model.status(), { 100, 580 }, { 18, 22 }, sf::Color(200, 50, 50));
+		textMgr_.displayText(model.status(), { 100, 580 }, { 18, kFontSecondary }, sf::Color(200, 50, 50));
 	}
 	textMgr_.displayText(L"（Tab 键切换输入框，Enter 键等同保存）",
-						 { 100, 620 }, { 16, 22 }, sf::Color(150, 150, 150));
+						 { 100, 620 }, { 16, kFontSecondary }, sf::Color(150, 150, 150));
 }
 
 // ===================== 促销参数描述辅助 =====================
@@ -590,22 +604,22 @@ static const wchar_t* promoTypeName(const std::string& type) {
 void ClientView::drawPromotionPanel(const ClientModel& model) {
 	drawTabBar(model);
 	if (!model.status().empty()) {
-		textMgr_.displayText(model.status(), { 700, statusY }, { 22, 26 }, sf::Color(150, 150, 150));
+		textMgr_.displayText(model.status(), { 700, statusY }, { 22, kFontInput }, sf::Color(150, 150, 150));
 	}
 
 	const auto& promotions = model.promotions();
 	if (promotions.empty()) {
-		textMgr_.displayTextInCenter(L"暂无促销规则，点击下方按钮新增", { 20, 30 }, sf::Color(150, 150, 150));
+		textMgr_.displayTextInCenter(L"暂无促销规则，点击下方按钮新增", { 20, kFontNumber }, sf::Color(150, 150, 150));
 	}
 	else {
 		// 表头
 		const float tableY = orderCardStartY;
-		textMgr_.displayText(L"类型",   { orderCardX + 12,  tableY }, { 22, 28 }, sf::Color(120, 120, 120));
-		textMgr_.displayText(L"规则",   { orderCardX + 200, tableY }, { 22, 28 }, sf::Color(120, 120, 120));
-		textMgr_.displayText(L"状态",   { orderCardX + 650, tableY }, { 22, 28 }, sf::Color(120, 120, 120));
+		textMgr_.displayText(L"类型",   { orderCardX + 12,  tableY }, { 22, kFontHeader }, sf::Color(120, 120, 120));
+		textMgr_.displayText(L"规则",   { orderCardX + 200, tableY }, { 22, kFontHeader }, sf::Color(120, 120, 120));
+		textMgr_.displayText(L"状态",   { orderCardX + 650, tableY }, { 22, kFontHeader }, sf::Color(120, 120, 120));
 
 		float rowY = tableY + 34.f;
-		constexpr float rowH = 52.f;
+		constexpr float rowH = 60.f;
 		for (const auto& p : promotions) {
 			const sf::Vector2f rowPos{ orderCardX, rowY };
 
@@ -618,13 +632,13 @@ void ClientView::drawPromotionPanel(const ClientModel& model) {
 
 			// 类型
 			textMgr_.displayText(promoTypeName(p.type),
-								 { rowPos.x + 12, rowPos.y + 14 }, { 22, 28 }, sf::Color::Black);
+								 { rowPos.x + 12, rowPos.y + 14 }, { 22, kFontHeader }, sf::Color::Black);
 			// 规则描述
 			textMgr_.displayText(describePromotion(p.type, p.params),
-								 { rowPos.x + 200, rowPos.y + 14 }, { 22, 28 }, sf::Color(80, 80, 80));
+								 { rowPos.x + 200, rowPos.y + 14 }, { 22, kFontHeader }, sf::Color(80, 80, 80));
 			// 状态
 			textMgr_.displayText(p.enabled ? L"已启用" : L"已禁用",
-								 { rowPos.x + 650, rowPos.y + 14 }, { 22, 28 },
+								 { rowPos.x + 650, rowPos.y + 14 }, { 22, kFontHeader },
 								 p.enabled ? sf::Color(50, 150, 50) : sf::Color(180, 80, 80));
 
 			// 启用/禁用按钮
@@ -635,7 +649,7 @@ void ClientView::drawPromotionPanel(const ClientModel& model) {
 			tgBtn.setOutlineThickness(1.f);
 			window_.draw(tgBtn);
 			textMgr_.displayText(p.enabled ? L"禁用" : L"启用",
-								 { tg.position.x + 16, tg.position.y + 6 }, { 20, 26 }, sf::Color::White);
+								 { tg.position.x + 16, tg.position.y + 8 }, { 20, kFontInput }, sf::Color::White);
 
 			// 编辑按钮
 			const auto ed = promoEditBtnRect(rowPos);
@@ -644,7 +658,7 @@ void ClientView::drawPromotionPanel(const ClientModel& model) {
 			edBtn.setFillColor(sf::Color(80, 130, 200));
 			edBtn.setOutlineThickness(1.f);
 			window_.draw(edBtn);
-			textMgr_.displayText(L"编辑", { ed.position.x + 16, ed.position.y + 6 }, { 20, 26 }, sf::Color::White);
+			textMgr_.displayText(L"编辑", { ed.position.x + 16, ed.position.y + 8 }, { 20, kFontInput }, sf::Color::White);
 
 			// 删除按钮
 			const auto dl = promoDeleteBtnRect(rowPos);
@@ -653,7 +667,7 @@ void ClientView::drawPromotionPanel(const ClientModel& model) {
 			dlBtn.setFillColor(sf::Color(220, 80, 80));
 			dlBtn.setOutlineThickness(1.f);
 			window_.draw(dlBtn);
-			textMgr_.displayText(L"删除", { dl.position.x + 16, dl.position.y + 6 }, { 20, 26 }, sf::Color::White);
+			textMgr_.displayText(L"删除", { dl.position.x + 16, dl.position.y + 8 }, { 20, kFontInput }, sf::Color::White);
 
 			rowY += rowH + 4.f;
 		}
@@ -668,8 +682,8 @@ void ClientView::drawPromotionPanel(const ClientModel& model) {
 	createBtn.setOutlineThickness(1.f);
 	window_.draw(createBtn);
 	textMgr_.displayText(L"+ 新增促销",
-						 { cb.position.x + 24, cb.position.y + 6 },
-						 { 22, 28 }, sf::Color::White);
+						 { cb.position.x + 24, cb.position.y + 8 },
+						 { 22, kFontHeader }, sf::Color::White);
 }
 
 // ===================== 商家促销表单面板（创建/编辑）=====================
@@ -677,17 +691,17 @@ void ClientView::drawPromotionPanel(const ClientModel& model) {
 void ClientView::drawPromotionFormPanel(const ClientModel& model) {
 	drawTabBar(model);
 	const bool isEdit = (editingPromotionId_ > 0);
-	textMgr_.displayTextInUp(isEdit ? L"编辑促销" : L"新增促销", { 20, 60 }, sf::Color(40, 80, 160));
+	textMgr_.displayTextInUp(isEdit ? L"编辑促销" : L"新增促销", { 20, kFontTitle }, sf::Color(40, 80, 160));
 
 	// 5 种类型按钮（编辑模式下固定类型，仅显示当前类型文字）
 	const char* types[] = { "reduction", "discount", "tiered", "freeitem", "coupon" };
 	constexpr int typeCount = 5;
 	if (isEdit) {
 		textMgr_.displayText(std::wstring(L"类型：") + promoTypeName(promoType_),
-							 { 100, 120 }, { 22, 28 }, sf::Color::Black);
+							 { 100, 120 }, { 22, kFontHeader }, sf::Color::Black);
 	}
 	else {
-		textMgr_.displayText(L"选择类型：", { 100, 120 }, { 22, 28 }, sf::Color(120, 120, 120));
+		textMgr_.displayText(L"选择类型：", { 100, 120 }, { 22, kFontHeader }, sf::Color(120, 120, 120));
 		for (int i = 0; i < typeCount; ++i) {
 			const auto r = promoTypeBtnRect(i);
 			const bool selected = (promoType_ == types[i]);
@@ -698,8 +712,8 @@ void ClientView::drawPromotionFormPanel(const ClientModel& model) {
 			btn.setOutlineThickness(1.f);
 			window_.draw(btn);
 			textMgr_.displayText(promoTypeName(types[i]),
-								 { r.position.x + 16, r.position.y + 6 },
-								 { 20, 26 }, selected ? sf::Color::White : sf::Color::Black);
+								 { r.position.x + 16, r.position.y + 8 },
+								 { 20, kFontInput }, selected ? sf::Color::White : sf::Color::Black);
 		}
 	}
 
@@ -729,10 +743,10 @@ void ClientView::drawPromotionFormPanel(const ClientModel& model) {
 	// 参数区标题
 	const float paramsY = 170.f;
 	if (promoType_.empty()) {
-		textMgr_.displayText(L"请先在上方选择促销类型", { 100, paramsY }, { 22, 28 }, sf::Color(180, 80, 80));
+		textMgr_.displayText(L"请先在上方选择促销类型", { 100, paramsY }, { 22, kFontHeader }, sf::Color(180, 80, 80));
 	}
 	else {
-		textMgr_.displayText(L"填写参数：", { 100, paramsY }, { 22, 28 }, sf::Color(120, 120, 120));
+		textMgr_.displayText(L"填写参数：", { 100, paramsY }, { 22, kFontHeader }, sf::Color(120, 120, 120));
 		// 2 列 × 2 行布局绘制各槽位
 		const Field slotFields[4] = { Field::PromoSlot0, Field::PromoSlot1, Field::PromoSlot2, Field::PromoSlot3 };
 		for (int i = 0; i < 4; ++i) {
@@ -740,7 +754,7 @@ void ClientView::drawPromotionFormPanel(const ClientModel& model) {
 			const auto r = promoSlotRect(i);
 			// 标签
 			textMgr_.displayText(slotLabels[i],
-								 { r.position.x, r.position.y - 26.f }, { 19, 25 }, sf::Color(80, 80, 80));
+								 { r.position.x, r.position.y - 30.f }, { 19, kFontInput }, sf::Color(80, 80, 80));
 			// 输入框
 			sf::RectangleShape box({ r.size.x, r.size.y });
 			box.setPosition({ r.position.x, r.position.y });
@@ -750,7 +764,7 @@ void ClientView::drawPromotionFormPanel(const ClientModel& model) {
 			window_.draw(box);
 			if (!promoSlotValue_[i].empty()) {
 				textMgr_.displayText(ecs::string::to_utf16(promoSlotValue_[i]),
-									 { r.position.x + 12, r.position.y + 8 }, { 20, 26 }, sf::Color::Black);
+									 { r.position.x + 12, r.position.y + 10 }, { 20, kFontInput }, sf::Color::Black);
 			}
 		}
 		// 实时预览规则效果
@@ -758,10 +772,10 @@ void ClientView::drawPromotionFormPanel(const ClientModel& model) {
 		if (!preview.is_null()) {
 			std::wostringstream prev;
 			prev << L"规则预览：" << describePromotion(promoType_, preview);
-			textMgr_.displayText(prev.str(), { 100, 360 }, { 20, 26 }, sf::Color(50, 120, 50));
+			textMgr_.displayText(prev.str(), { 100, 360 }, { 20, kFontInput }, sf::Color(50, 120, 50));
 		}
 		else {
-			textMgr_.displayText(L"规则预览：请填写全部必填参数", { 100, 360 }, { 20, 26 }, sf::Color(150, 150, 150));
+			textMgr_.displayText(L"规则预览：请填写全部必填参数", { 100, 360 }, { 20, kFontInput }, sf::Color(150, 150, 150));
 		}
 	}
 
@@ -774,7 +788,7 @@ void ClientView::drawPromotionFormPanel(const ClientModel& model) {
 	submitBtn.setOutlineThickness(1.f);
 	window_.draw(submitBtn);
 	textMgr_.displayText(isEdit ? L"保存修改" : L"提交新增",
-						 { sb.position.x + 32, sb.position.y + 12 }, { 22, 28 }, sf::Color::White);
+						 { sb.position.x + 32, sb.position.y + 14 }, { 22, kFontHeader }, sf::Color::White);
 
 	// 返回按钮
 	const auto bb = promoBackBtnRect();
@@ -784,10 +798,10 @@ void ClientView::drawPromotionFormPanel(const ClientModel& model) {
 	backBtn.setOutlineColor(sf::Color(120, 120, 120));
 	backBtn.setOutlineThickness(1.f);
 	window_.draw(backBtn);
-	textMgr_.displayText(L"返回", { bb.position.x + 34, bb.position.y + 12 }, { 22, 28 }, sf::Color::White);
+	textMgr_.displayText(L"返回", { bb.position.x + 34, bb.position.y + 14 }, { 22, kFontHeader }, sf::Color::White);
 
 	if (!model.status().empty()) {
-		textMgr_.displayText(model.status(), { 100, 480 }, { 22, 26 }, sf::Color(200, 50, 50));
+		textMgr_.displayText(model.status(), { 100, 480 }, { 22, kFontInput }, sf::Color(200, 50, 50));
 	}
 }
 
@@ -796,16 +810,16 @@ void ClientView::drawPromotionFormPanel(const ClientModel& model) {
 void ClientView::drawUserManagementPanel(const ClientModel& model) {
 	drawTabBar(model);
 	if (!model.status().empty()) {
-		textMgr_.displayText(model.status(), { 700, statusY }, { 22, 26 }, sf::Color(150, 150, 150));
+		textMgr_.displayText(model.status(), { 700, statusY }, { 22, kFontInput }, sf::Color(150, 150, 150));
 	}
 
 	const auto& users = model.users();
 	const float tableY = orderCardStartY;
 
 	// 表头
-	textMgr_.displayText(L"ID",       { orderCardX + 12,  tableY }, { 22, 28 }, sf::Color(120, 120, 120));
-	textMgr_.displayText(L"用户名",   { orderCardX + 120, tableY }, { 22, 28 }, sf::Color(120, 120, 120));
-	textMgr_.displayText(L"角色",     { orderCardX + 420, tableY }, { 22, 28 }, sf::Color(120, 120, 120));
+	textMgr_.displayText(L"ID",       { orderCardX + 12,  tableY }, { 22, kFontHeader }, sf::Color(120, 120, 120));
+	textMgr_.displayText(L"用户名",   { orderCardX + 120, tableY }, { 22, kFontHeader }, sf::Color(120, 120, 120));
+	textMgr_.displayText(L"角色",     { orderCardX + 420, tableY }, { 22, kFontHeader }, sf::Color(120, 120, 120));
 
 	if (users.empty()) {
 		textMgr_.displayTextInCenter(L"暂无用户数据", { 20, tableY + 40 }, sf::Color(150, 150, 150));
@@ -813,7 +827,7 @@ void ClientView::drawUserManagementPanel(const ClientModel& model) {
 	}
 
 	float rowY = tableY + 34.f;
-	constexpr float rowH = 52.f;
+	constexpr float rowH = 60.f;
 	for (const auto& u : users) {
 		const sf::Vector2f rowPos{ orderCardX, rowY };
 
@@ -828,14 +842,14 @@ void ClientView::drawUserManagementPanel(const ClientModel& model) {
 		std::wostringstream idSs;
 		idSs << u.id;
 		textMgr_.displayText(idSs.str(),
-							 { rowPos.x + 12, rowPos.y + 14 }, { 22, 28 }, sf::Color::Black);
+							 { rowPos.x + 12, rowPos.y + 14 }, { 22, kFontHeader }, sf::Color::Black);
 		// 用户名
 		textMgr_.displayText(ecs::string::to_utf16(u.username),
-							 { rowPos.x + 120, rowPos.y + 14 }, { 22, 28 }, sf::Color(80, 80, 80));
+							 { rowPos.x + 120, rowPos.y + 14 }, { 22, kFontHeader }, sf::Color(80, 80, 80));
 		// 角色
 		const bool isMerchant = (u.role == 1);
 		textMgr_.displayText(isMerchant ? L"商家" : L"普通用户",
-							 { rowPos.x + 420, rowPos.y + 14 }, { 22, 28 },
+							 { rowPos.x + 420, rowPos.y + 14 }, { 22, kFontHeader },
 							 isMerchant ? sf::Color(50, 100, 180) : sf::Color(80, 80, 80));
 
 		rowY += rowH + 4.f;
@@ -847,7 +861,7 @@ void ClientView::drawUserManagementPanel(const ClientModel& model) {
 void ClientView::drawDashboardPanel(const ClientModel& model) {
 	drawTabBar(model);
 	if (!model.status().empty()) {
-		textMgr_.displayText(model.status(), { 700, statusY }, { 22, 26 }, sf::Color(150, 150, 150));
+		textMgr_.displayText(model.status(), { 700, statusY }, { 22, kFontInput }, sf::Color(150, 150, 150));
 	}
 
 	const auto& s = model.stats();
@@ -867,7 +881,7 @@ void ClientView::drawDashboardPanel(const ClientModel& model) {
 		btn.setOutlineThickness(1.5f);
 		window_.draw(btn);
 		textMgr_.displayText(rangeNames[i],
-			{ r.position.x + 14, r.position.y + 6 }, { 20, 26 },
+			{ r.position.x + 14, r.position.y + 8 }, { 20, kFontInput },
 			active ? sf::Color::White : sf::Color(80, 80, 80));
 	}
 
@@ -883,8 +897,8 @@ void ClientView::drawDashboardPanel(const ClientModel& model) {
 		bar.setPosition({ x, y });
 		bar.setFillColor(accent);
 		window_.draw(bar);
-		textMgr_.displayText(label, { x + 24, y + 14 }, { 22, 28 }, sf::Color(120, 120, 120));
-		textMgr_.displayText(value, { x + 24, y + 56 }, { 34, 42 }, accent);
+		textMgr_.displayText(label, { x + 24, y + 14 }, { 22, kFontHeader }, sf::Color(120, 120, 120));
+		textMgr_.displayText(value, { x + 24, y + 56 }, { 34, kFontStatValue }, accent);
 		};
 
 	auto fmtMoney = [](double v) -> std::wstring {
@@ -903,7 +917,7 @@ void ClientView::drawDashboardPanel(const ClientModel& model) {
 	const float listY = 420;
 	const int sortBy = model.topSortBy();
 	const std::wstring sortLabel = (sortBy == 0) ? L"销售额" : L"销量";
-	textMgr_.displayText(rangeLabel + sortLabel + L"排行榜", { 100, listY }, { 26, 32 }, sf::Color(60, 60, 60));
+	textMgr_.displayText(rangeLabel + sortLabel + L"排行榜", { 100, listY }, { 26, kFontBig }, sf::Color(60, 60, 60));
 
 	// 排行榜排序切换按钮
 	const wchar_t* sortNames[] = { L"销售额", L"销量" };
@@ -917,12 +931,12 @@ void ClientView::drawDashboardPanel(const ClientModel& model) {
 		btn.setOutlineThickness(1.5f);
 		window_.draw(btn);
 		textMgr_.displayText(sortNames[i],
-			{ r.position.x + 16, r.position.y + 5 }, { 18, 24 },
+			{ r.position.x + 16, r.position.y + 5 }, { 18, kFontBody },
 			active ? sf::Color::White : sf::Color(80, 80, 80));
 	}
 
 	if (top.empty()) {
-		textMgr_.displayTextInCenter(L"该时间范围暂无销售数据", { 20, 50 }, sf::Color(150, 150, 150));
+		textMgr_.displayTextInCenter(L"该时间范围暂无销售数据", { 20, kFontNumber }, sf::Color(150, 150, 150));
 		return;
 	}
 
@@ -944,7 +958,7 @@ void ClientView::drawDashboardPanel(const ClientModel& model) {
 	}
 
 	const float rowStartY = listY + 50;
-	constexpr float rowH = 56.f;
+	constexpr float rowH = 64.f;
 	constexpr float barMaxW = 500.f;
 	constexpr float nameX = 100;
 	constexpr float barX = 320;
@@ -958,9 +972,9 @@ void ClientView::drawDashboardPanel(const ClientModel& model) {
 		window_.draw(rowBg);
 
 		textMgr_.displayText(std::to_wstring(i + 1) + L".",
-							 { nameX, y + 14 }, { 22, 28 }, sf::Color(200, 160, 40));
+							 { nameX, y + 14 }, { 22, kFontHeader }, sf::Color(200, 160, 40));
 		textMgr_.displayText(ecs::string::to_utf16(t.name),
-							 { nameX + 36, y + 14 }, { 22, 28 }, sf::Color(80, 80, 80));
+							 { nameX + 36, y + 14 }, { 22, kFontHeader }, sf::Color(80, 80, 80));
 		// 条形图：按选定方式的比例
 		float barW;
 		if (sortBy == 1) {
@@ -982,7 +996,7 @@ void ClientView::drawDashboardPanel(const ClientModel& model) {
 		} else {
 			ss << std::fixed << std::setprecision(2) << t.revenue << L" 元（售 " << t.qtySold << L" 件）";
 		}
-		textMgr_.displayText(ss.str(), { barX + barW + 12, y + 14 }, { 22, 28 }, sf::Color(60, 60, 60));
+		textMgr_.displayText(ss.str(), { barX + barW + 12, y + 14 }, { 22, kFontHeader }, sf::Color(60, 60, 60));
 	}
 }
 
@@ -1166,7 +1180,7 @@ sf::FloatRect ClientView::promoTypeBtnRect(int index) const {
 
 sf::FloatRect ClientView::promoSlotRect(int index) const {
 	// 2 列 × 2 行布局
-	constexpr float colW = 340.f, rowH = 44.f;
+	constexpr float colW = 340.f, rowH = 50.f;
 	constexpr float colGap = 60.f, rowGap = 60.f;
 	constexpr float startX = 100.f, startY = 220.f;
 	const int col = index % 2;
@@ -1375,8 +1389,8 @@ void ClientView::drawTabBar(const ClientModel& model) {
 		window_.draw(bg);
 		const auto textColor = active ? sf::Color::White : sf::Color::Black;
 		textMgr_.displayText(tabs[i].label,
-							 { r.position.x + 50, r.position.y + 8 },
-							 { 18, 24 }, textColor);
+							 { r.position.x + 50, r.position.y + 10 },
+							 { 18, kFontBody }, textColor);
 	}
 
 	// 右上角：当前用户名 + 登出按钮（仅登录后显示）
@@ -1386,8 +1400,8 @@ void ClientView::drawTabBar(const ClientModel& model) {
 		std::wostringstream user;
 		user << L"用户：" << ecs::string::to_utf16(model.currentUsername());
 		textMgr_.displayText(user.str(),
-							 { lr.position.x - 200, lr.position.y + 8 },
-							 { 18, 24 }, sf::Color(60, 60, 60));
+							 { lr.position.x - 200, lr.position.y + 10 },
+							 { 18, kFontBody }, sf::Color(60, 60, 60));
 		// 登出按钮（红色调，区别于蓝色 Tab）
 		sf::RectangleShape btn({ lr.size.x, lr.size.y });
 		btn.setPosition({ lr.position.x, lr.position.y });
@@ -1396,8 +1410,8 @@ void ClientView::drawTabBar(const ClientModel& model) {
 		btn.setOutlineThickness(1.f);
 		window_.draw(btn);
 		textMgr_.displayText(L"登出",
-							 { lr.position.x + 30, lr.position.y + 8 },
-							 { 18, 24 }, sf::Color::White);
+							 { lr.position.x + 30, lr.position.y + 10 },
+							 { 18, kFontBody }, sf::Color::White);
 	}
 }
 
@@ -1417,9 +1431,9 @@ void ClientView::drawProductListPanel(const ClientModel& model) {
 	searchBg.setOutlineThickness(activeField_ == Field::ProductSearch ? 2.f : 1.f);
 	window_.draw(searchBg);
 	if (searchInput_.empty()) {
-		textMgr_.displayText(L"搜索商品名称...", { searchX + 10, searchY + 6 }, { 16, 22 }, sf::Color(180, 180, 180));
+		textMgr_.displayText(L"搜索商品名称...", { searchX + 10, searchY + 6 }, { 16, kFontSecondary }, sf::Color(180, 180, 180));
 	} else {
-		textMgr_.displayText(ecs::string::to_utf16(searchInput_), { searchX + 10, searchY + 6 }, { 16, 22 }, sf::Color::Black);
+		textMgr_.displayText(ecs::string::to_utf16(searchInput_), { searchX + 10, searchY + 6 }, { 16, kFontSecondary }, sf::Color::Black);
 	}
 
 	// 价格区间输入框
@@ -1431,15 +1445,15 @@ void ClientView::drawProductListPanel(const ClientModel& model) {
 		bg.setOutlineThickness(activeField_ == field ? 2.f : 1.f);
 		window_.draw(bg);
 		if (input.empty()) {
-			textMgr_.displayText(placeholder, { boxX + 8, searchY + 6 }, { 14, 22 }, sf::Color(180, 180, 180));
+			textMgr_.displayText(placeholder, { boxX + 8, searchY + 6 }, { 14, kFontSecondary }, sf::Color(180, 180, 180));
 		} else {
-			textMgr_.displayText(ecs::string::to_utf16(input), { boxX + 8, searchY + 6 }, { 14, 22 }, sf::Color::Black);
+			textMgr_.displayText(ecs::string::to_utf16(input), { boxX + 8, searchY + 6 }, { 14, kFontSecondary }, sf::Color::Black);
 		}
 	};
 	drawPriceInput(priceMinInput_, priceMinX, Field::PriceMin, L"最低价");
 	drawPriceInput(priceMaxInput_, priceMaxX, Field::PriceMax, L"最高价");
 	// 价格区间中间的"-"分隔
-	textMgr_.displayText(L"-", { priceMinX + priceW + 4, searchY + 4 }, { 14, 22 }, sf::Color(120, 120, 120));
+	textMgr_.displayText(L"-", { priceMinX + priceW + 4, searchY + 4 }, { 14, kFontSecondary }, sf::Color(120, 120, 120));
 
 	// 排序按钮组
 	auto drawSortBtn = [&](int index, const wchar_t* label, int mode) {
@@ -1451,7 +1465,7 @@ void ClientView::drawProductListPanel(const ClientModel& model) {
 		bg.setOutlineColor(active ? sf::Color(80, 130, 200) : sf::Color(200, 200, 200));
 		bg.setOutlineThickness(active ? 2.f : 1.f);
 		window_.draw(bg);
-		textMgr_.displayText(label, { rect.position.x + 6, rect.position.y + 6 }, { 14, 22 },
+		textMgr_.displayText(label, { rect.position.x + 6, rect.position.y + 8 }, { 14, kFontSecondary },
 			active ? sf::Color::White : sf::Color(80, 80, 80));
 	};
 	drawSortBtn(0, L"默认", 0);
@@ -1459,7 +1473,7 @@ void ClientView::drawProductListPanel(const ClientModel& model) {
 	drawSortBtn(2, L"价格↓", 2);
 
 	if (!model.status().empty()) {
-		textMgr_.displayText(model.status(), { 700, statusY }, { 18, 22 }, sf::Color(150, 150, 150));
+		textMgr_.displayText(model.status(), { 700, statusY }, { 18, kFontSecondary }, sf::Color(150, 150, 150));
 	}
 
 	// 按搜索词过滤（名称/描述匹配，ASCII 大小写不敏感）+ 价格区间筛选
@@ -1506,7 +1520,7 @@ void ClientView::drawProductListPanel(const ClientModel& model) {
 	}
 
 	if (filtered.empty()) {
-		textMgr_.displayTextInCenter(L"没有匹配的商品", { 20, 30 }, sf::Color(150, 150, 150));
+		textMgr_.displayTextInCenter(L"没有匹配的商品", { 20, kFontNumber }, sf::Color(150, 150, 150));
 		return;
 	}
 
@@ -1555,32 +1569,32 @@ void ClientView::drawCard(const Product& p, const sf::Vector2f& pos, const sf::V
 
 	// 名称
 	const auto name = ecs::string::to_utf16(p.name);
-	textMgr_.displayText(name, { pos.x + 10, pos.y + 260 }, { 20, 28 }, sf::Color::Black);
+	textMgr_.displayText(name, { pos.x + 10, pos.y + 262 }, { 20, kFontHeader }, sf::Color::Black);
 
 	// 描述
 	const auto desc = ecs::string::to_utf16(p.description);
-	textMgr_.displayText(desc, { pos.x + 10, pos.y + 300 }, { 20, 20 }, sf::Color(100, 100, 100));
+	textMgr_.displayText(desc, { pos.x + 10, pos.y + 304 }, { 20, kFontSmall }, sf::Color(100, 100, 100));
 
 	// 价格
 	std::wostringstream priceStr;
 	priceStr << L"¥ " << p.price;
-	textMgr_.displayText(priceStr.str(), { pos.x + 10, pos.y + 330 }, { 20, 32 }, sf::Color(200, 50, 50));
+	textMgr_.displayText(priceStr.str(), { pos.x + 10, pos.y + 334 }, { 20, kFontBig }, sf::Color(200, 50, 50));
 
 	// 评分（有评价时显示 ★x.x (n)，无评价显示"暂无评价"）
 	if (p.reviewCount > 0) {
 		std::wostringstream rateStr;
 		rateStr << L"★ " << std::fixed << std::setprecision(1) << p.avgRating
 				<< L" (" << p.reviewCount << L")";
-		textMgr_.displayText(rateStr.str(), { pos.x + 10, pos.y + 368 }, { 16, 20 }, sf::Color(200, 140, 30));
+		textMgr_.displayText(rateStr.str(), { pos.x + 10, pos.y + 374 }, { 16, kFontSmall }, sf::Color(200, 140, 30));
 	}
 	else {
-		textMgr_.displayText(L"暂无评价", { pos.x + 10, pos.y + 368 }, { 16, 20 }, sf::Color(160, 160, 160));
+		textMgr_.displayText(L"暂无评价", { pos.x + 10, pos.y + 374 }, { 16, kFontSmall }, sf::Color(160, 160, 160));
 	}
 
 	// 库存
 	std::wostringstream stockStr;
 	stockStr << L"库存：" << p.stock;
-	textMgr_.displayText(stockStr.str(), { pos.x + 250, pos.y + 345 }, { 20, 20 }, sf::Color(100, 100, 100));
+	textMgr_.displayText(stockStr.str(), { pos.x + 250, pos.y + 350 }, { 20, kFontSmall }, sf::Color(100, 100, 100));
 
 	// 加购按钮（绿色）
 	const auto btnRect = addToCartBtnRect(pos);
@@ -1591,8 +1605,8 @@ void ClientView::drawCard(const Product& p, const sf::Vector2f& pos, const sf::V
 	btn.setOutlineThickness(1.f);
 	window_.draw(btn);
 	textMgr_.displayText(L"+ 加购",
-						 { btnRect.position.x + 18, btnRect.position.y + 3 },
-						 { 18, 22 }, sf::Color::White);
+						 { btnRect.position.x + 18, btnRect.position.y + 5 },
+						 { 18, kFontSecondary }, sf::Color::White);
 }
 
 // ===================== 购物车面板 =====================
@@ -1602,14 +1616,14 @@ void ClientView::drawCartPanel(const ClientModel& model) {
 
 	drawTabBar(model);
 	if (!model.status().empty()) {
-		textMgr_.displayText(model.status(), { 700, statusY }, { 18, 22 }, sf::Color(150, 150, 150));
+		textMgr_.displayText(model.status(), { 700, statusY }, { 18, kFontSecondary }, sf::Color(150, 150, 150));
 	}
 
 	// 表头
-	textMgr_.displayText(L"商品名", { cartNameX, cartStartY - 50 }, { 18, 22 }, sf::Color(80, 80, 80));
-	textMgr_.displayText(L"数量", { cartQtyX,  cartStartY - 50 }, { 18, 22 }, sf::Color(80, 80, 80));
-	textMgr_.displayText(L"单价", { cartPriceX,cartStartY - 50 }, { 18, 22 }, sf::Color(80, 80, 80));
-	textMgr_.displayText(L"小计", { cartSubX,  cartStartY - 50 }, { 18, 22 }, sf::Color(80, 80, 80));
+	textMgr_.displayText(L"商品名", { cartNameX, cartStartY - 50 }, { 18, kFontSecondary }, sf::Color(80, 80, 80));
+	textMgr_.displayText(L"数量", { cartQtyX,  cartStartY - 50 }, { 18, kFontSecondary }, sf::Color(80, 80, 80));
+	textMgr_.displayText(L"单价", { cartPriceX,cartStartY - 50 }, { 18, kFontSecondary }, sf::Color(80, 80, 80));
+	textMgr_.displayText(L"小计", { cartSubX,  cartStartY - 50 }, { 18, kFontSecondary }, sf::Color(80, 80, 80));
 
 	sf::RectangleShape line({ 1700, 1.f });
 	line.setPosition({ cartRowX - 50, cartStartY - 20 });
@@ -1617,7 +1631,7 @@ void ClientView::drawCartPanel(const ClientModel& model) {
 	window_.draw(line);
 
 	if (cart.empty()) {
-		textMgr_.displayTextInCenter(L"购物车为空，去加购商品吧", { 20, 30 }, sf::Color(150, 150, 150));
+		textMgr_.displayTextInCenter(L"购物车为空，去加购商品吧", { 20, kFontNumber }, sf::Color(150, 150, 150));
 		return;
 	}
 
@@ -1636,19 +1650,19 @@ void ClientView::drawCartPanel(const ClientModel& model) {
 		const auto& item = cart[i];
 		// 商品名
 		const auto name = ecs::string::to_utf16(item.name);
-		textMgr_.displayText(name, { rowPos.x, rowPos.y + 15 }, { 20, 26 }, sf::Color::Black);
+		textMgr_.displayText(name, { rowPos.x, rowPos.y + 17 }, { 20, kFontInput }, sf::Color::Black);
 		// 数量
 		std::wostringstream qtyStr;
 		qtyStr << item.qty;
-		textMgr_.displayText(qtyStr.str(), { cartQtyX, rowPos.y + 15 }, { 20, 26 }, sf::Color::Black);
+		textMgr_.displayText(qtyStr.str(), { cartQtyX, rowPos.y + 17 }, { 20, kFontInput }, sf::Color::Black);
 		// 单价
 		std::wostringstream priceStr;
 		priceStr << L"¥" << item.price;
-		textMgr_.displayText(priceStr.str(), { cartPriceX, rowPos.y + 15 }, { 20, 26 }, sf::Color(80, 80, 80));
+		textMgr_.displayText(priceStr.str(), { cartPriceX, rowPos.y + 17 }, { 20, kFontInput }, sf::Color(80, 80, 80));
 		// 小计
 		std::wostringstream subStr;
 		subStr << L"¥" << item.subtotal();
-		textMgr_.displayText(subStr.str(), { cartSubX, rowPos.y + 15 }, { 20, 26 }, sf::Color(200, 50, 50));
+		textMgr_.displayText(subStr.str(), { cartSubX, rowPos.y + 17 }, { 20, kFontInput }, sf::Color(200, 50, 50));
 
 		// 删除按钮
 		const auto rmRect = removeFromCartBtnRect(rowPos);
@@ -1659,14 +1673,14 @@ void ClientView::drawCartPanel(const ClientModel& model) {
 		rmBtn.setOutlineThickness(1.f);
 		window_.draw(rmBtn);
 		textMgr_.displayText(L"- 删除",
-							 { rmRect.position.x + 12, rmRect.position.y + 8 },
-							 { 16, 22 }, sf::Color::White);
+							 { rmRect.position.x + 12, rmRect.position.y + 10 },
+							 { 16, kFontSecondary }, sf::Color::White);
 	}
 
 	// 总额
 	std::wostringstream totalStr;
 	totalStr << L"总额：¥ " << model.cartTotal();
-	textMgr_.displayText(totalStr.str(), { cartSubX - 200, cartTotalY }, { 24, 36 }, sf::Color(200, 50, 50));
+	textMgr_.displayText(totalStr.str(), { cartSubX - 200, cartTotalY }, { 24, kFontTotal }, sf::Color(200, 50, 50));
 
 	// 结算按钮
 	const auto ckRect = checkoutBtnRect();
@@ -1678,7 +1692,7 @@ void ClientView::drawCartPanel(const ClientModel& model) {
 	window_.draw(ckBtn);
 	textMgr_.displayText(L"结算",
 						 { ckRect.position.x + 70, ckRect.position.y + 14 },
-						 { 24, 32 }, sf::Color::White);
+						 { 24, kFontBig }, sf::Color::White);
 }
 
 // ===================== 我的订单面板 =====================
@@ -1688,11 +1702,11 @@ void ClientView::drawMyOrdersPanel(const ClientModel& model) {
 
 	drawTabBar(model);
 	if (!model.status().empty()) {
-		textMgr_.displayText(model.status(), { 700, statusY }, { 18, 22 }, sf::Color(150, 150, 150));
+		textMgr_.displayText(model.status(), { 700, statusY }, { 18, kFontSecondary }, sf::Color(150, 150, 150));
 	}
 
 	if (orders.empty()) {
-		textMgr_.displayTextInCenter(L"暂无历史订单，先去结算一单试试", { 20, 30 }, sf::Color(150, 150, 150));
+		textMgr_.displayTextInCenter(L"暂无历史订单，先去结算一单试试", { 20, kFontNumber }, sf::Color(150, 150, 150));
 		return;
 	}
 
@@ -1700,7 +1714,7 @@ void ClientView::drawMyOrdersPanel(const ClientModel& model) {
 	float y = orderCardStartY - myOrdersScrollY_;
 	for (const auto& order : orders) {
 		// 订单卡片背景
-		const float cardH = 90.f + static_cast<float>(order.items.size()) * orderItemRowH;
+		const float cardH = 96.f + static_cast<float>(order.items.size()) * orderItemRowH;
 		sf::RectangleShape bg({ orderCardW, cardH });
 		bg.setPosition({ orderCardX, y });
 		bg.setFillColor(sf::Color(250, 250, 250));
@@ -1726,14 +1740,14 @@ void ClientView::drawMyOrdersPanel(const ClientModel& model) {
 			case 2: head << L"   [已完成]"; break;
 			default: head << L"   [待发货]"; break;
 		}
-		textMgr_.displayText(head.str(), { orderCardX + 12, y + 8 }, { 18, 24 }, sf::Color::Black);
+		textMgr_.displayText(head.str(), { orderCardX + 12, y + 10 }, { 18, kFontBody }, sf::Color::Black);
 
 		// 原价/折扣/实付
 		std::wostringstream money;
 		money << L"原价 ¥" << order.originalTotal
 			<< L"  折扣 -¥" << order.discount
 			<< L"  实付 ¥" << order.finalTotal;
-		textMgr_.displayText(money.str(), { orderCardX + 12, y + 38 }, { 18, 22 }, sf::Color(80, 80, 80));
+		textMgr_.displayText(money.str(), { orderCardX + 12, y + 38 }, { 18, kFontSecondary }, sf::Color(80, 80, 80));
 
 		// 商家发货按钮（仅待发货状态）/ 用户确认收货按钮（仅已发货状态）
 		const sf::Vector2f cardTop{ orderCardX, y };
@@ -1746,8 +1760,8 @@ void ClientView::drawMyOrdersPanel(const ClientModel& model) {
 			btn.setOutlineThickness(1.f);
 			window_.draw(btn);
 			textMgr_.displayText(L"发货",
-								 { r.position.x + 18, r.position.y + 8 },
-								 { 16, 22 }, sf::Color::White);
+								 { r.position.x + 18, r.position.y + 10 },
+								 { 16, kFontSecondary }, sf::Color::White);
 		}
 		else if (!model.isMerchant() && order.shipStatus == 1) {
 			const auto r = orderActionBtnRect(cardTop);
@@ -1758,16 +1772,16 @@ void ClientView::drawMyOrdersPanel(const ClientModel& model) {
 			btn.setOutlineThickness(1.f);
 			window_.draw(btn);
 			textMgr_.displayText(L"确认收货",
-								 { r.position.x + 12, r.position.y + 8 },
-								 { 16, 22 }, sf::Color::White);
+								 { r.position.x + 12, r.position.y + 10 },
+								 { 16, kFontSecondary }, sf::Color::White);
 		}
 
 		// 明细表头
 		float itemY = y + 70.f;
-		textMgr_.displayText(L"商品", { orderCardX + 12,  itemY }, { 16, 18 }, sf::Color(120, 120, 120));
-		textMgr_.displayText(L"单价", { orderCardX + 400, itemY }, { 16, 18 }, sf::Color(120, 120, 120));
-		textMgr_.displayText(L"购买", { orderCardX + 600, itemY }, { 16, 18 }, sf::Color(120, 120, 120));
-		textMgr_.displayText(L"已退", { orderCardX + 750, itemY }, { 16, 18 }, sf::Color(120, 120, 120));
+		textMgr_.displayText(L"商品", { orderCardX + 12,  itemY }, { 16, kFontTiny }, sf::Color(120, 120, 120));
+		textMgr_.displayText(L"单价", { orderCardX + 400, itemY }, { 16, kFontTiny }, sf::Color(120, 120, 120));
+		textMgr_.displayText(L"购买", { orderCardX + 600, itemY }, { 16, kFontTiny }, sf::Color(120, 120, 120));
+		textMgr_.displayText(L"已退", { orderCardX + 750, itemY }, { 16, kFontTiny }, sf::Color(120, 120, 120));
 
 		itemY += 20.f;
 		for (const auto& it : order.items) {
@@ -1784,7 +1798,7 @@ void ClientView::drawMyOrdersPanel(const ClientModel& model) {
 				window_.draw(btn);
 				textMgr_.displayText(L"退货 1 件",
 									 { r.position.x + 6, r.position.y + 4 },
-									 { 14, 18 }, sf::Color::White);
+									 { 14, kFontTiny }, sf::Color::White);
 			}
 			// 普通用户、订单已完成：显示评价状态（已评价显示星级，未评价显示"评价"按钮）
 			if (!model.isMerchant() && order.shipStatus == 2) {
@@ -1797,12 +1811,12 @@ void ClientView::drawMyOrdersPanel(const ClientModel& model) {
 						rvTxt << L" " << truncateForDisplay(rv->comment, 15);
 					}
 					textMgr_.displayText(rvTxt.str(),
-										 { orderCardX + 900, itemY + 4 },
-										 { 14, 18 }, sf::Color(180, 120, 30));
+										 { orderCardX + 900, itemY + 6 },
+										 { 14, kFontTiny }, sf::Color(180, 120, 30));
 				}
 				else {
 					// 未评价：显示"评价"按钮（退货按钮左侧）
-					constexpr float rvBtnW = 60.f, rvBtnH = 28.f;
+					constexpr float rvBtnW = 60.f, rvBtnH = 32.f;
 					const float rvBtnX = retBtnDX - rvBtnW - 8.f;
 					sf::RectangleShape rvBtn({ rvBtnW, rvBtnH });
 					rvBtn.setPosition({ rvBtnX, rowPos.y + 4.f });
@@ -1811,19 +1825,19 @@ void ClientView::drawMyOrdersPanel(const ClientModel& model) {
 					rvBtn.setOutlineThickness(1.f);
 					window_.draw(rvBtn);
 					textMgr_.displayText(L"评价",
-										 { rvBtnX + 16, rowPos.y + 8.f },
-										 { 14, 18 }, sf::Color::White);
+										 { rvBtnX + 16, rowPos.y + 10.f },
+										 { 14, kFontTiny }, sf::Color::White);
 				}
 			}
 			// 文本
 			textMgr_.displayText(ecs::string::to_utf16(it.name),
-								 { orderCardX + 12,  itemY + 4 }, { 16, 22 }, sf::Color::Black);
+								 { orderCardX + 12,  itemY + 6 }, { 16, kFontSecondary }, sf::Color::Black);
 			std::wostringstream pp; pp << L"¥" << it.price;
-			textMgr_.displayText(pp.str(), { orderCardX + 400, itemY + 4 }, { 16, 22 }, sf::Color(80, 80, 80));
+			textMgr_.displayText(pp.str(), { orderCardX + 400, itemY + 6 }, { 16, kFontSecondary }, sf::Color(80, 80, 80));
 			std::wostringstream qq; qq << it.qty;
-			textMgr_.displayText(qq.str(), { orderCardX + 600, itemY + 4 }, { 16, 22 }, sf::Color::Black);
+			textMgr_.displayText(qq.str(), { orderCardX + 600, itemY + 6 }, { 16, kFontSecondary }, sf::Color::Black);
 			std::wostringstream rq; rq << it.returnedQty;
-			textMgr_.displayText(rq.str(), { orderCardX + 750, itemY + 4 }, { 16, 22 }, sf::Color(200, 100, 100));
+			textMgr_.displayText(rq.str(), { orderCardX + 750, itemY + 6 }, { 16, kFontSecondary }, sf::Color(200, 100, 100));
 			itemY += orderItemRowH;
 		}
 		// 下一张订单间距
@@ -2039,7 +2053,7 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 				if (!model.isMerchant() && order.shipStatus == 2) {
 					const Review* rv = model.findReview(order.id, it.productId);
 					if (rv == nullptr) {
-						constexpr float rvBtnW = 60.f, rvBtnH = 28.f;
+						constexpr float rvBtnW = 60.f, rvBtnH = 32.f;
 						const float rvBtnX = retBtnDX - rvBtnW - 8.f;
 						const sf::FloatRect rvBtnRect{ sf::Vector2f{ rvBtnX, rowPos.y + 4.f }, sf::Vector2f{ rvBtnW, rvBtnH } };
 						if (hit(rvBtnRect, mousePos)) {
@@ -2058,7 +2072,7 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 	}
 	else if (panel_ == Panel::Merchant) {
 		// 复刻 drawMerchantPanel：tableY + 30 起，每行 rowH+4
-		constexpr float rowH = 44.f;
+		constexpr float rowH = 52.f;
 		float rowY = orderCardStartY + 30.f;
 		for (const auto& p : model.products()) {
 			const sf::Vector2f rowPos{ orderCardX, rowY };
@@ -2126,8 +2140,8 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 	}
 	else if (panel_ == Panel::Promotion) {
 		const auto& promotions = model.promotions();
-		float rowY = orderCardStartY + 30.f;
-		constexpr float rowH = 44.f;
+		float rowY = orderCardStartY + 34.f;  // 与 drawPromotionPanel 的 tableY + 34 对齐
+		constexpr float rowH = 60.f;
 		for (const auto& p : promotions) {
 			const sf::Vector2f rowPos{ orderCardX, rowY };
 			if (hit(promoToggleBtnRect(rowPos), mousePos)) {
@@ -2355,12 +2369,12 @@ void ClientView::drawProfilePanel(const ClientModel& model) {
 	drawTabBar(model);
 
 	// 表单标题
-	textMgr_.displayText(L"个人信息（带 * 为必填）", { 100, 100 }, { 20, 26 }, sf::Color(60, 60, 60));
+	textMgr_.displayText(L"个人信息（带 * 为必填）", { 100, 100 }, { 20, kFontInput }, sf::Color(60, 60, 60));
 
 	// 当前用户名只读显示
 	std::wostringstream cur;
 	cur << L"当前用户名：" << ecs::string::to_utf16(model.currentUsername());
-	textMgr_.displayText(cur.str(), { 400, 145 }, { 18, 24 }, sf::Color(80, 80, 80));
+	textMgr_.displayText(cur.str(), { 400, 145 }, { 18, kFontBody }, sf::Color(80, 80, 80));
 
 	// 4 个输入框：新用户名/旧密码/新密码/确认密码
 	const wchar_t* labels[] = { L"新用户名", L"旧密码 *", L"新密码", L"确认新密码" };
@@ -2378,8 +2392,8 @@ void ClientView::drawProfilePanel(const ClientModel& model) {
 		const auto r = profileFieldRect(i);
 		// 标签
 		textMgr_.displayText(labels[i],
-							 { r.position.x - 130, r.position.y + 4 },
-							 { 18, 24 }, sf::Color(80, 80, 80));
+							 { r.position.x - 130, r.position.y + 6 },
+							 { 18, kFontBody }, sf::Color(80, 80, 80));
 		// 输入框背景
 		sf::RectangleShape bg({ r.size.x, r.size.y });
 		bg.setPosition({ r.position.x, r.position.y });
@@ -2393,8 +2407,8 @@ void ClientView::drawProfilePanel(const ClientModel& model) {
 			: ecs::string::to_utf16(*values[i]);
 		if (activeField_ == fields[i]) shown += L"_";  // 光标占位
 		textMgr_.displayText(shown,
-							 { r.position.x + 8, r.position.y + 4 },
-							 { 18, 24 }, sf::Color::Black);
+							 { r.position.x + 8, r.position.y + 6 },
+							 { 18, kFontBody }, sf::Color::Black);
 	}
 
 	// 保存按钮（蓝色）
@@ -2407,7 +2421,7 @@ void ClientView::drawProfilePanel(const ClientModel& model) {
 	window_.draw(submitBtn);
 	textMgr_.displayText(L"保存",
 						 { sb.position.x + 30, sb.position.y + 6 },
-						 { 18, 24 }, sf::Color::White);
+						 { 18, kFontBody }, sf::Color::White);
 
 	// 返回按钮（灰色）
 	const auto bb = profileBackBtnRect();
@@ -2419,16 +2433,16 @@ void ClientView::drawProfilePanel(const ClientModel& model) {
 	window_.draw(backBtn);
 	textMgr_.displayText(L"返回",
 						 { bb.position.x + 30, bb.position.y + 6 },
-						 { 18, 24 }, sf::Color::White);
+						 { 18, kFontBody }, sf::Color::White);
 
 	// 状态信息
 	if (!model.status().empty()) {
-		textMgr_.displayText(model.status(), { 100, 480 }, { 18, 22 }, sf::Color(200, 50, 50));
+		textMgr_.displayText(model.status(), { 100, 480 }, { 18, kFontSecondary }, sf::Color(200, 50, 50));
 	}
 
 	// 提示
 	textMgr_.displayText(L"（旧密码必填用于身份验证；新用户名与新密码至少填一项；新密码 ≥ 4 位）",
-						 { 100, 520 }, { 16, 22 }, sf::Color(150, 150, 150));
+						 { 100, 520 }, { 16, kFontSecondary }, sf::Color(150, 150, 150));
 }
 
 void ClientView::clearProfileInputs() noexcept {
@@ -2449,7 +2463,7 @@ void ClientView::openReviewEditor(std::int64_t orderId, std::int32_t productId) 
 }
 
 sf::FloatRect ClientView::reviewStarRect(int star, const sf::Vector2f& topLeft) {
-	constexpr float starSize = 30.f, gap = 8.f;
+	constexpr float starSize = 36.f, gap = 8.f;
 	const float x = topLeft.x + 20.f + (star - 1) * (starSize + gap);
 	return sf::FloatRect(sf::Vector2f{ x, topLeft.y + 10.f }, sf::Vector2f{ starSize, starSize });
 }
@@ -2481,7 +2495,7 @@ void ClientView::drawReviewEditor(const sf::Vector2f& topLeft) {
 	window_.draw(bg);
 
 	// 标题
-	textMgr_.displayText(L"评价商品", { topLeft.x + 20, topLeft.y - 2 }, { 18, 24 }, sf::Color(60, 60, 60));
+	textMgr_.displayText(L"评价商品", { topLeft.x + 20, topLeft.y - 2 }, { 18, kFontBody }, sf::Color(60, 60, 60));
 
 	// 星级选择（5 颗星，实心=已选，空心=未选）
 	for (int s = 1; s <= 5; ++s) {
@@ -2495,8 +2509,8 @@ void ClientView::drawReviewEditor(const sf::Vector2f& topLeft) {
 		// 星号字符（用 ★ 简化）
 		const wchar_t starCh = L'★';
 		textMgr_.displayText(std::wstring(1, starCh),
-							 { sr.position.x + 7, sr.position.y + 2 },
-							 { 20, 26 }, sf::Color::White);
+							 { sr.position.x + 8, sr.position.y + 3 },
+							 { 20, kFontInput }, sf::Color::White);
 	}
 
 	// 评论文本框
@@ -2510,8 +2524,8 @@ void ClientView::drawReviewEditor(const sf::Vector2f& topLeft) {
 	std::wstring shown = ecs::string::to_utf16(reviewCommentInput_);
 	if (activeField_ == Field::ReviewComment) shown += L"_";
 	textMgr_.displayText(shown,
-						 { cr.position.x + 6, cr.position.y + 4 },
-						 { 16, 22 }, sf::Color::Black);
+						 { cr.position.x + 6, cr.position.y + 6 },
+						 { 16, kFontSecondary }, sf::Color::Black);
 
 	// 提交按钮
 	const auto sb = reviewSubmitBtnRect(topLeft);
@@ -2521,7 +2535,7 @@ void ClientView::drawReviewEditor(const sf::Vector2f& topLeft) {
 	submitBtn.setOutlineColor(sf::Color(40, 120, 60));
 	submitBtn.setOutlineThickness(1.f);
 	window_.draw(submitBtn);
-	textMgr_.displayText(L"提交", { sb.position.x + 22, sb.position.y + 6 }, { 16, 22 }, sf::Color::White);
+	textMgr_.displayText(L"提交", { sb.position.x + 22, sb.position.y + 8 }, { 16, kFontSecondary }, sf::Color::White);
 
 	// 取消按钮
 	const auto cb = reviewCancelBtnRect(topLeft);
@@ -2531,7 +2545,7 @@ void ClientView::drawReviewEditor(const sf::Vector2f& topLeft) {
 	cancelBtn.setOutlineColor(sf::Color(120, 120, 120));
 	cancelBtn.setOutlineThickness(1.f);
 	window_.draw(cancelBtn);
-	textMgr_.displayText(L"取消", { cb.position.x + 22, cb.position.y + 6 }, { 16, 22 }, sf::Color::White);
+	textMgr_.displayText(L"取消", { cb.position.x + 22, cb.position.y + 8 }, { 16, kFontSecondary }, sf::Color::White);
 }
 
 // ===================== "我的订单"面板滚动 =====================
@@ -2542,7 +2556,7 @@ float ClientView::computeMyOrdersContentHeight(const ClientModel& model) const n
 	// 与 drawMyOrdersPanel 的布局同步：每张卡片 90 + items * rowH，卡片间距 12
 	float h = 0.f;
 	for (const auto& order : orders) {
-		h += 90.f + static_cast<float>(order.items.size()) * orderItemRowH + 12.f;
+		h += 96.f + static_cast<float>(order.items.size()) * orderItemRowH + 12.f;
 	}
 	// 末尾的 12 是 drawMyOrdersPanel 里 `y = itemY + 12.f` 累加的，对可见性无影响
 	return h;
