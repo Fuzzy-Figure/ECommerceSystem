@@ -53,6 +53,7 @@ int main() {
 		window.clear(sf::Color(245, 245, 245));
 		view.render(model);
 		window.display();
+		std::this_thread::sleep_for(std::chrono::milliseconds(5));
 	}
 
 	controller.disconnect();
