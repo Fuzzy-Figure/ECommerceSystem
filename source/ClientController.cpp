@@ -540,11 +540,6 @@ void ClientController::requestUpdateProfile() {
 		model_.setStatus(L"新用户名与新密码至少填一项");
 		return;
 	}
-	// 新密码长度校验
-	if (!newPwd.empty() && newPwd.size() < 4) {
-		model_.setStatus(L"新密码长度至少 4 位");
-		return;
-	}
 	// 两次新密码必须一致
 	if (newPwd != confirmPwd) {
 		model_.setStatus(L"两次输入的新密码不一致");

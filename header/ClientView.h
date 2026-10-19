@@ -300,10 +300,10 @@ private:
 	sf::FloatRect orderActionBtnRect(const sf::Vector2f& cardTop) const;
 	// 顶部 Tab 标签矩形；index 取 0/1/2 对应 ProductList/Cart/MyOrders
 	static sf::FloatRect tabBtnRect(int index);
-	// 登录面板输入框矩形；field=0 用户名，1 密码
-	static sf::FloatRect inputFieldRect(int field);
-	// 登录/注册按钮矩形；btn=0 登录，1 注册
-	static sf::FloatRect authBtnRect(int btn);
+	// 登录面板输入框矩形；field=0 用户名，1 密码（水平按窗口宽度动态居中）
+	sf::FloatRect inputFieldRect(int field);
+	// 登录/注册按钮矩形；btn=0 登录，1 注册（两个按钮作为整体水平居中）
+	sf::FloatRect authBtnRect(int btn);
 	// 右上角登出按钮矩形（窗口右边界附近，y=tabY）
 	sf::FloatRect logoutBtnRect() const;
 	// 绘制顶部 Tab 标签栏 + 右上角用户名/登出按钮（仅 ProductList/Cart/MyOrders 三面板用）
