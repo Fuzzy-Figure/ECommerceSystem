@@ -806,7 +806,7 @@ void ClientView::drawUserManagementPanel(const ClientModel& model) {
 	textMgr_.displayText(L"角色",     { orderCardX + 420, tableY }, { 22, kFontHeader }, sf::Color(120, 120, 120));
 
 	if (users.empty()) {
-		textMgr_.displayTextInCenter(L"暂无用户数据", { 20, tableY + 40 }, sf::Color(150, 150, 150));
+		textMgr_.displayTextInCenter(L"暂无用户数据", { 20, 40 }, sf::Color(150, 150, 150));
 		return;
 	}
 
