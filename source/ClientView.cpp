@@ -742,7 +742,7 @@ void ClientView::drawPromotionFormPanel(const ClientModel& model) {
 			const auto r = promoSlotRect(i);
 			// 标签
 			textMgr_.displayText(slotLabels[i],
-								 { r.position.x, r.position.y - 30.f }, { 19, kFontInput }, sf::Color(80, 80, 80));
+								 { r.position.x, r.position.y - 29.f }, { 19, kFontInput }, sf::Color(80, 80, 80));
 			// 输入框
 			sf::RectangleShape box({ r.size.x, r.size.y });
 			box.setPosition({ r.position.x, r.position.y });
@@ -1818,7 +1818,7 @@ void ClientView::drawMyOrdersPanel(const ClientModel& model) {
 	if (reviewEditorOpen()) {
 		const float winW = static_cast<float>(window_.getSize().x);
 		const float winH = static_cast<float>(window_.getSize().y);
-		constexpr float editorW = 500.f, editorH = 200.f;
+		constexpr float editorW = 1000.f, editorH = 600.f;
 		const sf::Vector2f editorTop{ (winW - editorW) / 2.f, (winH - editorH) / 2.f };
 		// 半透明遮罩
 		sf::RectangleShape mask({ winW, winH });
@@ -1960,7 +1960,7 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 		if (reviewEditorOpen()) {
 			const float winW = static_cast<float>(window_.getSize().x);
 			const float winH = static_cast<float>(window_.getSize().y);
-			constexpr float editorW = 500.f, editorH = 200.f;
+			constexpr float editorW = 1000.f, editorH = 600.f;
 			const sf::Vector2f editorTop{ (winW - editorW) / 2.f, (winH - editorH) / 2.f };
 			// 星级选择
 			for (int s = 1; s <= 5; ++s) {
@@ -2321,22 +2321,22 @@ sf::FloatRect ClientView::merchantCreateBackBtnRect() {
 
 // 个人信息表单输入框矩形；field 取 0..3 对应 新用户名/旧密码/新密码/确认密码
 sf::FloatRect ClientView::profileFieldRect(int field) {
-	constexpr float x = 400.f, w = 360.f, h = 32.f;
-	constexpr float startY = 200.f, gap = 50.f;
+	constexpr float x = 400.f, w = 600.f, h = 48.f;
+	constexpr float startY = 200.f, gap = 64.f;
 	const float y = startY + field * gap;
 	return sf::FloatRect(sf::Vector2f{ x, y }, sf::Vector2f{ w, h });
 }
 
 // "保存"按钮矩形（表单底部左侧）
 sf::FloatRect ClientView::profileSubmitBtnRect() {
-	constexpr float w = 100.f, h = 36.f;
-	return sf::FloatRect(sf::Vector2f{ 400, 410 }, sf::Vector2f{ w, h });
+	constexpr float w = 120.f, h = 44.f;
+	return sf::FloatRect(sf::Vector2f{ 400, 480 }, sf::Vector2f{ w, h });
 }
 
 // "返回"按钮矩形（保存按钮右侧）
 sf::FloatRect ClientView::profileBackBtnRect() {
-	constexpr float w = 100.f, h = 36.f;
-	return sf::FloatRect(sf::Vector2f{ 520, 410 }, sf::Vector2f{ w, h });
+	constexpr float w = 120.f, h = 44.f;
+	return sf::FloatRect(sf::Vector2f{ 540, 480 }, sf::Vector2f{ w, h });
 }
 
 void ClientView::drawProfilePanel(const ClientModel& model) {
@@ -2367,7 +2367,7 @@ void ClientView::drawProfilePanel(const ClientModel& model) {
 		const auto r = profileFieldRect(i);
 		// 标签
 		textMgr_.displayText(labels[i],
-							 { r.position.x - 130, r.position.y + 6 },
+							 { r.position.x - 160, r.position.y + 8 },
 							 { 18, kFontBody }, sf::Color(80, 80, 80));
 		// 输入框背景
 		sf::RectangleShape bg({ r.size.x, r.size.y });
@@ -2382,7 +2382,7 @@ void ClientView::drawProfilePanel(const ClientModel& model) {
 			: ecs::string::to_utf16(*values[i]);
 		if (activeField_ == fields[i]) shown += L"_";  // 光标占位
 		textMgr_.displayText(shown,
-							 { r.position.x + 8, r.position.y + 6 },
+							 { r.position.x + 8, r.position.y + 9 },
 							 { 18, kFontBody }, sf::Color::Black);
 	}
 
@@ -2395,7 +2395,7 @@ void ClientView::drawProfilePanel(const ClientModel& model) {
 	submitBtn.setOutlineThickness(1.f);
 	window_.draw(submitBtn);
 	textMgr_.displayText(L"保存",
-						 { sb.position.x + 30, sb.position.y + 6 },
+						 { sb.position.x + 32, sb.position.y + 8 },
 						 { 18, kFontBody }, sf::Color::White);
 
 	// 返回按钮（灰色）
@@ -2407,17 +2407,17 @@ void ClientView::drawProfilePanel(const ClientModel& model) {
 	backBtn.setOutlineThickness(1.f);
 	window_.draw(backBtn);
 	textMgr_.displayText(L"返回",
-						 { bb.position.x + 30, bb.position.y + 6 },
+						 { bb.position.x + 32, bb.position.y + 8 },
 						 { 18, kFontBody }, sf::Color::White);
 
 	// 状态信息
 	if (!model.status().empty()) {
-		textMgr_.displayText(model.status(), { 100, 480 }, { 18, kFontSecondary }, sf::Color(200, 50, 50));
+		textMgr_.displayText(model.status(), { 100, 540 }, { 18, kFontSecondary }, sf::Color(200, 50, 50));
 	}
 
 	// 提示
 	textMgr_.displayText(L"（旧密码必填用于身份验证；新用户名与新密码至少填一项）",
-						 { 100, 520 }, { 16, kFontSecondary }, sf::Color(150, 150, 150));
+						 { 100, 580 }, { 16, kFontSecondary }, sf::Color(150, 150, 150));
 }
 
 void ClientView::clearProfileInputs() noexcept {
@@ -2440,26 +2440,26 @@ void ClientView::openReviewEditor(std::int64_t orderId, std::int32_t productId) 
 sf::FloatRect ClientView::reviewStarRect(int star, const sf::Vector2f& topLeft) {
 	constexpr float starSize = 36.f, gap = 8.f;
 	const float x = topLeft.x + 20.f + (star - 1) * (starSize + gap);
-	return sf::FloatRect(sf::Vector2f{ x, topLeft.y + 10.f }, sf::Vector2f{ starSize, starSize });
+	return sf::FloatRect(sf::Vector2f{ x, topLeft.y + 30.f }, sf::Vector2f{ starSize, starSize });
 }
 
 sf::FloatRect ClientView::reviewCommentRect(const sf::Vector2f& topLeft) {
-	return sf::FloatRect(sf::Vector2f{ topLeft.x + 20.f, topLeft.y + 60.f },
-						 sf::Vector2f{ 460.f, 70.f });
+	return sf::FloatRect(sf::Vector2f{ topLeft.x + 20.f, topLeft.y + 90.f },
+						 sf::Vector2f{ 920.f, 420.f });
 }
 
 sf::FloatRect ClientView::reviewSubmitBtnRect(const sf::Vector2f& topLeft) {
-	return sf::FloatRect(sf::Vector2f{ topLeft.x + 300.f, topLeft.y + 145.f },
-						 sf::Vector2f{ 80.f, 32.f });
+	return sf::FloatRect(sf::Vector2f{ topLeft.x + 724.f, topLeft.y + 540.f },
+						 sf::Vector2f{ 120.f, 40.f });
 }
 
 sf::FloatRect ClientView::reviewCancelBtnRect(const sf::Vector2f& topLeft) {
-	return sf::FloatRect(sf::Vector2f{ topLeft.x + 400.f, topLeft.y + 145.f },
-						 sf::Vector2f{ 80.f, 32.f });
+	return sf::FloatRect(sf::Vector2f{ topLeft.x + 860.f, topLeft.y + 540.f },
+						 sf::Vector2f{ 120.f, 40.f });
 }
 
 void ClientView::drawReviewEditor(const sf::Vector2f& topLeft) {
-	constexpr float editorW = 500.f, editorH = 200.f;
+	constexpr float editorW = 1000.f, editorH = 600.f;
 
 	// 编辑器背景（白色圆角模拟 + 边框）
 	sf::RectangleShape bg({ editorW, editorH });
@@ -2510,7 +2510,7 @@ void ClientView::drawReviewEditor(const sf::Vector2f& topLeft) {
 	submitBtn.setOutlineColor(sf::Color(40, 120, 60));
 	submitBtn.setOutlineThickness(1.f);
 	window_.draw(submitBtn);
-	textMgr_.displayText(L"提交", { sb.position.x + 22, sb.position.y + 8 }, { 16, kFontSecondary }, sf::Color::White);
+	textMgr_.displayText(L"提交", { sb.position.x + 34, sb.position.y + 7 }, { 16, kFontSecondary }, sf::Color::White);
 
 	// 取消按钮
 	const auto cb = reviewCancelBtnRect(topLeft);
@@ -2520,7 +2520,7 @@ void ClientView::drawReviewEditor(const sf::Vector2f& topLeft) {
 	cancelBtn.setOutlineColor(sf::Color(120, 120, 120));
 	cancelBtn.setOutlineThickness(1.f);
 	window_.draw(cancelBtn);
-	textMgr_.displayText(L"取消", { cb.position.x + 22, cb.position.y + 8 }, { 16, kFontSecondary }, sf::Color::White);
+	textMgr_.displayText(L"取消", { cb.position.x + 34, cb.position.y + 7 }, { 16, kFontSecondary }, sf::Color::White);
 }
 
 // ===================== "我的订单"面板滚动 =====================
