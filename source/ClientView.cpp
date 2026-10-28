@@ -110,6 +110,14 @@ void ClientView::render(const ClientModel& model) {
 		case Panel::Dashboard:        drawDashboardPanel(model);       break;
 		case Panel::Profile:          drawProfilePanel(model);         break;
 	}
+
+	// 全局状态栏：右上角"用户：X"/登出按钮下方，右对齐（长文本向左延伸，避免与按钮重叠）
+	if (!model.status().empty()) {
+		const auto& st = model.status();
+		const float textW = textMgr_.measureText(st, kFontBody).x;
+		const float x = std::max(0.f, static_cast<float>(window_.getSize().x) - 20.f - textW);
+		textMgr_.displayText(st, { x, tabY + tabH + 6.f }, { 18, kFontBody }, sf::Color(200, 50, 50));
+	}
 }
 
 // ===================== 登录面板 =====================
@@ -161,11 +169,6 @@ void ClientView::drawLoginPanel(const ClientModel& model) {
 	regBtn.setOutlineThickness(1.f);
 	window_.draw(regBtn);
 	textMgr_.displayText(L"注册", { regRect.position.x + 70, regRect.position.y + 14 }, { 22, kFontHeader }, sf::Color::White);
-
-	// 状态信息（与输入框左对齐）
-	if (!model.status().empty()) {
-		textMgr_.displayText(model.status(), { userRect.position.x, 580 }, { 20, kFontInput }, sf::Color(200, 50, 50));
-	}
 
 	// 提示文字
 	textMgr_.displayText(L"（提示：点击输入框切换聚焦，Enter 键等同登录）",
@@ -427,11 +430,6 @@ void ClientView::drawMerchantCreatePanel(const ClientModel& model) {
 						 { bb.position.x + 30, bb.position.y + 12 },
 						 { 18, kFontBody }, sf::Color::White);
 
-	// 状态信息
-	if (!model.status().empty()) {
-		textMgr_.displayText(model.status(), { 100, 580 }, { 18, kFontSecondary }, sf::Color(200, 50, 50));
-	}
-
 	// 提示
 	textMgr_.displayText(L"（Tab 键切换输入框，Enter 键等同提交）",
 						 { 100, 620 }, { 16, kFontSecondary }, sf::Color(150, 150, 150));
@@ -532,9 +530,6 @@ void ClientView::drawMerchantEditPanel(const ClientModel& model) {
 						 { bb.position.x + 30, bb.position.y + 12 },
 						 { 18, kFontBody }, sf::Color::White);
 
-	if (!model.status().empty()) {
-		textMgr_.displayText(model.status(), { 100, 580 }, { 18, kFontSecondary }, sf::Color(200, 50, 50));
-	}
 	textMgr_.displayText(L"（Tab 键切换输入框，Enter 键等同保存）",
 						 { 100, 620 }, { 16, kFontSecondary }, sf::Color(150, 150, 150));
 }
@@ -787,10 +782,6 @@ void ClientView::drawPromotionFormPanel(const ClientModel& model) {
 	backBtn.setOutlineThickness(1.f);
 	window_.draw(backBtn);
 	textMgr_.displayText(L"返回", { bb.position.x + 34, bb.position.y + 14 }, { 22, kFontHeader }, sf::Color::White);
-
-	if (!model.status().empty()) {
-		textMgr_.displayText(model.status(), { 100, 500 }, { 22, kFontInput }, sf::Color(200, 50, 50));
-	}
 }
 
 // ===================== 管理员用户列表面板 =====================
@@ -2429,11 +2420,6 @@ void ClientView::drawProfilePanel(const ClientModel& model) {
 	textMgr_.displayText(L"返回",
 						 { bb.position.x + 32, bb.position.y + 8 },
 						 { 18, kFontBody }, sf::Color::White);
-
-	// 状态信息
-	if (!model.status().empty()) {
-		textMgr_.displayText(model.status(), { 100, 540 }, { 18, kFontSecondary }, sf::Color(200, 50, 50));
-	}
 
 	// 提示
 	textMgr_.displayText(L"（旧密码必填用于身份验证；新用户名与新密码至少填一项）",
