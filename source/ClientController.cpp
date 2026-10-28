@@ -82,6 +82,34 @@ void ClientController::requestCheckout() {
 	model_.setStatus(L"已提交结算请求，等待服务器响应...");
 }
 
+void ClientController::requestCartQuote() {
+	const auto& cart = model_.cart();
+	if (cart.empty()) {
+		model_.clearQuote();
+		return;
+	}
+	if (!socket_) {
+		model_.clearQuote();
+		return;
+	}
+	nlohmann::json items = nlohmann::json::array();
+	for (const auto& c : cart) {
+		items.push_back({
+			{"productId", c.productId},
+			{"qty",       c.qty}
+						});
+	}
+	const nlohmann::json req = {
+		{"code",  static_cast<int>(proto::RequestCode::CartQuote)},
+		{"items", items}
+	};
+	if (!proto::sendJson(*socket_, req)) {
+		model_.clearQuote();
+		return;
+	}
+	// 报价请求不打扰状态栏，响应回来后购物车面板自动刷新
+}
+
 void ClientController::requestListOrders() {
 	if (!socket_) {
 		model_.setStatus(L"未连接服务器，无法拉取订单");
@@ -618,6 +646,8 @@ void ClientController::handleEvent(const sf::Event& event) {
 				case ClientView::ClickAction::RemoveFromCart:
 					model_.removeFromCart(action.arg);
 					model_.setStatus(L"已从购物车移除");
+					model_.clearQuote();
+					requestCartQuote();
 					break;
 				case ClientView::ClickAction::Checkout:
 					requestCheckout();
@@ -681,6 +711,10 @@ void ClientController::handleEvent(const sf::Event& event) {
 						// 进入商品列表/订单列表时自动拉取最新数据
 						if (target == ClientView::Panel::ProductList && !model_.isMerchant()) {
 							requestProductList();
+						}
+						else if (target == ClientView::Panel::Cart) {
+							// 进入购物车：刷新促销报价
+							requestCartQuote();
 						}
 						else if (target == ClientView::Panel::MyOrders) {
 							view_.resetMyOrdersScroll();  // 切回时重置滚动到顶
@@ -1082,13 +1116,35 @@ void ClientController::processMessage(nlohmann::json& msg) {
 					<< L"  实付 ¥" << finalTotal;
 				model_.setStatus(ss.str());
 				model_.clearCart();
+				model_.clearQuote();
 				// 结算成功后切回商品列表，便于看到库存变化
 				view_.setPanel(ClientView::Panel::ProductList);
 				requestProductList();
 			}
 			else {
 				const auto m = msg.value("message", std::string{ "未知错误" });
-				model_.setStatus(L"结算失败：" + ecs::string::to_utf16(m));
+				model_.setStatus(ecs::string::to_utf16(m));  // 服务端 message 已带"结算失败："前缀
+			}
+			break;
+		}
+		case static_cast<int>(proto::ResponseCode::CartQuoteResult): {
+			if (msg.value("success", false)) {
+				CartQuote quote;
+				quote.originalTotal = msg.value("originalTotal", 0.0);
+				quote.totalDiscount = msg.value("totalDiscount", 0.0);
+				quote.finalTotal    = msg.value("finalTotal", 0.0);
+				if (msg.contains("promotions") && msg["promotions"].is_array()) {
+					for (const auto& pj : msg["promotions"]) {
+						quote.promotions.emplace_back(
+							pj.value("description", std::string{}),
+							pj.value("amount", 0.0));
+					}
+				}
+				model_.setQuote(std::move(quote));
+			}
+			else {
+				// 报价失败（如商品已删除）：不展示促销明细
+				model_.clearQuote();
 			}
 			break;
 		}

@@ -4,12 +4,21 @@
 
 // === Promotion 基类 ===
 double Promotion::apply(const std::vector<CartItem>& cart, double currentTotal) const {
-	// 先算内层装饰的累计折扣（叶子策略 inner_ 为 nullptr）
-	const double prev = inner_ ? inner_->apply(cart, currentTotal) : 0.0;
+	std::vector<std::pair<std::string, double>> ignored;
+	return applyWithBreakdown(cart, currentTotal, ignored);
+}
+
+double Promotion::applyWithBreakdown(const std::vector<CartItem>& cart, double currentTotal,
+									 std::vector<std::pair<std::string, double>>& breakdown) const {
+	// 先算内层装饰的累计折扣（叶子策略 inner_ 为 nullptr），内层明细已按应用顺序写入 breakdown
+	const double prev = inner_ ? inner_->applyWithBreakdown(cart, currentTotal, breakdown) : 0.0;
 	const double afterPrev = currentTotal - prev;
 	const double mine = myDiscount(cart, afterPrev);
 	// 防御：单步折扣不能让金额变负
 	const double safeMine = (mine > afterPrev) ? afterPrev : mine;
+	if (safeMine > 0.0) {
+		breakdown.emplace_back(description(), safeMine);
+	}
 	return prev + safeMine;
 }
 

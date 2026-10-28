@@ -14,6 +14,7 @@ namespace proto {
 		// 结算时一次性发 Checkout 上传全部 items。保留枚举项以贴合 PPT 协议码示例。
 		AddToCart,     // 加入购物车：{productId, qty}（未启用）
 		Checkout,      // 结算当前购物车：{userId, items:[{productId, qty}]}
+		CartQuote,     // 购物车报价预览：{items:[{productId, qty}]} → 促销明细（不下单）
 		AfterSale,     // 售后退货：{orderId, productId, qty}
 		ListOrders,    // 拉取历史订单列表：{userId}
 		Login,         // 登录：{username, password}
@@ -43,6 +44,7 @@ namespace proto {
 		ProductList,      // 商品列表
 		AddToCartResult,  // 加购结果（未启用，对应 AddToCart）
 		CheckoutResult,   // 结算结果：{success, orderId, originalTotal, discount, total, message}
+		CartQuoteResult,  // 购物车报价：{success, originalTotal, promotions:[{description,amount}], totalDiscount, finalTotal}
 		AfterSaleResult,  // 售后结果：{success, refund, message}
 		Error,            // 错误：{message}
 		OrderList,        // 历史订单列表：{orders:[...]}

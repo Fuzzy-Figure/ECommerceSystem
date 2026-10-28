@@ -10,16 +10,16 @@ ClientView::ClientView(sf::RenderWindow& window, TextManager& text, ImageManager
 namespace {
 	// === 全局字号表（displayText/displayTextInXxx 的 size.y 即字号）===
 	// TextManager 只读取 size.y，size.x 为无效参数（历史遗留），替换时保留 x 原值。
-	constexpr auto kFontTiny      = 22u;  // 订单明细表头等最小文字（原 18）
-	constexpr auto kFontSmall     = 24u;  // 小按钮/卡片描述/评分行（原 20）
+	constexpr auto kFontTiny = 22u;  // 订单明细表头等最小文字（原 18）
+	constexpr auto kFontSmall = 24u;  // 小按钮/卡片描述/评分行（原 20）
 	constexpr auto kFontSecondary = 26u;  // 状态栏/次要信息/小按钮（原 22）
-	constexpr auto kFontBody      = 28u;  // 正文/表格/表单主力（原 24）
-	constexpr auto kFontInput     = 30u;  // 输入框文字/开关（原 25/26）
-	constexpr auto kFontHeader    = 32u;  // 表头/主按钮/卡片名称/面板标题（原 28）
-	constexpr auto kFontNumber    = 34u;  // 统计卡数值/空提示（原 30）
-	constexpr auto kFontBig       = 36u;  // 排行榜标题/结算按钮（原 32）
-	constexpr auto kFontTotal     = 40u;  // 购物车合计（原 36）
-	constexpr auto kFontTitle     = 46u;  // 大标题（原 40）
+	constexpr auto kFontBody = 28u;  // 正文/表格/表单主力（原 24）
+	constexpr auto kFontInput = 30u;  // 输入框文字/开关（原 25/26）
+	constexpr auto kFontHeader = 32u;  // 表头/主按钮/卡片名称/面板标题（原 28）
+	constexpr auto kFontNumber = 34u;  // 统计卡数值/空提示（原 30）
+	constexpr auto kFontBig = 36u;  // 排行榜标题/结算按钮（原 32）
+	constexpr auto kFontTotal = 40u;  // 购物车合计（原 36）
+	constexpr auto kFontTitle = 46u;  // 大标题（原 40）
 	constexpr auto kFontStatValue = 48u;  // Dashboard 大数字（原 42）
 
 	// === 商品列表面板布局 ===
@@ -52,7 +52,6 @@ namespace {
 	// 结算按钮 + 总额
 	constexpr float checkoutBtnX = 1150.f, checkoutBtnY = 890.f;
 	constexpr float checkoutBtnW = 200.f, checkoutBtnH = 66.f;
-	constexpr float cartTotalY = 900.f;
 
 	// === 我的订单面板布局 ===
 	constexpr float orderCardX = 200.f, orderCardStartY = 150.f;
@@ -225,7 +224,8 @@ void ClientView::drawMerchantPanel(const ClientModel& model) {
 			if (stats[i].isMoney) {
 				vs.precision(2);
 				vs << std::fixed << stats[i].value << stats[i].suffix;
-			} else {
+			}
+			else {
 				vs << static_cast<std::int64_t>(stats[i].value) << stats[i].suffix;
 			}
 			textMgr_.displayText(vs.str(), { x + 14, statY + 36 }, { 22, kFontNumber }, stats[i].color);
@@ -601,9 +601,9 @@ void ClientView::drawPromotionPanel(const ClientModel& model) {
 	else {
 		// 表头
 		const float tableY = orderCardStartY;
-		textMgr_.displayText(L"类型",   { orderCardX + 12,  tableY }, { 22, kFontHeader }, sf::Color(120, 120, 120));
-		textMgr_.displayText(L"规则",   { orderCardX + 200, tableY }, { 22, kFontHeader }, sf::Color(120, 120, 120));
-		textMgr_.displayText(L"状态",   { orderCardX + 650, tableY }, { 22, kFontHeader }, sf::Color(120, 120, 120));
+		textMgr_.displayText(L"类型", { orderCardX + 12,  tableY }, { 22, kFontHeader }, sf::Color(120, 120, 120));
+		textMgr_.displayText(L"规则", { orderCardX + 200, tableY }, { 22, kFontHeader }, sf::Color(120, 120, 120));
+		textMgr_.displayText(L"状态", { orderCardX + 650, tableY }, { 22, kFontHeader }, sf::Color(120, 120, 120));
 
 		float rowY = tableY + 34.f;
 		constexpr float rowH = 60.f;
@@ -801,9 +801,9 @@ void ClientView::drawUserManagementPanel(const ClientModel& model) {
 	const float tableY = orderCardStartY;
 
 	// 表头
-	textMgr_.displayText(L"ID",       { orderCardX + 12,  tableY }, { 22, kFontHeader }, sf::Color(120, 120, 120));
-	textMgr_.displayText(L"用户名",   { orderCardX + 120, tableY }, { 22, kFontHeader }, sf::Color(120, 120, 120));
-	textMgr_.displayText(L"角色",     { orderCardX + 420, tableY }, { 22, kFontHeader }, sf::Color(120, 120, 120));
+	textMgr_.displayText(L"ID", { orderCardX + 12,  tableY }, { 22, kFontHeader }, sf::Color(120, 120, 120));
+	textMgr_.displayText(L"用户名", { orderCardX + 120, tableY }, { 22, kFontHeader }, sf::Color(120, 120, 120));
+	textMgr_.displayText(L"角色", { orderCardX + 420, tableY }, { 22, kFontHeader }, sf::Color(120, 120, 120));
 
 	if (users.empty()) {
 		textMgr_.displayTextInCenter(L"暂无用户数据", { 20, 40 }, sf::Color(150, 150, 150));
@@ -861,8 +861,8 @@ void ClientView::drawDashboardPanel(const ClientModel& model) {
 		btn.setOutlineThickness(1.5f);
 		window_.draw(btn);
 		textMgr_.displayText(rangeNames[i],
-			{ r.position.x + 14, r.position.y + 8 }, { 20, kFontInput },
-			active ? sf::Color::White : sf::Color(80, 80, 80));
+							 { r.position.x + 14, r.position.y + 8 }, { 20, kFontInput },
+							 active ? sf::Color::White : sf::Color(80, 80, 80));
 	}
 
 	// === 上方 4 个数字卡片（2×2 网格） ===
@@ -879,19 +879,19 @@ void ClientView::drawDashboardPanel(const ClientModel& model) {
 		window_.draw(bar);
 		textMgr_.displayText(label, { x + 24, y + 14 }, { 22, kFontHeader }, sf::Color(120, 120, 120));
 		textMgr_.displayText(value, { x + 24, y + 56 }, { 34, kFontStatValue }, accent);
-		};
+	};
 
 	auto fmtMoney = [](double v) -> std::wstring {
 		std::wostringstream ss;
 		ss << std::fixed << std::setprecision(2) << v;
 		return ss.str();
-		};
+	};
 	auto fmtInt = [](int v) -> std::wstring { return std::to_wstring(v); };
 
-	drawCard(100, 130, rangeLabel + L"订单数",  fmtInt(s.rangeOrders),    sf::Color(50, 120, 200));
-	drawCard(500, 130, rangeLabel + L"销售额",  fmtMoney(s.rangeRevenue) + L" 元", sf::Color(50, 160, 90));
-	drawCard(100, 270, L"总订单数",              fmtInt(s.totalOrders),     sf::Color(120, 80, 200));
-	drawCard(500, 270, L"总销售额",              fmtMoney(s.totalRevenue) + L" 元", sf::Color(220, 140, 40));
+	drawCard(100, 130, rangeLabel + L"订单数", fmtInt(s.rangeOrders), sf::Color(50, 120, 200));
+	drawCard(500, 130, rangeLabel + L"销售额", fmtMoney(s.rangeRevenue) + L" 元", sf::Color(50, 160, 90));
+	drawCard(100, 270, L"总订单数", fmtInt(s.totalOrders), sf::Color(120, 80, 200));
+	drawCard(500, 270, L"总销售额", fmtMoney(s.totalRevenue) + L" 元", sf::Color(220, 140, 40));
 
 	// === 下方 排行榜 ===
 	const float listY = 420;
@@ -911,8 +911,8 @@ void ClientView::drawDashboardPanel(const ClientModel& model) {
 		btn.setOutlineThickness(1.5f);
 		window_.draw(btn);
 		textMgr_.displayText(sortNames[i],
-			{ r.position.x + 16, r.position.y + 5 }, { 18, kFontBody },
-			active ? sf::Color::White : sf::Color(80, 80, 80));
+							 { r.position.x + 16, r.position.y + 5 }, { 18, kFontBody },
+							 active ? sf::Color::White : sf::Color(80, 80, 80));
 	}
 
 	if (top.empty()) {
@@ -924,10 +924,11 @@ void ClientView::drawDashboardPanel(const ClientModel& model) {
 	std::vector<TopProduct> sorted = top;
 	if (sortBy == 1) {
 		std::sort(sorted.begin(), sorted.end(),
-			[](const TopProduct& a, const TopProduct& b) { return a.qtySold > b.qtySold; });
-	} else {
+				  [](const TopProduct& a, const TopProduct& b) { return a.qtySold > b.qtySold; });
+	}
+	else {
 		std::sort(sorted.begin(), sorted.end(),
-			[](const TopProduct& a, const TopProduct& b) { return a.revenue > b.revenue; });
+				  [](const TopProduct& a, const TopProduct& b) { return a.revenue > b.revenue; });
 	}
 
 	double maxRev = 0.01;
@@ -959,7 +960,8 @@ void ClientView::drawDashboardPanel(const ClientModel& model) {
 		float barW;
 		if (sortBy == 1) {
 			barW = barMaxW * static_cast<float>(t.qtySold) / static_cast<float>(maxQty);
-		} else {
+		}
+		else {
 			barW = barMaxW * static_cast<float>(t.revenue) / static_cast<float>(maxRev);
 		}
 		sf::RectangleShape bar({ barW, 28 });
@@ -973,7 +975,8 @@ void ClientView::drawDashboardPanel(const ClientModel& model) {
 		std::wostringstream ss;
 		if (sortBy == 1) {
 			ss << t.qtySold << L" 件（" << std::fixed << std::setprecision(2) << t.revenue << L" 元）";
-		} else {
+		}
+		else {
 			ss << std::fixed << std::setprecision(2) << t.revenue << L" 元（售 " << t.qtySold << L" 件）";
 		}
 		textMgr_.displayText(ss.str(), { barX + barW + 12, y + 14 }, { 22, kFontHeader }, sf::Color(60, 60, 60));
@@ -1412,7 +1415,8 @@ void ClientView::drawProductListPanel(const ClientModel& model) {
 	window_.draw(searchBg);
 	if (searchInput_.empty()) {
 		textMgr_.displayText(L"搜索商品名称...", { searchX + 10, searchY + 6 }, { 16, kFontSecondary }, sf::Color(180, 180, 180));
-	} else {
+	}
+	else {
 		textMgr_.displayText(ecs::string::to_utf16(searchInput_), { searchX + 10, searchY + 6 }, { 16, kFontSecondary }, sf::Color::Black);
 	}
 
@@ -1426,7 +1430,8 @@ void ClientView::drawProductListPanel(const ClientModel& model) {
 		window_.draw(bg);
 		if (input.empty()) {
 			textMgr_.displayText(placeholder, { boxX + 8, searchY + 6 }, { 14, kFontSecondary }, sf::Color(180, 180, 180));
-		} else {
+		}
+		else {
 			textMgr_.displayText(ecs::string::to_utf16(input), { boxX + 8, searchY + 6 }, { 14, kFontSecondary }, sf::Color::Black);
 		}
 	};
@@ -1446,7 +1451,7 @@ void ClientView::drawProductListPanel(const ClientModel& model) {
 		bg.setOutlineThickness(active ? 2.f : 1.f);
 		window_.draw(bg);
 		textMgr_.displayText(label, { rect.position.x + 6, rect.position.y + 8 }, { 14, kFontSecondary },
-			active ? sf::Color::White : sf::Color(80, 80, 80));
+							 active ? sf::Color::White : sf::Color(80, 80, 80));
 	};
 	drawSortBtn(0, L"默认", 0);
 	drawSortBtn(1, L"价格↑", 1);
@@ -1465,12 +1470,10 @@ void ClientView::drawProductListPanel(const ClientModel& model) {
 	double minPrice = 0.0, maxPrice = 0.0;
 	bool hasMin = false, hasMax = false;
 	if (!priceMinInput_.empty()) {
-		try { minPrice = std::stod(priceMinInput_); hasMin = true; }
-		catch (...) { hasMin = false; }
+		try { minPrice = std::stod(priceMinInput_); hasMin = true; } catch (...) { hasMin = false; }
 	}
 	if (!priceMaxInput_.empty()) {
-		try { maxPrice = std::stod(priceMaxInput_); hasMax = true; }
-		catch (...) { hasMax = false; }
+		try { maxPrice = std::stod(priceMaxInput_); hasMax = true; } catch (...) { hasMax = false; }
 	}
 	std::vector<Product> filtered;
 	for (const auto& p : allProducts) {
@@ -1489,10 +1492,11 @@ void ClientView::drawProductListPanel(const ClientModel& model) {
 	// 排序：1=价格升序/2=价格降序/0=默认（原顺序）
 	if (productSortMode_ == 1) {
 		std::sort(filtered.begin(), filtered.end(),
-			[](const Product& a, const Product& b) { return a.price < b.price; });
-	} else if (productSortMode_ == 2) {
+				  [](const Product& a, const Product& b) { return a.price < b.price; });
+	}
+	else if (productSortMode_ == 2) {
 		std::sort(filtered.begin(), filtered.end(),
-			[](const Product& a, const Product& b) { return a.price > b.price; });
+				  [](const Product& a, const Product& b) { return a.price > b.price; });
 	}
 
 	if (filtered.empty()) {
@@ -1560,7 +1564,7 @@ void ClientView::drawCard(const Product& p, const sf::Vector2f& pos, const sf::V
 	if (p.reviewCount > 0) {
 		std::wostringstream rateStr;
 		rateStr << L"★ " << std::fixed << std::setprecision(1) << p.avgRating
-				<< L" (" << p.reviewCount << L")";
+			<< L" (" << p.reviewCount << L")";
 		textMgr_.displayText(rateStr.str(), { pos.x + 10, pos.y + 374 }, { 16, kFontSmall }, sf::Color(200, 140, 30));
 	}
 	else {
@@ -1650,10 +1654,27 @@ void ClientView::drawCartPanel(const ClientModel& model) {
 							 { 16, kFontSecondary }, sf::Color::White);
 	}
 
-	// 总额
-	std::wostringstream totalStr;
-	totalStr << L"总额：¥ " << model.cartTotal();
-	textMgr_.displayText(totalStr.str(), { cartSubX - 200, cartTotalY }, { 24, kFontTotal }, sf::Color(200, 50, 50));
+	// 促销报价明细（服务端促销链计算，与结算同一套逻辑；报价未返回时原价=现价）
+	const auto& quote = model.quote();
+	float quoteY = 780.f;
+	const auto quoteLine = [&](const std::wstring& s, unsigned font, sf::Color color) {
+		textMgr_.displayText(s, { cartRowX, quoteY }, { 20.f, static_cast<float>(font) }, color);
+		quoteY += 40.f;
+	};
+	const double shownOriginal = quote.valid ? quote.originalTotal : model.cartTotal();
+	quoteLine(std::format(L"原价：{:g}元", shownOriginal), kFontBody, sf::Color(80, 80, 80));
+	if (quote.valid) {
+		for (const auto& [desc, amount] : quote.promotions) {
+			quoteLine(std::format(L"{}：优惠{:g}元", ecs::string::to_utf16(desc), amount),
+					  kFontBody, sf::Color(30, 120, 30));
+		}
+		if (!quote.promotions.empty()) {
+			quoteLine(std::format(L"总优惠：{:g}元", quote.totalDiscount),
+					  kFontBody, sf::Color(30, 120, 30));
+		}
+	}
+	quoteLine(std::format(L"现价：{:g}元", quote.valid ? quote.finalTotal : shownOriginal),
+			  kFontTotal, sf::Color(200, 50, 50));
 
 	// 结算按钮
 	const auto ckRect = checkoutBtnRect();
@@ -1905,12 +1926,10 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 		double minPrice = 0.0, maxPrice = 0.0;
 		bool hasMin = false, hasMax = false;
 		if (!priceMinInput_.empty()) {
-			try { minPrice = std::stod(priceMinInput_); hasMin = true; }
-			catch (...) { hasMin = false; }
+			try { minPrice = std::stod(priceMinInput_); hasMin = true; } catch (...) { hasMin = false; }
 		}
 		if (!priceMaxInput_.empty()) {
-			try { maxPrice = std::stod(priceMaxInput_); hasMax = true; }
-			catch (...) { hasMax = false; }
+			try { maxPrice = std::stod(priceMaxInput_); hasMax = true; } catch (...) { hasMax = false; }
 		}
 		std::vector<Product> filtered;
 		for (const auto& p : allProducts) {
@@ -1928,10 +1947,11 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 		}
 		if (productSortMode_ == 1) {
 			std::sort(filtered.begin(), filtered.end(),
-				[](const Product& a, const Product& b) { return a.price < b.price; });
-		} else if (productSortMode_ == 2) {
+					  [](const Product& a, const Product& b) { return a.price < b.price; });
+		}
+		else if (productSortMode_ == 2) {
 			std::sort(filtered.begin(), filtered.end(),
-				[](const Product& a, const Product& b) { return a.price > b.price; });
+					  [](const Product& a, const Product& b) { return a.price > b.price; });
 		}
 		for (std::size_t i = 0; i < filtered.size(); ++i) {
 			const auto col = static_cast<int>(i % perRow);
@@ -2238,7 +2258,7 @@ sf::FloatRect ClientView::authBtnRect(int btn) {
 	// 两个按钮（含 50px 间距）作为整体水平居中
 	constexpr float groupW = authBtnW * 2.f + 50.f;
 	const float x = (static_cast<float>(window_.getSize().x) - groupW) / 2.f
-				  + (btn == 0 ? 0.f : authBtnW + 50.f);
+		+ (btn == 0 ? 0.f : authBtnW + 50.f);
 	return sf::FloatRect(sf::Vector2f{ x, authBtnY },
 						 sf::Vector2f{ authBtnW, authBtnH });
 }
@@ -2570,12 +2590,10 @@ float ClientView::computeProductListContentHeight(const ClientModel& model) cons
 	double minPrice = 0.0, maxPrice = 0.0;
 	bool hasMin = false, hasMax = false;
 	if (!priceMinInput_.empty()) {
-		try { minPrice = std::stod(priceMinInput_); hasMin = true; }
-		catch (...) { hasMin = false; }
+		try { minPrice = std::stod(priceMinInput_); hasMin = true; } catch (...) { hasMin = false; }
 	}
 	if (!priceMaxInput_.empty()) {
-		try { maxPrice = std::stod(priceMaxInput_); hasMax = true; }
-		catch (...) { hasMax = false; }
+		try { maxPrice = std::stod(priceMaxInput_); hasMax = true; } catch (...) { hasMax = false; }
 	}
 	std::size_t count = 0;
 	for (const auto& p : allProducts) {

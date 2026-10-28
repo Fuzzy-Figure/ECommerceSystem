@@ -4,6 +4,7 @@
 // + 当前登录用户身份（userId/username/loggedIn）。
 // UI 不直接依赖网络层。
 #include <cstdint>
+#include <utility>
 #include <vector>
 #include <string>
 #include <json.hpp>
@@ -34,6 +35,15 @@ struct MerchantStats {
 	int    totalOrders{0};
 	double totalRevenue{0.0};
 	std::string rangeLabel;  // "今日"/"本周"/"本月"/"全部"
+};
+
+// 购物车报价（服务端促销链计算结果，购物车面板展示）
+struct CartQuote {
+	bool valid{ false };    // 是否持有有效报价（购物车变化后即失效，等下次请求）
+	double originalTotal{ 0.0 };
+	std::vector<std::pair<std::string, double>> promotions;  // {促销描述, 优惠金额}，按链应用顺序
+	double totalDiscount{ 0.0 };
+	double finalTotal{ 0.0 };
 };
 
 // 热销商品
@@ -67,6 +77,12 @@ public:
 	const std::vector<CartItem>& cart() const noexcept { return cart_; }
 	// 购物车总额（各项小计之和）
 	double cartTotal() const;
+
+	// === 购物车报价（服务端促销计算结果）===
+	void setQuote(CartQuote quote) { quote_ = std::move(quote); quote_.valid = true; }
+	const CartQuote& quote() const noexcept { return quote_; }
+	// 报价失效（购物车变化/清空后调用，等待下次请求）
+	void clearQuote() noexcept { quote_.valid = false; quote_.promotions.clear(); }
 
 	// === 历史订单 ===
 	void setOrders(std::vector<Order> orders) { orders_ = std::move(orders); }
@@ -135,6 +151,7 @@ private:
 	int                     statsRange_{0};  // 0=今日/1=本周/2=本月/3=全部
 	int                     topSortBy_{0};   // 0=按销售额/1=按销量
 	std::wstring           status_;  // 当前状态/提示信息
+	CartQuote              quote_;   // 购物车促销报价（valid=false 表示无效）
 
 	std::int64_t          currentUserId_{ 0 };
 	std::string           currentUsername_;

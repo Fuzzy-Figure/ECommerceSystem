@@ -10,6 +10,7 @@
 #include <queue>
 #include <thread>
 #include <atomic>
+#include <utility>
 
 #include "Database.h"
 #include "ProductDAO.h"
@@ -45,6 +46,16 @@ private:
 		nlohmann::json                 request;
 	};
 
+	// 促销链计算结果（handleCheckout / handleCartQuote 共用同一套算价逻辑，保证预览价 = 结算实付价）
+	struct QuoteDetail {
+		double originalTotal{ 0.0 };
+		std::vector<std::pair<std::string, double>> items;  // {促销描述, 本层优惠金额}，按链应用顺序
+		double totalDiscount{ 0.0 };
+		double finalTotal{ 0.0 };
+	};
+	// 应用促销链：算原价 + 逐层折扣明细；线程安全（持 promotionMtx_）
+	QuoteDetail applyPromotions(const std::vector<CartItem>& cart);
+
 	Database& db_;
 	ProductDAO     productDao_;
 	OrderDAO       orderDao_;
@@ -71,6 +82,8 @@ private:
 	// 结算：{code, items:[{productId,qty}]} → CheckoutResult
 	// 业务层职责：查价格 → 组装 CartItem → 应用促销链算折扣 → 调 OrderDAO 下单
 	nlohmann::json handleCheckout(const nlohmann::json& req);
+	// 购物车报价预览：{code, items:[{productId,qty}]} → CartQuoteResult（不下单，仅算促销明细）
+	nlohmann::json handleCartQuote(const nlohmann::json& req);
 	// 拉取历史订单：→ OrderList
 	nlohmann::json handleListOrders(const nlohmann::json& req);
 	// 售后退货：{orderId, productId, qty} → AfterSaleResult

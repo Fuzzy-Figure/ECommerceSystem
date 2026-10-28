@@ -21,6 +21,12 @@ public:
 	// currentTotal 是"前面所有促销应用后"的金额（装饰器链式语义）。
 	double apply(const std::vector<CartItem>& cart, double currentTotal) const;
 
+	// 带明细版：按链应用顺序逐层收集 {促销描述, 本层优惠金额}；优惠为 0 的层不收集。
+	// 明细收集逻辑在基类统一处理，子类只需实现 myDiscount。
+	// 返回值与 apply 一致。
+	double applyWithBreakdown(const std::vector<CartItem>& cart, double currentTotal,
+							  std::vector<std::pair<std::string, double>>& breakdown) const;
+
 	// 装饰器接口：包装内层促销（nullptr 表示叶子策略，apply 时跳过 inner）
 	void setInner(std::unique_ptr<Promotion> inner) { inner_ = std::move(inner); }
 

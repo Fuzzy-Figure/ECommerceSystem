@@ -36,6 +36,9 @@ public:
 	// 提交购物车结算请求：把本地 cart 序列化为 items 上传
 	void requestCheckout();
 
+	// 请求购物车促销报价（进入购物车面板/购物车变化后调用，结果写入 model）
+	void requestCartQuote();
+
 	// 拉取历史订单列表（用户拉自己的订单，用于"我的订单"面板）
 	void requestListOrders();
 

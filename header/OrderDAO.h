@@ -32,12 +32,13 @@ public:
 
 	// 下单：items 含 price（由业务层准备）；userId 关联下单用户；
 	// discount 为已应用促销链后的折扣金额
-	// 成功返回订单 ID（>0）并填 originalTotalOut/finalTotalOut；失败返回 -1
+	// 成功返回订单 ID（>0）并填 originalTotalOut/finalTotalOut；失败返回 -1 并填 failReasonOut（供客户端提示）
 	std::int64_t placeOrder(const std::vector<CartItem>& items,
 							std::int64_t                  userId,
 							double                       discount,
 							double& originalTotalOut,
-							double& finalTotalOut);
+							double& finalTotalOut,
+							std::string& failReasonOut);
 
 	// 拉取历史订单（含明细 + 已退数量 + 发货状态），按 id 倒序（最新在前）
 	// userId > 0 只返回该用户订单；userId = 0 返回全部（兼容）

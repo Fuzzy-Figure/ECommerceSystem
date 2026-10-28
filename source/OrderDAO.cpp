@@ -1,5 +1,6 @@
 #include "OrderDAO.h"
 #include <chrono>
+#include <format>
 #include <sstream>
 #include <stdexcept>
 #include <iomanip>
@@ -48,7 +49,8 @@ std::int64_t OrderDAO::placeOrder(const std::vector<CartItem>& items,
 								  std::int64_t                  userId,
 								  double                       discount,
 								  double& originalTotalOut,
-								  double& finalTotalOut) {
+								  double& finalTotalOut,
+								  std::string& failReasonOut) {
 	if (items.empty()) return -1;
 
 	try {
@@ -57,14 +59,23 @@ std::int64_t OrderDAO::placeOrder(const std::vector<CartItem>& items,
 		// 1. 累计原价，并校验每个商品的库存足够
 		double originalTotal = 0.0;
 		for (const auto& c : items) {
-			if (c.qty <= 0) { db_.execute("ROLLBACK;"); return -1; }
+			if (c.qty <= 0) {
+				db_.execute("ROLLBACK;");
+				failReasonOut = std::format("商品「{}」数量非法", c.name);
+				return -1;
+			}
 			auto rows = db_.queryStmt(
 				"SELECT stock FROM products WHERE id=?;",
 				{ static_cast<std::int64_t>(c.productId) });
-			if (rows.empty()) { db_.execute("ROLLBACK;"); return -1; }
+			if (rows.empty()) {
+				db_.execute("ROLLBACK;");
+				failReasonOut = std::format("商品「{}」不存在或已下架", c.name);
+				return -1;
+			}
 			const std::int64_t stock = toInt64(rows.front()["stock"]);
 			if (stock < c.qty) {
 				db_.execute("ROLLBACK;");
+				failReasonOut = std::format("商品「{}」库存不足：需要 {} 件，仅剩 {} 件", c.name, c.qty, stock);
 				return -1;  // 库存不足
 			}
 			originalTotal += c.subtotal();
@@ -97,6 +108,7 @@ std::int64_t OrderDAO::placeOrder(const std::vector<CartItem>& items,
 				{ static_cast<std::int64_t>(c.qty), static_cast<std::int64_t>(c.productId), static_cast<std::int64_t>(c.qty) });
 			if (affected == 0) {
 				db_.execute("ROLLBACK;");
+				failReasonOut = std::format("商品「{}」库存不足：需要 {} 件，已被其他订单抢购", c.name, c.qty);
 				return -1;
 			}
 		}

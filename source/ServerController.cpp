@@ -64,6 +64,9 @@ void ServerController::handle(std::shared_ptr<sf::TcpSocket> socket, const nlohm
 		case static_cast<int>(proto::RequestCode::Checkout):
 			response = handleCheckout(request);
 			break;
+		case static_cast<int>(proto::RequestCode::CartQuote):
+			response = handleCartQuote(request);
+			break;
 		case static_cast<int>(proto::RequestCode::ListOrders):
 			response = handleListOrders(request);
 			break;
@@ -163,6 +166,23 @@ void ServerController::reloadPromotions() {
 		promotionChain_ ? "加载" : "为空（无启用规则）");
 }
 
+ServerController::QuoteDetail ServerController::applyPromotions(const std::vector<CartItem>& cart) {
+	QuoteDetail q;
+	for (const auto& c : cart) q.originalTotal += c.subtotal();
+	double discount = 0.0;
+	{
+		std::lock_guard<std::mutex> lk(promotionMtx_);
+		if (promotionChain_) {
+			discount = promotionChain_->applyWithBreakdown(cart, q.originalTotal, q.items);
+		}
+	}
+	if (discount < 0.0) discount = 0.0;
+	if (discount > q.originalTotal) discount = q.originalTotal;
+	q.totalDiscount = discount;
+	q.finalTotal = q.originalTotal - discount;
+	return q;
+}
+
 nlohmann::json ServerController::handleCheckout(const nlohmann::json& req) {
 	// 1. 解析购物车项：[{productId, qty}, ...]
 	if (!req.contains("items") || !req["items"].is_array() || req["items"].empty()) {
@@ -198,29 +218,20 @@ nlohmann::json ServerController::handleCheckout(const nlohmann::json& req) {
 	}
 
 	// 2. 业务层算原价 + 应用促销链算折扣（PPT 第8页"业务层：促销策略"）
-	double originalTotal = 0.0;
-	for (const auto& c : cart) originalTotal += c.subtotal();
-	double discount = 0.0;
-	{
-		std::lock_guard<std::mutex> lk(promotionMtx_);
-		if (promotionChain_) {
-			discount = promotionChain_->apply(cart, originalTotal);
-		}
-	}
-	if (discount < 0.0) discount = 0.0;
-	if (discount > originalTotal) discount = originalTotal;
-	const double finalTotal = originalTotal - discount;
+	const QuoteDetail quote = applyPromotions(cart);
+	const double discount = quote.totalDiscount;
 
 	// 3. 调持久层下单（事务内写入订单 + 明细 + 扣库存）
 	// 从请求取 userId 关联订单归属（登录后客户端会带上）
 	const auto userId = req.value("userId", std::int64_t{});
 	double outOriginal = 0.0, outFinal = 0.0;
-	const auto orderId = orderDao_.placeOrder(cart, userId, discount, outOriginal, outFinal);
+	std::string failReason;
+	const auto orderId = orderDao_.placeOrder(cart, userId, discount, outOriginal, outFinal, failReason);
 	if (orderId <= 0) {
 		return {
 			{"code",    static_cast<int>(proto::ResponseCode::CheckoutResult)},
 			{"success", false},
-			{"message", "结算失败：库存不足或服务端异常"}
+			{"message", "结算失败：" + (failReason.empty() ? std::string("服务端异常") : failReason)}
 		};
 	}
 	std::println("[ServerController] 订单 #{} 原价 {:.2f} 折扣 {:.2f} 实付 {:.2f}",
@@ -233,6 +244,56 @@ nlohmann::json ServerController::handleCheckout(const nlohmann::json& req) {
 		{"discount",     discount},
 		{"total",        outFinal},  // 兼容客户端原字段名
 		{"message",      "结算成功"}
+	};
+}
+
+nlohmann::json ServerController::handleCartQuote(const nlohmann::json& req) {
+	// 1. 解析购物车项：[{productId, qty}, ...]
+	if (!req.contains("items") || !req["items"].is_array() || req["items"].empty()) {
+		return {
+			{"code",    static_cast<int>(proto::ResponseCode::CartQuoteResult)},
+			{"success", false}
+		};
+	}
+	std::vector<CartItem> cart;
+	cart.reserve(req["items"].size());
+	for (const auto& it : req["items"]) {
+		const auto pid = it.value("productId", 0);
+		const auto qty = it.value("qty", 0);
+		if (pid <= 0 || qty <= 0) {
+			return {
+				{"code",    static_cast<int>(proto::ResponseCode::CartQuoteResult)},
+				{"success", false}
+			};
+		}
+		const auto opt = productDao_.findById(pid);
+		if (!opt.has_value()) {
+			// 商品可能已被商家删除：报价失败，结算时也会被拦截
+			return {
+				{"code",    static_cast<int>(proto::ResponseCode::CartQuoteResult)},
+				{"success", false}
+			};
+		}
+		const auto& p = opt.value();
+		cart.push_back(CartItem{ p.id, p.name, p.price, qty });
+	}
+
+	// 2. 应用促销链算明细（与结算同一套逻辑）
+	const QuoteDetail q = applyPromotions(cart);
+	nlohmann::json promos = nlohmann::json::array();
+	for (const auto& [desc, amount] : q.items) {
+		promos.push_back({
+			{"description", desc},
+			{"amount",      amount}
+						});
+	}
+	return {
+		{"code",          static_cast<int>(proto::ResponseCode::CartQuoteResult)},
+		{"success",       true},
+		{"originalTotal", q.originalTotal},
+		{"promotions",    promos},
+		{"totalDiscount", q.totalDiscount},
+		{"finalTotal",    q.finalTotal}
 	};
 }
 
