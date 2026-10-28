@@ -5,7 +5,7 @@
 
 
 ImageManager::ImageManager(sf::RenderWindow& _window) :window(_window) {
-	EC = std::filesystem::current_path().parent_path().string() + '/';
+	EC = ecs::projectRoot().string() + '/';
 	std::println("EC路径：{}", EC);
 }
 

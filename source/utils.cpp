@@ -1,44 +1,66 @@
 #include "utils.h"
 #include <Windows.h>
 #include <fstream>
+#include <filesystem>
+#include <stdexcept>
 
 namespace ecs {
-	nlohmann::json& getServerConfig() {
-		static nlohmann::json config = []() {
-			std::ifstream configFile("../server_config.json");
+	namespace {
+		//从 exe 自身目录逐级向上搜索指定配置文件，返回其绝对路径；到磁盘根仍未找到则抛异常
+		std::filesystem::path locateConfigFile(const std::string& filename) {
+			wchar_t exePath[MAX_PATH]{};
+			GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+			std::filesystem::path dir = std::filesystem::path(exePath).parent_path();
+			while (true) {
+				const auto candidate = dir / filename;
+				if (std::filesystem::exists(candidate)) {
+					return candidate;
+				}
+				const auto parent = dir.parent_path();
+				if (parent == dir) {
+					throw std::runtime_error("无法定位配置文件 " + filename + "（已从 exe 目录向上搜索到磁盘根）");
+				}
+				dir = parent;
+			}
+		}
+
+		nlohmann::json parseConfigFile(const std::string& filename) {
+			std::ifstream configFile(locateConfigFile(filename));
 			if (!configFile.is_open()) {
-				throw std::runtime_error("无法打开配置文件 server_config.json");
+				throw std::runtime_error("无法打开配置文件 " + filename);
 			}
 			return nlohmann::json::parse(configFile, nullptr, true, true);
+		}
+	}
+
+	const std::filesystem::path& projectRoot() {
+		static const std::filesystem::path root = []() {
+			try {
+				return locateConfigFile("server_config.json").parent_path();
+			}
+			catch (const std::exception&) {
+				return locateConfigFile("client_config.json").parent_path();
+			}
 		}();
+		return root;
+	}
+
+	nlohmann::json& getServerConfig() {
+		static nlohmann::json config = parseConfigFile("server_config.json");
 		return config;
 	}
 
 	void reloadServerConfig() {
-		std::ifstream configFile("../server_config.json");
-		if (!configFile.is_open()) {
-			throw std::runtime_error("无法打开配置文件 server_config.json");
-		}
-		getServerConfig() = nlohmann::json::parse(configFile, nullptr, true, true);
+		getServerConfig() = parseConfigFile("server_config.json");
 	}
 
 	nlohmann::json& getClientConfig() {
-		static nlohmann::json config = []() {
-			std::ifstream configFile("../client_config.json");
-			if (!configFile.is_open()) {
-				throw std::runtime_error("无法打开配置文件 client_config.json");
-			}
-			return nlohmann::json::parse(configFile, nullptr, true, true);
-		}();
+		static nlohmann::json config = parseConfigFile("client_config.json");
 		return config;
 	}
 
 	void reloadClientConfig() {
-		std::ifstream configFile("../client_config.json");
-		if (!configFile.is_open()) {
-			throw std::runtime_error("无法打开配置文件 client_config.json");
-		}
-		getClientConfig() = nlohmann::json::parse(configFile, nullptr, true, true);
+		getClientConfig() = parseConfigFile("client_config.json");
 	}
 
 	namespace string {

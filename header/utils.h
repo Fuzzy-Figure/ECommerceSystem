@@ -1,9 +1,14 @@
 #pragma once
 #include <string>
+#include <filesystem>
 #include <json.hpp>
 
 
 namespace ecs {
+	//项目根：从 exe 自身目录逐级向上搜索 server_config.json / client_config.json，找到即项目根（结果缓存）
+	//所有相对资源（数据库、图片）均相对项目根解析，不依赖工作目录
+	const std::filesystem::path& projectRoot();
+
 	//服务器专用配置：读取 server_config.json 并缓存；reload 可强制重读
 	nlohmann::json& getServerConfig();
 	//强制重新读取 server_config.json，刷新缓存（bo 阶段每局前调用）

@@ -231,7 +231,7 @@ int main() {
 	}
 
 	const auto& cfg = ecs::getServerConfig();
-	const auto  dbPath = cfg["database"]["path"].get<std::string>();
+	const auto  dbPath = (ecs::projectRoot() / cfg["database"]["path"].get<std::string>()).string();
 	const auto  listenPort = cfg["server"]["port"].get<unsigned short>();
 
 	std::unique_ptr<Database> db;
