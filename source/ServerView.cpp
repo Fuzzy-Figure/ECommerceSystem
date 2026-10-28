@@ -18,13 +18,13 @@ namespace {
 }
 
 void ServerView::showRequest(const std::string& clientAddr, const std::string& action) {
-	std::println("[{}][REQ ] {} -> {}", nowStr(), clientAddr, action);
+	std::println("[{}][REQ] {} -> {}", nowStr(), clientAddr, action);
 }
 
 void ServerView::showResponse(const std::string& clientAddr, const std::string& result) {
-	std::println("[{}][RSP ] {} <- {}", nowStr(), clientAddr, result);
+	std::println("[{}][RSP] {} <- {}", nowStr(), clientAddr, result);
 }
 
 void ServerView::showError(const std::string& msg) {
-	std::println("[{}][ERR ] {}", nowStr(), msg);
+	std::println("[{}][ERR] {}", nowStr(), msg);
 }
