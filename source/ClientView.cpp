@@ -171,7 +171,7 @@ void ClientView::drawLoginPanel(const ClientModel& model) {
 	textMgr_.displayText(L"注册", { regRect.position.x + 70, regRect.position.y + 14 }, { 22, kFontHeader }, sf::Color::White);
 
 	// 提示文字
-	textMgr_.displayText(L"（提示：点击输入框切换聚焦，Enter 键等同登录）",
+	textMgr_.displayText(L"提示：Tab切换聚焦，Enter登录",
 						 { userRect.position.x, 620 }, { 16, kFontSecondary }, sf::Color(150, 150, 150));
 }
 
