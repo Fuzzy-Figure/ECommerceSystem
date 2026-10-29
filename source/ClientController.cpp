@@ -641,7 +641,15 @@ void ClientController::handleEvent(const sf::Event& event) {
 			switch (action.type) {
 				case ClientView::ClickAction::AddToCart:
 					model_.addToCart(action.arg, 1);
+					model_.clearQuote();  // 购物车变化，报价失效（进购物车面板时重新请求）
 					model_.setStatus(L"已加入购物车");
+					break;
+				case ClientView::ClickAction::DecreaseFromCart:
+					// 未加购（灰色按钮）时 decreaseFromCart 无操作，不提示
+					if (model_.decreaseFromCart(action.arg)) {
+						model_.clearQuote();  // 购物车变化，报价失效（进购物车面板时重新请求）
+						model_.setStatus(L"已减少 1 件");
+					}
 					break;
 				case ClientView::ClickAction::RemoveFromCart:
 					model_.removeFromCart(action.arg);

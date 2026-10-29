@@ -12,6 +12,15 @@ const Product* ClientModel::findProduct(std::int32_t productId) const {
 	return nullptr;
 }
 
+std::int32_t ClientModel::cartQtyOf(std::int32_t productId) const {
+	for (const auto& item : cart_) {
+		if (item.productId == productId) {
+			return item.qty;
+		}
+	}
+	return 0;
+}
+
 void ClientModel::addToCart(std::int32_t productId, std::int32_t qty) {
 	if (qty <= 0) return;
 	// 已存在则累加
@@ -25,6 +34,18 @@ void ClientModel::addToCart(std::int32_t productId, std::int32_t qty) {
 	const Product* p = findProduct(productId);
 	if (!p) return;
 	cart_.push_back(CartItem{ productId, p->name, p->price, qty });
+}
+
+bool ClientModel::decreaseFromCart(std::int32_t productId) {
+	for (auto it = cart_.begin(); it != cart_.end(); ++it) {
+		if (it->productId == productId) {
+			if (--it->qty <= 0) {
+				cart_.erase(it);
+			}
+			return true;
+		}
+	}
+	return false;
 }
 
 void ClientModel::removeFromCart(std::int32_t productId) {

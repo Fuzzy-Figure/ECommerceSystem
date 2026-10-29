@@ -24,7 +24,7 @@ public:
 	// 鼠标点击命中后返回的动作；type=None 表示未命中任何按钮
 	struct ClickAction {
 		enum Type {
-			None, AddToCart, RemoveFromCart, Checkout,
+			None, AddToCart, DecreaseFromCart, RemoveFromCart, Checkout,
 			ReturnItem,    // 售后退货：orderId + productId + qty
 			SwitchPanel,   // 切换面板：arg 是目标 Panel 的 int 值
 			Login,         // 登录按钮：用当前输入框的用户名/密码
@@ -217,7 +217,7 @@ private:
 	// === 商品列表面板 ===
 	void drawProductListPanel(const ClientModel& model);
 	// 绘制单张商品卡片；index 用于换行计算
-	void drawCard(const Product& p, const sf::Vector2f& pos, const sf::Vector2f& size);
+	void drawCard(const Product& p, const sf::Vector2f& pos, const sf::Vector2f& size, const ClientModel& model);
 
 	// === 购物车面板 ===
 	void drawCartPanel(const ClientModel& model);
@@ -288,7 +288,9 @@ private:
 	sf::FloatRect promoBackBtnRect() const;
 
 	// === 按钮矩形计算（与 drawXxxPanel 内的布局保持一致）===
-	// 商品卡片右下角的"+加购"按钮
+	// 商品卡片右下角的"-"减少按钮（减 1 件）
+	static sf::FloatRect decreaseBtnRect(const sf::Vector2f& cardPos);
+	// 商品卡片右下角的"+"加购按钮
 	static sf::FloatRect addToCartBtnRect(const sf::Vector2f& cardPos);
 	// 购物车某行的"-"删除按钮；rowPos 是该行左上角
 	static sf::FloatRect removeFromCartBtnRect(const sf::Vector2f& rowPos);

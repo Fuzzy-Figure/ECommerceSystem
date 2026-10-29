@@ -36,9 +36,10 @@ namespace {
 	// 排序按钮组（价格区间右侧）
 	constexpr float sortBtnX = 740.f, sortBtnY = 86.f;
 	constexpr float sortBtnW = 64.f, sortBtnH = 42.f, sortBtnGap = 6.f;
-	// 加购按钮：卡片右下角
-	constexpr float addBtnDX = 460.f, addBtnDY = 358.f;
-	constexpr float addBtnW = 100.f, addBtnH = 34.f;
+	// 加购/减少按钮：卡片右下角 [+] [-] 按钮组（加购绿色，减少红色）
+	constexpr float addBtnDX = 455.f, addBtnW = 50.f;
+	constexpr float decBtnDX = 510.f, decBtnW = 50.f;
+	constexpr float addBtnDY = 358.f, addBtnH = 34.f;
 
 	// === 购物车面板布局 ===
 	constexpr float cartRowX = 200.f, cartStartY = 150.f, cartRowH = 78.f;
@@ -1500,11 +1501,11 @@ void ClientView::drawProductListPanel(const ClientModel& model) {
 		const auto row = static_cast<int>(i / perRow);
 		const sf::Vector2f pos{ startX + col * (cardW + gapX),
 								startY - productListScrollY_ + row * (cardH + gapY) };
-		drawCard(filtered[i], pos, { cardW, cardH });
+		drawCard(filtered[i], pos, { cardW, cardH }, model);
 	}
 }
 
-void ClientView::drawCard(const Product& p, const sf::Vector2f& pos, const sf::Vector2f& size) {
+void ClientView::drawCard(const Product& p, const sf::Vector2f& pos, const sf::Vector2f& size, const ClientModel& model) {
 	// 卡片背景
 	sf::RectangleShape bg({ size.x, size.y });
 	bg.setPosition(pos);
@@ -1562,22 +1563,37 @@ void ClientView::drawCard(const Product& p, const sf::Vector2f& pos, const sf::V
 		textMgr_.displayText(L"暂无评价", { pos.x + 10, pos.y + 374 }, { 16, kFontSmall }, sf::Color(160, 160, 160));
 	}
 
-	// 库存
+	// 库存（与价格同行）
 	std::wostringstream stockStr;
 	stockStr << L"库存：" << p.stock;
-	textMgr_.displayText(stockStr.str(), { pos.x + 250, pos.y + 350 }, { 20, kFontSmall }, sf::Color(100, 100, 100));
+	textMgr_.displayText(stockStr.str(), { pos.x + 250, pos.y + 334 }, { 20, kFontSmall }, sf::Color(100, 100, 100));
 
-	// 加购按钮（绿色）
-	const auto btnRect = addToCartBtnRect(pos);
-	sf::RectangleShape btn({ btnRect.size.x, btnRect.size.y });
-	btn.setPosition({ btnRect.position.x, btnRect.position.y });
-	btn.setFillColor(sf::Color(80, 160, 80));
-	btn.setOutlineColor(sf::Color(60, 130, 60));
-	btn.setOutlineThickness(1.f);
-	window_.draw(btn);
-	textMgr_.displayText(L"+ 加购",
-						 { btnRect.position.x + 18, btnRect.position.y + 5 },
-						 { 18, kFontSecondary }, sf::Color::White);
+	// 加购/减少按钮组（卡片右下角）：[+][-]；加购绿色恒可点，减少红色（未加购灰色禁用）
+	const auto drawCartBtn = [&](const sf::FloatRect& r, const wchar_t* label, sf::Color fill, sf::Color outline) {
+		sf::RectangleShape btn({ r.size.x, r.size.y });
+		btn.setPosition({ r.position.x, r.position.y });
+		btn.setFillColor(fill);
+		btn.setOutlineColor(outline);
+		btn.setOutlineThickness(1.f);
+		window_.draw(btn);
+		textMgr_.displayText(label,
+							 { r.position.x + 17, r.position.y + 3 },
+							 { 18, kFontSecondary }, sf::Color::White);
+	};
+	const int inCartQty = model.cartQtyOf(p.id);
+	drawCartBtn(addToCartBtnRect(pos), L"+", sf::Color(80, 160, 80), sf::Color(60, 130, 60));
+	drawCartBtn(decreaseBtnRect(pos), L"-",
+				inCartQty > 0 ? sf::Color(200, 70, 70) : sf::Color(200, 200, 200),
+				inCartQty > 0 ? sf::Color(160, 50, 50) : sf::Color(170, 170, 170));
+
+	// 该商品当前在购物车中的数量（常驻显示，未加购不显示）
+	if (inCartQty > 0) {
+		std::wostringstream inCartStr;
+		inCartStr << L"购物车 ×" << inCartQty;
+		textMgr_.displayText(inCartStr.str(),
+							 { addBtnDX + pos.x - 160, pos.y + addBtnDY + 4 },
+							 { 18, kFontSecondary }, sf::Color(80, 160, 80));
+	}
 }
 
 // ===================== 购物车面板 =====================
@@ -1949,6 +1965,9 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 			const auto row = static_cast<int>(i / perRow);
 			const sf::Vector2f cardPos{ startX + col * (cardW + gapX),
 										startY - productListScrollY_ + row * (cardH + gapY) };
+			if (hit(decreaseBtnRect(cardPos), mousePos)) {
+				return { ClickAction::DecreaseFromCart, filtered[i].id };
+			}
 			if (hit(addToCartBtnRect(cardPos), mousePos)) {
 				return { ClickAction::AddToCart, filtered[i].id };
 			}
@@ -2204,6 +2223,11 @@ ClientView::ClickAction ClientView::handleClick(const sf::Vector2f& mousePos, co
 		}
 	}
 	return { ClickAction::None, 0 };
+}
+
+sf::FloatRect ClientView::decreaseBtnRect(const sf::Vector2f& cardPos) {
+	return sf::FloatRect(sf::Vector2f{ cardPos.x + decBtnDX, cardPos.y + addBtnDY },
+						 sf::Vector2f{ decBtnW, addBtnH });
 }
 
 sf::FloatRect ClientView::addToCartBtnRect(const sf::Vector2f& cardPos) {

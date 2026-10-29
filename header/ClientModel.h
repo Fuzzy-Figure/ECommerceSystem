@@ -69,8 +69,12 @@ public:
 	const std::wstring& status() const noexcept { return status_; }
 
 	// === 购物车操作 ===
+	// 指定商品当前在购物车中的总件数（未加购返回 0）
+	std::int32_t cartQtyOf(std::int32_t productId) const;
 	// 加入购物车：若已存在同 productId 则累加 qty
 	void addToCart(std::int32_t productId, std::int32_t qty = 1);
+	// 从购物车减少指定商品 1 件（减到 0 移除该项）；未加购返回 false（无操作）
+	bool decreaseFromCart(std::int32_t productId);
 	// 移除指定 productId 的购物车项
 	void removeFromCart(std::int32_t productId);
 	// 清空购物车（结算成功后调用）
