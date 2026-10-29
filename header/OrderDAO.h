@@ -34,8 +34,8 @@ public:
 	// discount 为已应用促销链后的折扣金额
 	// 成功返回订单 ID（>0）并填 originalTotalOut/finalTotalOut；失败返回 -1 并填 failReasonOut（供客户端提示）
 	std::int64_t placeOrder(const std::vector<CartItem>& items,
-							std::int64_t                  userId,
-							double                       discount,
+							std::int64_t userId,
+							double discount,
 							double& originalTotalOut,
 							double& finalTotalOut,
 							std::string& failReasonOut);
@@ -56,9 +56,9 @@ public:
 	// 售后退货：把指定订单内某 productId 的 returnQty 件退货
 	// 成功返回 true，refundOut 填退款金额（按 finalTotal/originalTotal 比例分摊）
 	// 失败原因（订单不存在/已全退/数量超限）返回 false
-	bool placeReturn(std::int64_t       orderId,
-					 std::int32_t       productId,
-					 std::int32_t       returnQty,
+	bool placeReturn(std::int64_t orderId,
+					 std::int32_t productId,
+					 std::int32_t returnQty,
 					 double& refundOut);
 
 	// 商家销售统计：rangeType 0=今日/1=本周/2=本月/3=全部

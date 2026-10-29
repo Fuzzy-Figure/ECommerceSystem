@@ -46,8 +46,8 @@ namespace {
 }
 
 std::int64_t OrderDAO::placeOrder(const std::vector<CartItem>& items,
-								  std::int64_t                  userId,
-								  double                       discount,
+								  std::int64_t userId,
+								  double discount,
 								  double& originalTotalOut,
 								  double& finalTotalOut,
 								  std::string& failReasonOut) {
@@ -216,9 +216,9 @@ bool OrderDAO::findOrderShipStatus(std::int64_t orderId, int& statusOut, std::in
 	return true;
 }
 
-bool OrderDAO::placeReturn(std::int64_t       orderId,
-						   std::int32_t       productId,
-						   std::int32_t       returnQty,
+bool OrderDAO::placeReturn(std::int64_t orderId,
+						   std::int32_t productId,
+						   std::int32_t returnQty,
 						   double& refundOut) {
 	if (orderId <= 0 || productId <= 0 || returnQty <= 0) return false;
 

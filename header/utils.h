@@ -11,7 +11,7 @@ namespace ecs {
 
 	//服务器专用配置：读取 server_config.json 并缓存；reload 可强制重读
 	nlohmann::json& getServerConfig();
-	//强制重新读取 server_config.json，刷新缓存（bo 阶段每局前调用）
+	//强制重新读取 server_config.json，刷新缓存
 	void reloadServerConfig();
 
 	//客户端专用配置：读取 client_config.json 并缓存；reload 可强制重读
