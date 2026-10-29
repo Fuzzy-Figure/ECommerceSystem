@@ -822,7 +822,7 @@ void ClientView::drawUserManagementPanel(const ClientModel& model) {
 		textMgr_.displayText(ecs::string::to_utf16(u.username),
 							 { rowPos.x + 120, rowPos.y + 14 }, { 22, kFontHeader }, sf::Color(80, 80, 80));
 		// 角色
-		const bool isMerchant = (u.role == 1);
+		const bool isMerchant = (u.role == User::Role::admin);
 		textMgr_.displayText(isMerchant ? L"商家" : L"普通用户",
 							 { rowPos.x + 420, rowPos.y + 14 }, { 22, kFontHeader },
 							 isMerchant ? sf::Color(50, 100, 180) : sf::Color(80, 80, 80));

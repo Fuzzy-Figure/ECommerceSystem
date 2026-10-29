@@ -98,7 +98,7 @@ namespace {
 			");"
 		);
 		// 用户表：username 唯一，password_hash 不存明文
-	// role: 0=普通用户，1=商家
+	// role: 0=普通用户(User::Role::consumer)，1=商家(User::Role::admin)
 	db.execute(
 		"CREATE TABLE IF NOT EXISTS users ("
 		"  id            INTEGER PRIMARY KEY AUTOINCREMENT,"

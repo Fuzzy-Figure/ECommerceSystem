@@ -1207,7 +1207,7 @@ void ClientController::processMessage(nlohmann::json& msg) {
 			if (success) {
 				const auto userId = msg["user"].value("id", std::int64_t{});
 				const auto username = msg["user"].value("username", std::string{});
-				const auto role = msg["user"].value("role", std::int32_t{});
+				const auto role = static_cast<User::Role>(msg["user"].value("role", 0));
 				model_.setUser(userId, username, role);
 				view_.clearInputs();
 				// 按角色分流：商家进商家面板，普通用户进商品列表
@@ -1236,7 +1236,7 @@ void ClientController::processMessage(nlohmann::json& msg) {
 			if (success) {
 				const auto userId = msg["user"].value("id", std::int64_t{});
 				const auto username = msg["user"].value("username", std::string{});
-				const auto role = msg["user"].value("role", std::int32_t{});
+				const auto role = static_cast<User::Role>(msg["user"].value("role", 0));
 				model_.setUser(userId, username, role);
 				view_.clearInputs();
 				// 新注册用户默认普通用户，进商品列表
@@ -1327,7 +1327,7 @@ void ClientController::processMessage(nlohmann::json& msg) {
 					SimpleUser u;
 					u.id       = uj.value("id", std::int64_t{});
 					u.username = uj.value("username", std::string{});
-					u.role     = uj.value("role", std::int32_t{});
+					u.role     = static_cast<User::Role>(uj.value("role", 0));
 					users.push_back(std::move(u));
 				}
 			}

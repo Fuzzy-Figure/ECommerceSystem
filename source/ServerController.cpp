@@ -396,7 +396,7 @@ nlohmann::json ServerController::handleRegister(const nlohmann::json& req) {
 	return {
 		{"code",    static_cast<int>(proto::ResponseCode::RegisterResult)},
 		{"success", true},
-		{"user",    { {"id", newId}, {"username", username}, {"role", 0} }},
+		{"user",    { {"id", newId}, {"username", username}, {"role", static_cast<int>(User::Role::consumer)} }},
 		{"message", "注册成功"}
 	};
 }
@@ -590,11 +590,11 @@ std::optional<nlohmann::json> ServerController::requireMerchant(const nlohmann::
 			{"message", "用户不存在"}
 		};
 	}
-	std::int32_t role = 0;
+	auto role = User::Role::consumer;
 	const auto& v = rows.front()["role"];
-	if (v.is_number()) role = v.get<std::int32_t>();
-	else if (v.is_string()) { try { role = std::stoi(v.get<std::string>()); } catch (...) {} }
-	if (role != 1) {
+	if (v.is_number()) role = static_cast<User::Role>(v.get<std::int32_t>());
+	else if (v.is_string()) { try { role = static_cast<User::Role>(std::stoi(v.get<std::string>())); } catch (...) {} }
+	if (role != User::Role::admin) {
 		return nlohmann::json{
 			{"code",    static_cast<int>(proto::ResponseCode::Error)},
 			{"message", "无权操作：仅商家可管理商品"}

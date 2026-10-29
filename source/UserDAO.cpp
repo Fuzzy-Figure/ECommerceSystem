@@ -29,7 +29,7 @@ namespace {
         User u;
         u.id       = toInt64(row["id"]);
         u.username = toStr(row["username"]);
-        u.role     = static_cast<std::int32_t>(toInt64(row["role"]));
+        u.role     = static_cast<User::Role>(toInt64(row["role"]));
         return u;
     }
 }
@@ -62,10 +62,10 @@ std::vector<User> UserDAO::findAll() {
 bool UserDAO::createUser(const std::string& username, const std::string& password, std::int64_t& newIdOut) {
     if (findByUsername(username).has_value()) return false;  // 用户名已存在
 
-    // 新注册用户默认 role=0（普通用户），商家角色由种子数据或后台指定
+    // 新注册用户默认 role=consumer（普通用户），商家角色由种子数据或后台指定
     db_.executeStmt(
-        "INSERT INTO users (username, password_hash, role) VALUES (?, ?, 0);",
-        { username, hashPassword(username, password) });
+        "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?);",
+        { username, hashPassword(username, password), static_cast<std::int64_t>(User::Role::consumer) });
 
     auto idRows = db_.query("SELECT last_insert_rowid() AS id;");
 	if (!idRows.empty()) {

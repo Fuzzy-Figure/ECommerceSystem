@@ -128,7 +128,7 @@ private:
     nlohmann::json handleAdminListUsers(const nlohmann::json& req);
     // 商家拉取销售统计：{userId} → MerchantStats{todayOrders,todayRevenue,totalOrders,totalRevenue,topProducts:[{id,name,qtySold,revenue}]}
     nlohmann::json handleMerchantGetStats(const nlohmann::json& req);
-	// 校验请求发起者是否为商家（role=1），不是则返回错误应答
+	// 校验请求发起者是否为商家（User::Role::admin），不是则返回错误应答
 	// 成功返回 nullopt，失败返回已构造好的错误 JSON
 	std::optional<nlohmann::json> requireMerchant(const nlohmann::json& req);
 };
